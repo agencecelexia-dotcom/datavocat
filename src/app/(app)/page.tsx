@@ -4,23 +4,50 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Scale, Send, Loader2, Sparkles, BarChart3, Presentation } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Scale,
+  Send,
+  Loader2,
+  Sparkles,
+  BarChart3,
+  Presentation,
+  MessageCircleQuestion,
+  ArrowRight,
+  SkipForward,
+} from "lucide-react";
 import { parseAnalysisResponse } from "@/lib/parse-analysis";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisSlides } from "@/components/analysis/slides";
 
+interface ClarifyQuestion {
+  id: string;
+  question: string;
+  type: "text" | "choice";
+  choices?: string[];
+}
+
+type Phase = "input" | "clarify" | "analyzing" | "done";
+
 export default function AnalyzePage() {
   const [query, setQuery] = useState("");
+  const [phase, setPhase] = useState<Phase>("input");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<"text" | "dashboard" | "slides">("text");
+  const [activeView, setActiveView] = useState<
+    "text" | "dashboard" | "slides"
+  >("text");
   const responseRef = useRef<HTMLDivElement>(null);
 
+  // Clarification state
+  const [questions, setQuestions] = useState<ClarifyQuestion[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+
   const parsedData = useMemo(() => {
-    if (!response || loading) return null;
+    if (!response || phase !== "done") return null;
     return parseAnalysisResponse(response);
-  }, [response, loading]);
+  }, [response, phase]);
 
   useEffect(() => {
     if (responseRef.current) {
@@ -28,23 +55,86 @@ export default function AnalyzePage() {
     }
   }, [response]);
 
+  // Step 1: Submit query → get clarifying questions
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || loading) return;
 
     setLoading(true);
-    setResponse("");
-    setAnalysisId(null);
+    setPhase("clarify");
+    setQuestions([]);
+    setAnswers({});
 
     try {
-      const res = await fetch("/api/analyze", {
+      const res = await fetch("/api/clarify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: query.trim() }),
       });
 
       if (!res.ok) {
+        // Fallback: skip clarification, go straight to analysis
+        await launchAnalysis(query.trim());
+        return;
+      }
+
+      const data = await res.json();
+      if (data.questions && data.questions.length > 0) {
+        setQuestions(data.questions.slice(0, 5));
+        setLoading(false);
+      } else {
+        // No questions needed, go straight to analysis
+        await launchAnalysis(query.trim());
+      }
+    } catch {
+      // Fallback: skip clarification
+      await launchAnalysis(query.trim());
+    }
+  };
+
+  // Step 2: Submit answers → launch full analysis
+  const handleSubmitAnswers = async () => {
+    const enrichedQuery = buildEnrichedQuery();
+    await launchAnalysis(enrichedQuery);
+  };
+
+  // Skip clarification
+  const handleSkipClarification = async () => {
+    await launchAnalysis(query.trim());
+  };
+
+  const buildEnrichedQuery = () => {
+    let enriched = query.trim();
+    const answeredQuestions = questions.filter(
+      (q) => answers[q.id] && answers[q.id].trim()
+    );
+    if (answeredQuestions.length > 0) {
+      enriched += "\n\nPRÉCISIONS COMPLÉMENTAIRES :";
+      for (const q of answeredQuestions) {
+        enriched += `\n- ${q.question} → ${answers[q.id].trim()}`;
+      }
+    }
+    return enriched;
+  };
+
+  // Launch streaming analysis
+  const launchAnalysis = async (fullQuery: string) => {
+    setLoading(true);
+    setPhase("analyzing");
+    setResponse("");
+    setAnalysisId(null);
+    setActiveView("text");
+
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: fullQuery }),
+      });
+
+      if (!res.ok) {
         setResponse("Erreur lors de l'analyse. Veuillez réessayer.");
+        setPhase("done");
         setLoading(false);
         return;
       }
@@ -68,6 +158,7 @@ export default function AnalyzePage() {
       setResponse("Erreur de connexion. Vérifiez votre connexion internet.");
     } finally {
       setLoading(false);
+      setPhase("done");
     }
   };
 
@@ -75,6 +166,14 @@ export default function AnalyzePage() {
     setQuery("");
     setResponse("");
     setAnalysisId(null);
+    setPhase("input");
+    setQuestions([]);
+    setAnswers({});
+    setActiveView("text");
+  };
+
+  const setAnswer = (id: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [id]: value }));
   };
 
   const examples = [
@@ -83,9 +182,13 @@ export default function AnalyzePage() {
     "Mon client locataire d'un bail commercial à Paris se voit refuser le renouvellement par le bailleur. Le bail dure depuis 12 ans. Quelles indemnités d'éviction peut-il espérer ?",
   ];
 
+  const answeredCount = questions.filter(
+    (q) => answers[q.id] && answers[q.id].trim()
+  ).length;
+
   return (
     <div className="mx-auto flex h-full max-w-4xl flex-col">
-      {!response ? (
+      {phase === "input" ? (
         // Input state
         <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4">
           <div className="text-center">
@@ -149,16 +252,134 @@ export default function AnalyzePage() {
             </div>
           </div>
         </div>
-      ) : (
-        // Response state
-        <div className="flex flex-1 flex-col gap-4 overflow-hidden py-4">
-          {/* User query */}
+      ) : phase === "clarify" && !loading ? (
+        // Clarification state
+        <div className="flex flex-1 flex-col gap-6 overflow-y-auto py-6">
+          {/* Original query recap */}
           <Card className="shrink-0 bg-muted/50 p-4">
             <p className="text-sm">{query}</p>
           </Card>
 
+          {/* Questions */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-primary">
+              <MessageCircleQuestion className="h-5 w-5" />
+              <h2 className="text-lg font-semibold">
+                Précisions pour affiner l&apos;analyse
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Répondez aux questions ci-dessous pour obtenir une analyse plus
+              précise. Vous pouvez aussi passer directement à l&apos;analyse.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {questions.map((q, idx) => (
+              <Card key={q.id} className="p-4">
+                <label className="mb-2 block text-sm font-medium">
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                    {idx + 1}
+                  </span>
+                  {q.question}
+                </label>
+                {q.type === "choice" && q.choices ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {q.choices.map((choice) => (
+                      <button
+                        key={choice}
+                        onClick={() => setAnswer(q.id, choice)}
+                        className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
+                          answers[q.id] === choice
+                            ? "border-primary bg-primary/10 font-medium text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                        }`}
+                      >
+                        {choice}
+                      </button>
+                    ))}
+                    {/* Allow custom input even for choice questions */}
+                    {answers[q.id] &&
+                      !q.choices.includes(answers[q.id]) && (
+                        <span className="rounded-full border border-primary bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
+                          {answers[q.id]}
+                        </span>
+                      )}
+                    <Input
+                      placeholder="Autre..."
+                      className="mt-2 max-w-xs"
+                      value={
+                        q.choices.includes(answers[q.id] || "")
+                          ? ""
+                          : answers[q.id] || ""
+                      }
+                      onChange={(e) => setAnswer(q.id, e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <Input
+                    placeholder="Votre réponse..."
+                    className="mt-2"
+                    value={answers[q.id] || ""}
+                    onChange={(e) => setAnswer(q.id, e.target.value)}
+                  />
+                )}
+              </Card>
+            ))}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex shrink-0 items-center justify-between border-t pt-4">
+            <Button
+              variant="ghost"
+              className="gap-2 text-muted-foreground"
+              onClick={handleSkipClarification}
+            >
+              <SkipForward className="h-4 w-4" />
+              Passer et analyser
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={handleSubmitAnswers}
+              disabled={answeredCount === 0}
+            >
+              Lancer l&apos;analyse
+              {answeredCount > 0 && (
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">
+                  {answeredCount}/{questions.length}
+                </span>
+              )}
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        // Analyzing + Done state
+        <div className="flex flex-1 flex-col gap-4 overflow-hidden py-4">
+          {/* User query */}
+          <Card className="shrink-0 bg-muted/50 p-4">
+            <p className="text-sm">{query}</p>
+            {/* Show answered questions as context */}
+            {questions.length > 0 &&
+              Object.keys(answers).some((k) => answers[k]?.trim()) && (
+                <div className="mt-2 border-t pt-2">
+                  {questions
+                    .filter((q) => answers[q.id]?.trim())
+                    .map((q) => (
+                      <p
+                        key={q.id}
+                        className="text-xs text-muted-foreground"
+                      >
+                        <span className="font-medium">{q.question}</span>{" "}
+                        → {answers[q.id]}
+                      </p>
+                    ))}
+                </div>
+              )}
+          </Card>
+
           {/* View toggle tabs */}
-          {!loading && parsedData && (
+          {phase === "done" && parsedData && (
             <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-1">
               <button
                 onClick={() => setActiveView("text")}
@@ -211,11 +432,13 @@ export default function AnalyzePage() {
             )}
 
             {/* Text view (default, also shown while streaming) */}
-            {(activeView === "text" || loading) && (
+            {(activeView === "text" || phase === "analyzing") && (
               <>
                 <div
                   className="prose prose-sm max-w-none dark:prose-invert"
-                  dangerouslySetInnerHTML={{ __html: formatMarkdown(response) }}
+                  dangerouslySetInnerHTML={{
+                    __html: formatMarkdown(response),
+                  }}
                 />
                 {loading && response && (
                   <span className="inline-block h-4 w-2 animate-pulse bg-primary" />
@@ -224,18 +447,18 @@ export default function AnalyzePage() {
             )}
 
             {/* Dashboard view */}
-            {activeView === "dashboard" && !loading && parsedData && (
+            {activeView === "dashboard" && phase === "done" && parsedData && (
               <AnalysisDashboard data={parsedData} />
             )}
 
             {/* Slides view */}
-            {activeView === "slides" && !loading && parsedData && (
+            {activeView === "slides" && phase === "done" && parsedData && (
               <AnalysisSlides data={parsedData} query={query} />
             )}
           </div>
 
           {/* Actions */}
-          {!loading && (
+          {phase === "done" && (
             <div className="flex shrink-0 gap-3">
               <Button onClick={handleNewAnalysis} variant="outline">
                 Nouvelle analyse
