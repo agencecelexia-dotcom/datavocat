@@ -5,6 +5,7 @@ import { CaseForm } from "@/components/mon-affaire/case-form";
 import { ProbabilityDashboard } from "@/components/mon-affaire/probability-dashboard";
 import type { MonAffaireInput } from "@/lib/validators/decision";
 import type { ScoreAffaireSimilaire } from "@/types/stats";
+import { formatMarkdownSafe } from "@/lib/format-markdown";
 
 export default function MonAffairePage() {
   const [result, setResult] = useState<ScoreAffaireSimilaire | null>(null);
@@ -122,7 +123,7 @@ export default function MonAffairePage() {
           <h2 className="mb-4 text-xl font-bold">Rapport stratégique</h2>
           <div
             className="prose prose-sm max-w-none dark:prose-invert"
-            dangerouslySetInnerHTML={{ __html: formatMarkdown(report) }}
+            dangerouslySetInnerHTML={{ __html: formatMarkdownSafe(report) }}
           />
         </div>
       )}
@@ -130,12 +131,3 @@ export default function MonAffairePage() {
   );
 }
 
-function formatMarkdown(text: string): string {
-  return text
-    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold mt-6 mb-2">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-4 mb-1">$3</h3>')
-    .replace(/^\- (.+)$/gm, '<li class="ml-4">$1</li>')
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\n\n/g, "<br/><br/>")
-    .replace(/\n/g, "<br/>");
-}

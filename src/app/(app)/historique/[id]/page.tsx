@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { AnalysisChat } from "@/components/analysis/chat";
+import { formatMarkdownSafe } from "@/lib/format-markdown";
 
 interface Analysis {
   id: string;
@@ -70,7 +72,7 @@ export default function AnalysisDetailPage() {
           <div
             className="prose prose-sm max-w-none dark:prose-invert"
             dangerouslySetInnerHTML={{
-              __html: formatMarkdown(analysis.response),
+              __html: formatMarkdownSafe(analysis.response),
             }}
           />
         ) : (
@@ -82,6 +84,13 @@ export default function AnalysisDetailPage() {
         )}
       </div>
 
+      {analysis.response && analysis.status === "done" && (
+        <AnalysisChat
+          analysisContext={analysis.response}
+          query={analysis.query}
+        />
+      )}
+
       <Button
         variant="ghost"
         onClick={() => navigator.clipboard.writeText(analysis.response || "")}
@@ -92,16 +101,3 @@ export default function AnalysisDetailPage() {
   );
 }
 
-function formatMarkdown(text: string): string {
-  return text
-    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold mt-6 mb-2">$1</h2>')
-    .replace(
-      /^### (.+)$/gm,
-      '<h3 class="text-base font-semibold mt-4 mb-1">$1</h3>'
-    )
-    .replace(/^\- (.+)$/gm, '<li class="ml-4">• $1</li>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>')
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\n\n/g, "<br/><br/>")
-    .replace(/\n/g, "<br/>");
-}

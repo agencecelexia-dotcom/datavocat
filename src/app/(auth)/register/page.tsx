@@ -25,6 +25,7 @@ export default function RegisterPage() {
   const [cabinetName, setCabinetName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,9 +48,32 @@ export default function RegisterPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      window.location.href = "/";
+      setLoading(false);
+      setSuccess(true);
     }
   };
+
+  if (success) {
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <Scale className="mx-auto h-10 w-10 text-primary" />
+          <CardTitle className="text-2xl">Inscription envoyee</CardTitle>
+        </CardHeader>
+        <CardContent className="text-center space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Verifiez votre email pour confirmer votre inscription.
+          </p>
+          <Link
+            href="/login"
+            className="inline-block text-primary underline text-sm"
+          >
+            Retour a la connexion
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

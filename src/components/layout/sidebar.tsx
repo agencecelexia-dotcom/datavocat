@@ -3,18 +3,48 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { MessageSquare, History, Scale } from "lucide-react";
+import { Scale, History, FileText, Briefcase, BarChart3, GitCompareArrows, ScrollText, Eye } from "lucide-react";
 
 const navItems = [
   {
     label: "Nouvelle analyse",
     href: "/",
-    icon: MessageSquare,
+    icon: Scale,
   },
   {
     label: "Historique",
     href: "/historique",
     icon: History,
+  },
+  {
+    label: "Decisions",
+    href: "/decisions",
+    icon: FileText,
+  },
+  {
+    label: "Mon Affaire",
+    href: "/mon-affaire",
+    icon: Briefcase,
+  },
+  {
+    label: "Statistiques",
+    href: "/statistiques",
+    icon: BarChart3,
+  },
+  {
+    label: "Comparateur",
+    href: "/comparateur",
+    icon: GitCompareArrows,
+  },
+  {
+    label: "Conclusions",
+    href: "/conclusions",
+    icon: ScrollText,
+  },
+  {
+    label: "Veille juridique",
+    href: "/veille",
+    icon: Eye,
   },
 ];
 
