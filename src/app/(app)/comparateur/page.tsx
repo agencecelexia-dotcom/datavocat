@@ -107,9 +107,16 @@ export default function ComparateurPage() {
           disabled={
             loading || !context.trim() || !strategyA.trim() || !strategyB.trim()
           }
-          className="cursor-pointer rounded-lg bg-[#c9a96e] px-8 py-3 font-serif text-lg font-semibold text-white transition-all duration-200 hover:bg-[#b8944f] disabled:cursor-not-allowed disabled:opacity-50"
+          className="cursor-pointer rounded-xl bg-[#1e3a5f] px-10 py-3.5 font-serif text-lg font-semibold text-white shadow-lg shadow-[#1e3a5f]/20 transition-all duration-300 hover:bg-[#162d4a] hover:shadow-xl hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
         >
-          {loading ? "Analyse en cours..." : "Comparer"}
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              Analyse en cours...
+            </span>
+          ) : (
+            "Comparer les strategies"
+          )}
         </button>
       </div>
 

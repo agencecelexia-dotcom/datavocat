@@ -103,8 +103,40 @@ export default function DecisionsPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-64 items-center justify-center text-muted-foreground">
-          Chargement...
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 rounded-xl border border-border/30 bg-card p-4" style={{ animationDelay: `${i * 80}ms` }}>
+              <div className="h-4 w-4 animate-pulse rounded bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+              </div>
+              <div className="h-6 w-16 animate-pulse rounded-full bg-muted" />
+            </div>
+          ))}
+        </div>
+      ) : decisions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card py-16 text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1e3a5f]/5">
+            <Upload className="h-6 w-6 text-[#1e3a5f]/40" />
+          </div>
+          <p className="text-lg font-semibold text-foreground">Aucune decision</p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            Commencez par uploader un PDF de decision de justice ou importez depuis data.gouv.fr
+          </p>
+          <div className="mt-5 flex gap-3">
+            <Link href="/decisions/upload">
+              <Button className="cursor-pointer gap-2 bg-[#1e3a5f] text-white hover:bg-[#162d4a]">
+                <Upload className="h-4 w-4" />
+                Upload PDF
+              </Button>
+            </Link>
+            <Link href="/decisions/import">
+              <Button variant="outline" className="cursor-pointer gap-2">
+                Importer
+              </Button>
+            </Link>
+          </div>
         </div>
       ) : (
         <DecisionsTable decisions={decisions} />

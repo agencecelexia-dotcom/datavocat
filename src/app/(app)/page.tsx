@@ -551,8 +551,8 @@ export default function AnalyzePage() {
 
               <div className="flex-1" />
 
-              {/* View tabs - pill style */}
-              <div className="flex gap-0.5 rounded-full bg-[#f0f2f5] p-1">
+              {/* View tabs - refined pill style */}
+              <div className="flex gap-0.5 rounded-xl border border-border/40 bg-muted/50 p-0.5">
                 {[
                   {
                     key: "text" as const,
@@ -566,20 +566,20 @@ export default function AnalyzePage() {
                   },
                   {
                     key: "slides" as const,
-                    label: "Presentation",
+                    label: "Slides",
                     icon: Presentation,
                   },
                 ].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveView(tab.key)}
-                    className={`flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
                       activeView === tab.key
-                        ? "bg-[#1e3a5f] text-white shadow-sm"
-                        : "text-muted-foreground hover:bg-white hover:text-foreground hover:shadow-sm"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    <tab.icon className="h-4 w-4" />
+                    <tab.icon className="h-3.5 w-3.5" />
                     {tab.label}
                   </button>
                 ))}
@@ -592,34 +592,73 @@ export default function AnalyzePage() {
             <SourcesPanel sources={parsedData.sources} />
           )}
 
-          {/* Content area */}
+          {/* Content area — artifact-style container */}
           <div
             ref={responseRef}
-            className="flex-1 overflow-y-auto rounded-lg border border-border/40 border-t-4 border-t-[#1e3a5f] bg-white p-6 shadow-sm"
+            className="flex-1 overflow-y-auto rounded-2xl border border-border/30 bg-card shadow-lg shadow-black/[0.03]"
           >
+            {/* Artifact header bar */}
+            {phase === "done" && (
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/30 bg-card/95 px-5 py-2.5 backdrop-blur-sm">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex h-5 w-5 items-center justify-center rounded bg-[#1e3a5f]/10">
+                    {activeView === "text" ? <FileText className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "dashboard" ? <BarChart3 className="h-3 w-3 text-[#1e3a5f]" /> : <Presentation className="h-3 w-3 text-[#1e3a5f]" />}
+                  </div>
+                  <span className="font-medium text-foreground">
+                    {activeView === "text" ? "Rapport d'analyse" : activeView === "dashboard" ? "Dashboard jurimetrique" : "Presentation"}
+                  </span>
+                  <span className="text-muted-foreground/50">|</span>
+                  <span>Datavocat</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CopyMarkdown content={response} />
+                  <button
+                    onClick={() => handleExport("pdf")}
+                    className="flex h-7 items-center gap-1.5 rounded-md border border-border/40 bg-background px-2.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent hover:text-foreground cursor-pointer"
+                  >
+                    <FileDown className="h-3 w-3" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => handleExport("docx")}
+                    className="flex h-7 items-center gap-1.5 rounded-md border border-border/40 bg-background px-2.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent hover:text-foreground cursor-pointer"
+                  >
+                    <FileDown className="h-3 w-3" />
+                    DOCX
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Loading screen with lawyer jokes — hides streaming text */}
             {phase === "analyzing" && (
               <AnalyzingScreen />
             )}
 
-            {/* Text view — only shown when done */}
+            {/* Text view — premium document rendering */}
             {activeView === "text" && phase === "done" && response && (
-              <div
-                className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h2:text-xl prose-h2:text-primary prose-h3:text-base prose-strong:text-foreground"
-                dangerouslySetInnerHTML={{
-                  __html: formatMarkdownSafe(response),
-                }}
-              />
+              <div className="animate-fade-in-up px-8 py-6 lg:px-12">
+                <div
+                  className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h2:text-xl prose-h2:text-[#1e3a5f] prose-h3:text-base prose-h3:text-foreground prose-strong:text-foreground prose-a:text-[#1e3a5f] prose-a:no-underline hover:prose-a:underline"
+                  dangerouslySetInnerHTML={{
+                    __html: formatMarkdownSafe(response),
+                  }}
+                />
+              </div>
             )}
 
             {/* Dashboard view */}
             {activeView === "dashboard" && phase === "done" && parsedData && (
-              <AnalysisDashboard data={parsedData} />
+              <div className="animate-fade-in-up p-6">
+                <AnalysisDashboard data={parsedData} />
+              </div>
             )}
 
             {/* Slides view */}
             {activeView === "slides" && phase === "done" && parsedData && (
-              <AnalysisSlides data={parsedData} query={query} />
+              <div className="animate-fade-in-up">
+                <AnalysisSlides data={parsedData} query={query} />
+              </div>
             )}
           </div>
 
@@ -628,13 +667,12 @@ export default function AnalyzePage() {
             <AnalysisChat analysisContext={response} query={query} />
           )}
 
-          {/* Suggested follow-up questions */}
-          {phase === "done" && response && (
-            <div className="shrink-0 space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">
-                Questions suggerees
-              </p>
-              <div className="flex flex-wrap gap-2">
+          {/* Suggested follow-up + actions merged */}
+          {phase === "done" && (
+            <div className="shrink-0 space-y-3">
+              {/* Suggested follow-up questions */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground/60">Approfondir :</span>
                 {[
                   "Et si on changeait de juridiction ?",
                   "Quels sont les risques en appel ?",
@@ -646,42 +684,21 @@ export default function AnalyzePage() {
                       const enriched = query.trim() + "\n\nQUESTION COMPLEMENTAIRE : " + suggestion;
                       launchAnalysis(enriched);
                     }}
-                    className="cursor-pointer rounded-full border-2 border-[#c9a96e]/40 bg-[#c9a96e]/5 px-4 py-2 text-sm font-medium text-[#1e3a5f] transition-all duration-200 hover:border-[#c9a96e] hover:bg-[#c9a96e]/15 hover:shadow-md hover:-translate-y-0.5"
+                    className="cursor-pointer rounded-full border border-border/40 bg-card px-3.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all duration-200 hover:border-[#1e3a5f]/20 hover:shadow-md hover:-translate-y-0.5"
                   >
                     {suggestion}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Actions bar */}
-          {phase === "done" && (
-            <div className="flex shrink-0 items-center gap-3 rounded-lg border border-border/30 bg-white p-3 shadow-sm">
+              {/* New analysis button */}
               <Button
                 onClick={handleNewAnalysis}
                 variant="outline"
-                className="cursor-pointer gap-2 border-[#1e3a5f]/30 text-[#1e3a5f] transition-all duration-200 hover:bg-[#1e3a5f]/5"
+                size="sm"
+                className="cursor-pointer gap-2 border-border/40 text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground"
               >
+                <Sparkles className="h-3.5 w-3.5" />
                 Nouvelle analyse
-              </Button>
-              <div className="flex-1" />
-              <CopyMarkdown content={response} />
-              <Button
-                size="sm"
-                className="cursor-pointer gap-2 bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f] hover:shadow-md"
-                onClick={() => handleExport("pdf")}
-              >
-                <FileDown className="h-3.5 w-3.5" />
-                PDF
-              </Button>
-              <Button
-                size="sm"
-                className="cursor-pointer gap-2 bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f] hover:shadow-md"
-                onClick={() => handleExport("docx")}
-              >
-                <FileDown className="h-3.5 w-3.5" />
-                DOCX
               </Button>
             </div>
           )}

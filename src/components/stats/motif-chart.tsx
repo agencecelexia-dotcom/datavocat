@@ -12,19 +12,27 @@ import {
 } from "recharts";
 import type { StatsParMotif } from "@/types/stats";
 
+const COLORS = ["#1e3a5f", "#c9a96e", "#2d6a4f", "#7c3aed", "#ca6702", "#5b8ec9", "#9b2226"];
+
 interface MotifChartProps {
   data: StatsParMotif[];
 }
 
-const COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-];
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; payload: { nb_invoque: number } }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/10">
+      <p className="mb-1 max-w-[200px] text-sm font-semibold leading-tight text-foreground">{label}</p>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-lg font-bold text-[#1e3a5f]">{payload[0].value}%</span>
+        <span className="text-xs text-muted-foreground">de succes</span>
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Invoque {payload[0].payload.nb_invoque} fois
+      </p>
+    </div>
+  );
+}
 
 export function MotifChart({ data }: MotifChartProps) {
   const chartData = data
@@ -38,33 +46,37 @@ export function MotifChart({ data }: MotifChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Pas encore de données
+      <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-border/60 text-sm text-muted-foreground">
+        Pas encore de donnees
       </div>
     );
   }
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={chartData}>
-        <CartesianGrid strokeDasharray="3 3" />
+    <ResponsiveContainer width="100%" height={340}>
+      <BarChart data={chartData} margin={{ left: 10, right: 10, top: 10, bottom: 40 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
         <XAxis
           dataKey="motif"
-          tick={{ fontSize: 11 }}
-          angle={-20}
+          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          angle={-25}
           textAnchor="end"
-          height={60}
+          height={70}
+          axisLine={{ stroke: "hsl(var(--border))", opacity: 0.5 }}
+          tickLine={false}
+          interval={0}
         />
-        <YAxis domain={[0, 100]} unit="%" />
-        <Tooltip
-          formatter={(value, name) => [
-            `${value}%`,
-            name === "taux_succes" ? "Taux de succès" : name,
-          ]}
+        <YAxis
+          domain={[0, 100]}
+          unit="%"
+          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+          axisLine={false}
+          tickLine={false}
         />
-        <Bar dataKey="taux_succes" radius={[4, 4, 0, 0]}>
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--accent))", opacity: 0.3 }} />
+        <Bar dataKey="taux_succes" radius={[6, 6, 0, 0]} barSize={36}>
           {chartData.map((_, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} opacity={0.85} />
           ))}
         </Bar>
       </BarChart>

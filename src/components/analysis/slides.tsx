@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ParsedAnalysis } from "@/lib/parse-analysis";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,6 +16,7 @@ import {
   AlertTriangle,
   BookOpen,
   ExternalLink,
+  TrendingUp,
 } from "lucide-react";
 import {
   BarChart,
@@ -27,20 +26,36 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  PieChart,
+  Pie,
 } from "recharts";
 
 // --- Color palette ---
 const NAVY = "#1e3a5f";
 const GOLD = "#c9a96e";
 const EMERALD = "#2d6a4f";
+const NAVY_LIGHT = "#2a4f7a";
+const GOLD_LIGHT = "#d4b87e";
 
 const BAR_COLORS = [NAVY, GOLD, EMERALD, "#5b8ec9", "#ca6702", "#7c3aed", "#9b2226"];
+
+// Gradient pairs for bars
+const GRADIENT_PAIRS: Array<[string, string]> = [
+  [NAVY, NAVY_LIGHT],
+  [GOLD, GOLD_LIGHT],
+  [EMERALD, "#3d8a6a"],
+  ["#5b8ec9", "#7ba8dd"],
+  ["#ca6702", "#e07d18"],
+  ["#7c3aed", "#9b5fff"],
+  ["#9b2226", "#c53030"],
+];
 
 // --- Types ---
 
 interface SlideDefinition {
   icon: React.ReactNode;
   title: string;
+  subtitle?: string;
   content: React.ReactNode;
 }
 
@@ -53,59 +68,146 @@ interface SourceEntry {
   solution: string;
 }
 
-// Extend ParsedAnalysis for optional fields the component uses
 type AnalysisData = ParsedAnalysis & {
   sources?: SourceEntry[];
   sourceCount?: number;
   fiabilite?: { score: number; label: string; details: string };
 };
 
-// --- Slide shell ---
+// --- Animated Counter ---
+
+function AnimatedCounter({
+  target,
+  duration = 2000,
+  suffix = "",
+}: {
+  target: number;
+  duration?: number;
+  suffix?: string;
+}) {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    let start = 0;
+    const startTime = performance.now();
+
+    function animate(now: number) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(eased * target);
+      setCount(current);
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }, [target, duration]);
+
+  return (
+    <span ref={ref}>
+      {count}
+      {suffix}
+    </span>
+  );
+}
+
+// --- Slide Shell ---
 
 function SlideShell({
   slide,
   index,
   total,
+  direction,
 }: {
   slide: SlideDefinition;
   index: number;
   total: number;
+  direction: "left" | "right" | "none";
 }) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       {/* Header */}
       <div
-        className="border-b px-8 py-5"
+        className="relative border-b px-6 py-5 sm:px-10"
         style={{
-          background: `linear-gradient(135deg, ${NAVY}08 0%, transparent 100%)`,
+          background: `linear-gradient(135deg, ${NAVY}0A 0%, ${GOLD}08 100%)`,
+          borderColor: `${NAVY}15`,
         }}
       >
-        <div className="flex items-center gap-3">
+        {/* Gold accent stripe */}
+        <div
+          className="absolute left-0 top-0 h-full w-1"
+          style={{
+            background: `linear-gradient(to bottom, ${GOLD}, ${GOLD}40)`,
+          }}
+        />
+        <div className="flex items-center gap-4">
           <div
-            className="flex h-9 w-9 items-center justify-center rounded-lg"
-            style={{ backgroundColor: `${NAVY}12` }}
+            className="flex h-10 w-10 items-center justify-center rounded-xl shadow-sm"
+            style={{
+              background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY_LIGHT} 100%)`,
+            }}
           >
             {slide.icon}
           </div>
-          <h2
-            className="text-xl font-semibold tracking-tight"
-            style={{ color: NAVY }}
-          >
-            {slide.title}
-          </h2>
+          <div>
+            <h2
+              className="text-xl font-bold tracking-tight sm:text-2xl"
+              style={{ fontFamily: "'Georgia', 'Times New Roman', serif", color: NAVY }}
+            >
+              {slide.title}
+            </h2>
+            {slide.subtitle && (
+              <p className="mt-0.5 text-xs font-medium tracking-wide text-gray-400">
+                {slide.subtitle}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">{slide.content}</div>
+      <div
+        className="flex-1 overflow-y-auto px-6 py-6 sm:px-10 sm:py-8"
+        style={{
+          background: `linear-gradient(180deg, #fafbfd 0%, #f5f6fa 50%, #f0f1f5 100%)`,
+        }}
+      >
+        {slide.content}
+      </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between border-t px-8 py-3">
-        <div className="flex items-center gap-2 text-xs font-medium" style={{ color: NAVY }}>
-          <Scale className="h-3.5 w-3.5" />
-          <span style={{ fontFamily: "'Georgia', serif" }}>Datavocat</span>
+      <div
+        className="flex items-center justify-between border-t px-6 py-3 sm:px-10"
+        style={{
+          background: `linear-gradient(135deg, ${NAVY}06 0%, transparent 100%)`,
+          borderColor: `${NAVY}10`,
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <Scale className="h-3.5 w-3.5" style={{ color: GOLD }} />
+          <span
+            className="text-xs font-semibold tracking-wide"
+            style={{ fontFamily: "'Georgia', serif", color: NAVY }}
+          >
+            Datavocat
+          </span>
+          <span className="text-[10px] tracking-widest text-gray-300">—</span>
+          <span
+            className="text-[10px] font-medium uppercase tracking-widest"
+            style={{ color: `${GOLD}90` }}
+          >
+            Analyse Jurimetrique
+          </span>
         </div>
-        <span className="text-xs text-muted-foreground">
+        <span
+          className="rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider"
+          style={{ backgroundColor: `${NAVY}0A`, color: `${NAVY}80` }}
+        >
           {index + 1} / {total}
         </span>
       </div>
@@ -139,36 +241,94 @@ function parseBulletLines(text: string): React.ReactNode[] {
 
       if (isNumbered && numberMatch) {
         return (
-          <div key={i} className="flex gap-3 py-2">
+          <div
+            key={i}
+            className="flex gap-4 py-3"
+            style={{
+              animation: `slideInFromRight 0.5s ease-out ${i * 0.1}s both`,
+            }}
+          >
             <span
-              className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-              style={{ backgroundColor: NAVY }}
+              className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm"
+              style={{
+                background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY_LIGHT} 100%)`,
+              }}
             >
               {numberMatch[1]}
             </span>
-            <span className="text-sm leading-relaxed">{cleaned}</span>
+            <span className="text-sm leading-relaxed text-gray-700">{cleaned}</span>
           </div>
         );
       }
 
       if (line.trimStart().startsWith("-") || line.trimStart().startsWith("*")) {
         return (
-          <div key={i} className="flex gap-3 py-1.5">
+          <div
+            key={i}
+            className="flex gap-3 py-2"
+            style={{
+              animation: `slideInFromRight 0.5s ease-out ${i * 0.08}s both`,
+            }}
+          >
             <span
-              className="mt-2 h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: NAVY }}
+              className="mt-2 h-2 w-2 shrink-0 rounded-full shadow-sm"
+              style={{
+                background: `linear-gradient(135deg, ${GOLD} 0%, ${GOLD_LIGHT} 100%)`,
+              }}
             />
-            <span className="text-sm leading-relaxed">{cleaned}</span>
+            <span className="text-sm leading-relaxed text-gray-700">{cleaned}</span>
           </div>
         );
       }
 
       return (
-        <p key={i} className="mb-2 text-sm leading-relaxed">
+        <p key={i} className="mb-3 text-sm leading-relaxed text-gray-600">
           {cleaned}
         </p>
       );
     });
+}
+
+// --- Custom Tooltip ---
+
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  suffix = "%",
+  valueLabel = "Taux",
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string;
+  suffix?: string;
+  valueLabel?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      className="rounded-xl border px-4 py-3 shadow-xl"
+      style={{
+        backgroundColor: "rgba(255,255,255,0.97)",
+        borderColor: `${NAVY}15`,
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      <p
+        className="mb-1 text-xs font-bold"
+        style={{ fontFamily: "'Georgia', serif", color: NAVY }}
+      >
+        {label}
+      </p>
+      <p className="text-lg font-bold" style={{ color: GOLD }}>
+        {payload[0].value}
+        {suffix}
+      </p>
+      <p className="mt-0.5 text-[10px] uppercase tracking-widest text-gray-400">
+        {valueLabel}
+      </p>
+    </div>
+  );
 }
 
 // --- Build slides ---
@@ -176,169 +336,299 @@ function parseBulletLines(text: string): React.ReactNode[] {
 function buildSlides(data: AnalysisData, query: string): SlideDefinition[] {
   const slides: SlideDefinition[] = [];
 
-  // 1. Title slide
+  // =====================
+  // 1. TITLE SLIDE
+  // =====================
   slides.push({
-    icon: <Scale className="h-5 w-5" style={{ color: NAVY }} />,
+    icon: <Scale className="h-5 w-5 text-white" />,
     title: "Analyse Jurimetrique",
+    subtitle: "RAPPORT CONFIDENTIEL",
     content: (
-      <div className="flex h-full flex-col items-center justify-center gap-5 text-center">
-        <div
-          className="flex h-20 w-20 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${NAVY}10` }}
-        >
-          <Scale className="h-10 w-10" style={{ color: NAVY }} />
+      <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
+        {/* Decorative element */}
+        <div className="relative">
+          <div
+            className="flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg"
+            style={{
+              background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY_LIGHT} 100%)`,
+            }}
+          >
+            <Scale className="h-10 w-10 text-white" />
+          </div>
+          {/* Subtle glow ring */}
+          <div
+            className="absolute -inset-3 -z-10 rounded-3xl opacity-20 blur-xl"
+            style={{ backgroundColor: GOLD }}
+          />
         </div>
+
         <h1
-          className="text-3xl font-bold tracking-tight"
-          style={{ fontFamily: "'Georgia', serif", color: NAVY }}
+          className="text-3xl font-bold tracking-tight sm:text-4xl"
+          style={{ fontFamily: "'Georgia', 'Times New Roman', serif", color: NAVY }}
         >
           Analyse Jurimetrique
         </h1>
-        <p className="max-w-lg text-base text-muted-foreground leading-relaxed">
+
+        {/* Gold divider */}
+        <div className="flex items-center gap-3">
+          <div className="h-px w-12" style={{ backgroundColor: `${GOLD}40` }} />
+          <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
+          <div className="h-px w-12" style={{ backgroundColor: `${GOLD}40` }} />
+        </div>
+
+        <p className="max-w-lg text-base leading-relaxed text-gray-500">
           {query}
         </p>
+
         {data.tauxSuccesGlobal !== null && (
           <div
-            className="mt-2 rounded-2xl px-10 py-5"
+            className="relative mt-4 overflow-hidden rounded-2xl px-12 py-7"
             style={{
-              background: `linear-gradient(135deg, ${NAVY}0D 0%, ${GOLD}15 100%)`,
-              border: `1px solid ${GOLD}40`,
+              background: `linear-gradient(135deg, ${NAVY}08 0%, ${GOLD}12 100%)`,
+              border: `1px solid ${GOLD}30`,
+              boxShadow: `0 4px 24px ${GOLD}15, 0 1px 3px ${NAVY}08`,
             }}
           >
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {/* Subtle shimmer effect */}
+            <div
+              className="absolute inset-0 opacity-[0.03]"
+              style={{
+                background: `repeating-linear-gradient(
+                  -45deg,
+                  transparent,
+                  transparent 10px,
+                  ${GOLD} 10px,
+                  ${GOLD} 11px
+                )`,
+              }}
+            />
+            <p
+              className="relative text-[10px] font-bold uppercase tracking-[0.2em]"
+              style={{ color: `${NAVY}60` }}
+            >
               Taux de succes estime
             </p>
-            <p
-              className="mt-1 text-5xl font-bold"
-              style={{ color: NAVY }}
-            >
-              {data.tauxSuccesGlobal}
-              <span className="text-3xl" style={{ color: GOLD }}>%</span>
+            <p className="relative mt-2">
+              <span
+                className="text-6xl font-extrabold"
+                style={{
+                  color: NAVY,
+                  textShadow: `0 0 40px ${GOLD}20`,
+                }}
+              >
+                <AnimatedCounter target={data.tauxSuccesGlobal} suffix="" />
+              </span>
+              <span
+                className="text-4xl font-bold"
+                style={{ color: GOLD }}
+              >
+                %
+              </span>
             </p>
           </div>
         )}
+
         {(data.sourceCount ?? data.echantillon) !== null && (
-          <p className="text-sm text-muted-foreground">
-            Base sur {data.sourceCount ?? data.echantillon} decisions de jurisprudence
+          <p className="text-sm text-gray-400">
+            Base sur{" "}
+            <span className="font-semibold" style={{ color: NAVY }}>
+              {data.sourceCount ?? data.echantillon}
+            </span>{" "}
+            decisions de jurisprudence
           </p>
         )}
       </div>
     ),
   });
 
-  // 2. Situation slide
+  // =====================
+  // 2. SITUATION SLIDE
+  // =====================
   if (data.situation) {
     slides.push({
-      icon: <Target className="h-5 w-5" style={{ color: NAVY }} />,
+      icon: <Target className="h-5 w-5 text-white" />,
       title: "Analyse de la situation",
+      subtitle: "CONTEXTE JURIDIQUE",
       content: (
-        <div className="max-w-2xl space-y-1">
-          {parseBulletLines(data.situation)}
-        </div>
-      ),
-    });
-  }
-
-  // 3. Arguments chart slide
-  if (data.arguments.length > 0) {
-    const chartData = data.arguments.map((a, i) => ({
-      name: a.name.length > 30 ? a.name.slice(0, 28) + "\u2026" : a.name,
-      taux: a.taux ?? 0,
-      fill: BAR_COLORS[i % BAR_COLORS.length],
-    }));
-
-    slides.push({
-      icon: <BarChart3 className="h-5 w-5" style={{ color: NAVY }} />,
-      title: "Arguments & Taux de succes",
-      content: (
-        <div className="h-full">
-          <div style={{ height: Math.max(240, data.arguments.length * 48) }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                layout="vertical"
-                margin={{ left: 10, right: 50, top: 8, bottom: 8 }}
-              >
-                <XAxis
-                  type="number"
-                  domain={[0, 100]}
-                  tickFormatter={(v) => `${v}%`}
-                  fontSize={12}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={200}
-                  fontSize={12}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: NAVY }}
-                />
-                <Tooltip
-                  formatter={(v) => [`${v}%`, "Succes"]}
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: `1px solid ${NAVY}20`,
-                    fontSize: 13,
-                  }}
-                />
-                <Bar dataKey="taux" radius={[0, 6, 6, 0]} barSize={24}>
-                  {chartData.map((entry, i) => (
-                    <Cell key={i} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="mx-auto max-w-2xl">
+          <div
+            className="mb-6 rounded-xl border-l-4 bg-white/60 px-5 py-4 shadow-sm"
+            style={{ borderColor: GOLD }}
+          >
+            <p className="text-xs font-bold uppercase tracking-widest" style={{ color: GOLD }}>
+              Synthese
+            </p>
+          </div>
+          <div className="space-y-1">
+            {parseBulletLines(data.situation)}
           </div>
         </div>
       ),
     });
   }
 
-  // 4. Jurisdictions slide
+  // =====================
+  // 3. ARGUMENTS CHART
+  // =====================
+  if (data.arguments.length > 0) {
+    const chartData = data.arguments.map((a, i) => ({
+      name: a.name.length > 35 ? a.name.slice(0, 33) + "\u2026" : a.name,
+      fullName: a.name,
+      taux: a.taux ?? 0,
+      fill: BAR_COLORS[i % BAR_COLORS.length],
+    }));
+
+    slides.push({
+      icon: <BarChart3 className="h-5 w-5 text-white" />,
+      title: "Arguments & Taux de succes",
+      subtitle: "ANALYSE STATISTIQUE",
+      content: (
+        <div className="h-full">
+          <div
+            className="mb-4 inline-flex items-center gap-2 rounded-lg px-3 py-1.5"
+            style={{
+              backgroundColor: `${EMERALD}0A`,
+              border: `1px solid ${EMERALD}20`,
+            }}
+          >
+            <TrendingUp className="h-3.5 w-3.5" style={{ color: EMERALD }} />
+            <span className="text-xs font-semibold" style={{ color: EMERALD }}>
+              {chartData.length} arguments analyses
+            </span>
+          </div>
+          <div
+            className="overflow-hidden rounded-xl border bg-white/80 p-4 shadow-sm"
+            style={{ borderColor: `${NAVY}10` }}
+          >
+            <div style={{ height: Math.max(260, data.arguments.length * 52) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartData}
+                  layout="vertical"
+                  margin={{ left: 10, right: 60, top: 12, bottom: 12 }}
+                >
+                  <defs>
+                    {GRADIENT_PAIRS.map(([start, end], i) => (
+                      <linearGradient
+                        key={i}
+                        id={`barGrad${i}`}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop offset="0%" stopColor={start} stopOpacity={0.85} />
+                        <stop offset="100%" stopColor={end} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <XAxis
+                    type="number"
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                    fontSize={11}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#9ca3af" }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={220}
+                    fontSize={12}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: NAVY, fontWeight: 500 }}
+                  />
+                  <Tooltip
+                    content={<CustomTooltip suffix="%" valueLabel="Taux de succes" />}
+                    cursor={{ fill: `${NAVY}06` }}
+                  />
+                  <Bar dataKey="taux" radius={[0, 8, 8, 0]} barSize={28}>
+                    {chartData.map((_entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={`url(#barGrad${i % GRADIENT_PAIRS.length})`}
+                        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.08))" }}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  // =====================
+  // 4. JURISDICTIONS
+  // =====================
   if (data.juridictions.length > 0) {
     slides.push({
-      icon: <Landmark className="h-5 w-5" style={{ color: NAVY }} />,
+      icon: <Landmark className="h-5 w-5 text-white" />,
       title: "Analyse par juridiction",
+      subtitle: "REPARTITION GEOGRAPHIQUE",
       content: (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           {data.juridictions.map((j, i) => {
             const taux = j.taux ?? 0;
+            const color = BAR_COLORS[i % BAR_COLORS.length];
+            const gradientPair = GRADIENT_PAIRS[i % GRADIENT_PAIRS.length];
             return (
               <div
                 key={i}
-                className="rounded-xl border p-4"
-                style={{ borderColor: `${BAR_COLORS[i % BAR_COLORS.length]}30` }}
+                className="group relative overflow-hidden rounded-xl border bg-white/80 p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+                style={{ borderColor: `${color}20` }}
               >
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                {/* Top color accent */}
+                <div
+                  className="absolute left-0 right-0 top-0 h-1"
+                  style={{
+                    background: `linear-gradient(to right, ${gradientPair[0]}, ${gradientPair[1]})`,
+                  }}
+                />
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
                     <div
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: BAR_COLORS[i % BAR_COLORS.length] }}
-                    />
-                    <span className="text-sm font-semibold" style={{ color: NAVY }}>
+                      className="flex h-8 w-8 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: `${color}12` }}
+                    >
+                      <Landmark className="h-4 w-4" style={{ color }} />
+                    </div>
+                    <span
+                      className="text-sm font-bold"
+                      style={{ fontFamily: "'Georgia', serif", color: NAVY }}
+                    >
                       {j.name}
                     </span>
                   </div>
-                  <span className="text-sm font-bold" style={{ color: BAR_COLORS[i % BAR_COLORS.length] }}>
+                  <span
+                    className="text-xl font-extrabold"
+                    style={{ color }}
+                  >
                     {j.taux !== null ? `${j.taux}%` : "\u2014"}
                   </span>
                 </div>
-                {/* Progress bar */}
-                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                {/* Progress bar with gradient */}
+                <div
+                  className="h-2.5 w-full overflow-hidden rounded-full"
+                  style={{ backgroundColor: `${color}10` }}
+                >
                   <div
-                    className="h-full rounded-full transition-all duration-500"
+                    className="h-full rounded-full transition-all duration-700 ease-out"
                     style={{
                       width: `${taux}%`,
-                      backgroundColor: BAR_COLORS[i % BAR_COLORS.length],
+                      background: `linear-gradient(to right, ${gradientPair[0]}, ${gradientPair[1]})`,
+                      boxShadow: `0 0 8px ${color}30`,
                     }}
                   />
                 </div>
                 {j.delai && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Delai moyen : {j.delai}
+                  <p className="mt-3 text-xs font-medium text-gray-400">
+                    Delai moyen :{" "}
+                    <span style={{ color: NAVY }}>{j.delai}</span>
                   </p>
                 )}
               </div>
@@ -349,34 +639,150 @@ function buildSlides(data: AnalysisData, query: string): SlideDefinition[] {
     });
   }
 
-  // 5. Montants slide
+  // =====================
+  // 5. INSTANCES (Pie chart)
+  // =====================
+  if (data.instances && data.instances.length > 0) {
+    const pieData = data.instances.map((inst, i) => ({
+      name: inst.name,
+      value: inst.taux ?? 0,
+      fill: BAR_COLORS[i % BAR_COLORS.length],
+    }));
+
+    slides.push({
+      icon: <BarChart3 className="h-5 w-5 text-white" />,
+      title: "Repartition par instance",
+      subtitle: "PROPORTION DES DECISIONS",
+      content: (
+        <div className="flex h-full flex-col items-center justify-center gap-6">
+          <div
+            className="overflow-hidden rounded-xl border bg-white/80 p-6 shadow-sm"
+            style={{ borderColor: `${NAVY}10` }}
+          >
+            <div style={{ width: 320, height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <defs>
+                    {GRADIENT_PAIRS.map(([start, end], i) => (
+                      <linearGradient
+                        key={i}
+                        id={`pieGrad${i}`}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor={start} />
+                        <stop offset="100%" stopColor={end} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={3}
+                    dataKey="value"
+                    strokeWidth={0}
+                  >
+                    {pieData.map((_entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={`url(#pieGrad${i % GRADIENT_PAIRS.length})`}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    content={<CustomTooltip suffix="%" valueLabel="Proportion" />}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          {/* Legend */}
+          <div className="flex flex-wrap justify-center gap-4">
+            {pieData.map((entry, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div
+                  className="h-3 w-3 rounded-sm"
+                  style={{ backgroundColor: entry.fill }}
+                />
+                <span className="text-xs font-medium text-gray-600">
+                  {entry.name}{" "}
+                  <span className="font-bold" style={{ color: entry.fill }}>
+                    {entry.value}%
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  // =====================
+  // 6. MONTANTS
+  // =====================
   if (data.montants.min !== null || data.montants.max !== null) {
     const montantCards = [
-      { label: "Minimum", value: data.montants.min, color: EMERALD, bg: `${EMERALD}08` },
-      { label: "Median", value: data.montants.median, color: NAVY, bg: `${NAVY}08` },
-      { label: "Maximum", value: data.montants.max, color: GOLD, bg: `${GOLD}15` },
+      {
+        label: "Minimum",
+        value: data.montants.min,
+        color: EMERALD,
+        gradient: `linear-gradient(135deg, ${EMERALD}08 0%, ${EMERALD}03 100%)`,
+        borderColor: `${EMERALD}20`,
+      },
+      {
+        label: "Median",
+        value: data.montants.median,
+        color: NAVY,
+        gradient: `linear-gradient(135deg, ${NAVY}08 0%, ${NAVY}03 100%)`,
+        borderColor: `${NAVY}20`,
+        featured: true,
+      },
+      {
+        label: "Maximum",
+        value: data.montants.max,
+        color: GOLD,
+        gradient: `linear-gradient(135deg, ${GOLD}12 0%, ${GOLD}05 100%)`,
+        borderColor: `${GOLD}30`,
+      },
     ];
 
     slides.push({
-      icon: <Banknote className="h-5 w-5" style={{ color: NAVY }} />,
+      icon: <Banknote className="h-5 w-5 text-white" />,
       title: "Montants & Indemnites",
+      subtitle: "FOURCHETTE ESTIMEE",
       content: (
-        <div className="flex h-full flex-col items-center justify-center gap-8">
-          <div className="grid w-full max-w-2xl grid-cols-3 gap-6">
+        <div className="flex h-full flex-col items-center justify-center gap-10">
+          <div className="grid w-full max-w-2xl grid-cols-1 gap-5 sm:grid-cols-3">
             {montantCards.map((card, i) => (
               <div
                 key={i}
-                className="rounded-xl border p-6 text-center"
+                className={`group relative overflow-hidden rounded-2xl border p-6 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+                  card.featured ? "sm:-mt-2 sm:mb-0" : ""
+                }`}
                 style={{
-                  backgroundColor: card.bg,
-                  borderColor: `${card.color}25`,
+                  background: card.gradient,
+                  borderColor: card.borderColor,
                 }}
               >
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {/* Top accent line */}
+                <div
+                  className="absolute left-0 right-0 top-0 h-1"
+                  style={{ backgroundColor: card.color }}
+                />
+                <p
+                  className="text-[10px] font-bold uppercase tracking-[0.15em]"
+                  style={{ color: `${card.color}80` }}
+                >
                   {card.label}
                 </p>
                 <p
-                  className={`mt-3 font-bold ${i === 1 ? "text-3xl" : "text-2xl"}`}
+                  className={`mt-4 font-extrabold ${card.featured ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"}`}
                   style={{ color: card.color }}
                 >
                   {formatCurrency(card.value)}
@@ -384,41 +790,56 @@ function buildSlides(data: AnalysisData, query: string): SlideDefinition[] {
               </div>
             ))}
           </div>
-          {/* Gradient bar */}
-          <div
-            className="h-3 w-72 rounded-full opacity-80"
-            style={{
-              background: `linear-gradient(to right, ${EMERALD}, ${NAVY}, ${GOLD})`,
-            }}
-          />
+          {/* Gradient spectrum bar */}
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="h-2.5 w-80 rounded-full shadow-inner"
+              style={{
+                background: `linear-gradient(to right, ${EMERALD}, ${NAVY}, ${GOLD})`,
+                boxShadow: `0 0 20px ${NAVY}15`,
+              }}
+            />
+            <div className="flex w-80 justify-between text-[10px] font-medium text-gray-400">
+              <span>Min</span>
+              <span>Median</span>
+              <span>Max</span>
+            </div>
+          </div>
         </div>
       ),
     });
   }
 
-  // 6. Sources slide
+  // =====================
+  // 7. SOURCES
+  // =====================
   const sources = (data as AnalysisData).sources;
   if (sources && sources.length > 0) {
     slides.push({
-      icon: <BookOpen className="h-5 w-5" style={{ color: NAVY }} />,
+      icon: <BookOpen className="h-5 w-5 text-white" />,
       title: "Sources jurisprudentielles",
+      subtitle: `${sources.length} REFERENCE${sources.length > 1 ? "S" : ""} IDENTIFIEE${sources.length > 1 ? "S" : ""}`,
       content: (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {sources.map((src, i) => (
             <div
               key={i}
-              className="group rounded-xl border p-4 transition-colors hover:border-[var(--gold)]"
-              style={
-                {
-                  "--gold": `${GOLD}60`,
-                  borderColor: `${NAVY}15`,
-                } as React.CSSProperties
-              }
+              className="group relative overflow-hidden rounded-xl border bg-white/80 p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+              style={{
+                borderColor: `${NAVY}12`,
+              }}
             >
-              <div className="mb-2 flex items-start justify-between gap-2">
+              {/* Left accent */}
+              <div
+                className="absolute bottom-0 left-0 top-0 w-1 transition-all duration-300 group-hover:w-1.5"
+                style={{
+                  background: `linear-gradient(to bottom, ${GOLD}, ${GOLD}40)`,
+                }}
+              />
+              <div className="mb-3 flex items-start justify-between gap-3 pl-2">
                 <span
-                  className="text-sm font-semibold leading-tight"
-                  style={{ color: NAVY }}
+                  className="text-sm font-bold leading-tight"
+                  style={{ fontFamily: "'Georgia', serif", color: NAVY }}
                 >
                   {src.reference}
                 </span>
@@ -427,29 +848,36 @@ function buildSlides(data: AnalysisData, query: string): SlideDefinition[] {
                     href={src.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 rounded-md p-1 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200 hover:scale-110"
+                    style={{
+                      backgroundColor: `${GOLD}10`,
+                      border: `1px solid ${GOLD}20`,
+                    }}
                   >
-                    <ExternalLink className="h-4 w-4" style={{ color: GOLD }} />
+                    <ExternalLink className="h-3.5 w-3.5" style={{ color: GOLD }} />
                   </a>
                 )}
               </div>
-              {src.date && (
-                <p className="text-xs text-muted-foreground">{src.date}</p>
-              )}
-              {src.chamber && (
-                <p className="mt-1 text-xs text-muted-foreground">{src.chamber}</p>
-              )}
-              {src.solution && (
-                <p
-                  className="mt-2 inline-block rounded-md px-2 py-0.5 text-xs font-medium"
-                  style={{
-                    backgroundColor: `${EMERALD}12`,
-                    color: EMERALD,
-                  }}
-                >
-                  {src.solution}
-                </p>
-              )}
+              <div className="space-y-1 pl-2">
+                {src.date && (
+                  <p className="text-xs text-gray-400">{src.date}</p>
+                )}
+                {src.chamber && (
+                  <p className="text-xs font-medium text-gray-500">{src.chamber}</p>
+                )}
+                {src.solution && (
+                  <span
+                    className="mt-2 inline-block rounded-md px-2.5 py-1 text-[11px] font-semibold"
+                    style={{
+                      background: `linear-gradient(135deg, ${EMERALD}10 0%, ${EMERALD}05 100%)`,
+                      color: EMERALD,
+                      border: `1px solid ${EMERALD}20`,
+                    }}
+                  >
+                    {src.solution}
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -457,51 +885,169 @@ function buildSlides(data: AnalysisData, query: string): SlideDefinition[] {
     });
   }
 
-  // 7. Recommandation slide
+  // =====================
+  // 8. RECOMMANDATION
+  // =====================
   if (data.recommandation) {
     slides.push({
-      icon: <Shield className="h-5 w-5" style={{ color: NAVY }} />,
+      icon: <Shield className="h-5 w-5 text-white" />,
       title: "Recommandation strategique",
+      subtitle: "PLAN D'ACTION",
       content: (
-        <div className="max-w-2xl space-y-1">
-          {parseBulletLines(data.recommandation)}
+        <div className="mx-auto max-w-2xl">
+          <div
+            className="mb-6 rounded-xl border-l-4 bg-white/60 px-5 py-4 shadow-sm"
+            style={{
+              borderColor: EMERALD,
+              background: `linear-gradient(135deg, ${EMERALD}06 0%, transparent 100%)`,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4" style={{ color: EMERALD }} />
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: EMERALD }}>
+                Strategie recommandee
+              </p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            {parseBulletLines(data.recommandation)}
+          </div>
         </div>
       ),
     });
   }
 
-  // 8. Limites slide
+  // =====================
+  // 9. LIMITES
+  // =====================
   if (data.limites) {
     slides.push({
-      icon: <AlertTriangle className="h-5 w-5" style={{ color: "#b45309" }} />,
+      icon: <AlertTriangle className="h-5 w-5 text-white" />,
       title: "Limites & Reserves",
+      subtitle: "POINTS D'ATTENTION",
       content: (
-        <div
-          className="rounded-xl border p-6"
-          style={{
-            backgroundColor: "#fffbeb",
-            borderColor: "#fbbf2440",
-          }}
-        >
-          <div className="mb-4 flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" style={{ color: "#b45309" }} />
-            <span className="text-sm font-semibold" style={{ color: "#92400e" }}>
-              Points d&apos;attention
-            </span>
-          </div>
-          <div className="space-y-1">
-            {data.limites
-              .split("\n")
-              .filter((line) => line.trim())
-              .map((line, i) => (
-                <p
-                  key={i}
-                  className="text-sm leading-relaxed"
-                  style={{ color: "#78350f" }}
+        <div className="mx-auto max-w-2xl">
+          <div
+            className="overflow-hidden rounded-xl border shadow-sm"
+            style={{
+              background: `linear-gradient(135deg, #fffbeb 0%, #fef3cd 100%)`,
+              borderColor: "#fbbf2430",
+            }}
+          >
+            {/* Top accent */}
+            <div
+              className="h-1 w-full"
+              style={{
+                background: `linear-gradient(to right, #f59e0b, #d97706)`,
+              }}
+            />
+            <div className="p-6">
+              <div className="mb-5 flex items-center gap-3">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: "#fbbf2420" }}
                 >
-                  {line.replace(/^[-*]\s*/, "").replace(/\*\*/g, "")}
-                </p>
-              ))}
+                  <AlertTriangle className="h-5 w-5" style={{ color: "#b45309" }} />
+                </div>
+                <div>
+                  <span className="text-sm font-bold" style={{ color: "#92400e" }}>
+                    Points d&apos;attention
+                  </span>
+                  <p className="text-[10px] font-medium uppercase tracking-widest" style={{ color: "#b4530980" }}>
+                    A prendre en compte
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {data.limites
+                  .split("\n")
+                  .filter((line) => line.trim())
+                  .map((line, i) => (
+                    <div
+                      key={i}
+                      className="flex gap-3 rounded-lg px-3 py-2"
+                      style={{
+                        backgroundColor: "#fbbf2408",
+                        animation: `slideInFromRight 0.4s ease-out ${i * 0.1}s both`,
+                      }}
+                    >
+                      <span className="mt-1 text-amber-500">&#x25cf;</span>
+                      <p
+                        className="text-sm leading-relaxed"
+                        style={{ color: "#78350f" }}
+                      >
+                        {line.replace(/^[-*]\s*/, "").replace(/\*\*/g, "")}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  // =====================
+  // 10. FIABILITE
+  // =====================
+  const fiabilite = (data as AnalysisData).fiabilite;
+  if (fiabilite && fiabilite.score > 0) {
+    const scoreColor =
+      fiabilite.score >= 60 ? EMERALD : fiabilite.score >= 40 ? GOLD : "#dc2626";
+
+    slides.push({
+      icon: <Shield className="h-5 w-5 text-white" />,
+      title: "Indice de fiabilite",
+      subtitle: "QUALITE DE L'ANALYSE",
+      content: (
+        <div className="flex h-full flex-col items-center justify-center gap-8">
+          {/* Circular score indicator */}
+          <div className="relative flex h-40 w-40 items-center justify-center">
+            <svg className="absolute h-full w-full -rotate-90" viewBox="0 0 160 160">
+              <circle
+                cx="80"
+                cy="80"
+                r="70"
+                fill="none"
+                stroke={`${scoreColor}15`}
+                strokeWidth="10"
+              />
+              <circle
+                cx="80"
+                cy="80"
+                r="70"
+                fill="none"
+                stroke={scoreColor}
+                strokeWidth="10"
+                strokeLinecap="round"
+                strokeDasharray={`${(fiabilite.score / 100) * 440} 440`}
+                style={{
+                  filter: `drop-shadow(0 0 6px ${scoreColor}40)`,
+                }}
+              />
+            </svg>
+            <div className="text-center">
+              <p className="text-4xl font-extrabold" style={{ color: scoreColor }}>
+                <AnimatedCounter target={fiabilite.score} />
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                / 100
+              </p>
+            </div>
+          </div>
+          <div className="text-center">
+            <p
+              className="text-lg font-bold"
+              style={{ fontFamily: "'Georgia', serif", color: NAVY }}
+            >
+              {fiabilite.label}
+            </p>
+            {fiabilite.details && (
+              <p className="mt-2 max-w-md text-sm text-gray-500">
+                {fiabilite.details}
+              </p>
+            )}
           </div>
         </div>
       ),
@@ -509,6 +1055,27 @@ function buildSlides(data: AnalysisData, query: string): SlideDefinition[] {
   }
 
   return slides;
+}
+
+// --- CSS Keyframes (injected once) ---
+
+const KEYFRAMES_CSS = `
+@keyframes slideInFromRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(201, 169, 110, 0.15); }
+  50% { box-shadow: 0 0 40px rgba(201, 169, 110, 0.3); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+`;
+
+function SlideAnimations() {
+  return <style dangerouslySetInnerHTML={{ __html: KEYFRAMES_CSS }} />;
 }
 
 // --- Main component ---
@@ -523,14 +1090,35 @@ export function AnalysisSlides({
   const slides = buildSlides(data as AnalysisData, query);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
+  const [direction, setDirection] = useState<"left" | "right" | "none">("none");
+  const [isAnimating, setIsAnimating] = useState(false);
+  const trackRef = useRef<HTMLDivElement>(null);
 
-  const goNext = useCallback(
-    () => setCurrentSlide((prev) => Math.min(prev + 1, slides.length - 1)),
-    [slides.length]
-  );
-  const goPrev = useCallback(
-    () => setCurrentSlide((prev) => Math.max(prev - 1, 0)),
-    []
+  const goNext = useCallback(() => {
+    if (isAnimating) return;
+    setDirection("left");
+    setIsAnimating(true);
+    setCurrentSlide((prev) => Math.min(prev + 1, slides.length - 1));
+    setTimeout(() => setIsAnimating(false), 500);
+  }, [slides.length, isAnimating]);
+
+  const goPrev = useCallback(() => {
+    if (isAnimating) return;
+    setDirection("right");
+    setIsAnimating(true);
+    setCurrentSlide((prev) => Math.max(prev - 1, 0));
+    setTimeout(() => setIsAnimating(false), 500);
+  }, [isAnimating]);
+
+  const goTo = useCallback(
+    (index: number) => {
+      if (isAnimating || index === currentSlide) return;
+      setDirection(index > currentSlide ? "left" : "right");
+      setIsAnimating(true);
+      setCurrentSlide(index);
+      setTimeout(() => setIsAnimating(false), 500);
+    },
+    [currentSlide, isAnimating]
   );
 
   // Global keyboard navigation
@@ -569,104 +1157,180 @@ export function AnalysisSlides({
 
   if (slides.length === 0) return null;
 
-  const containerClass = fullscreen
-    ? "fixed inset-0 z-50 bg-background"
-    : "relative";
-
   return (
-    <div className="space-y-3">
-      {/* Top bar */}
-      <div className="flex items-center justify-between">
-        <h2
-          className="flex items-center gap-2 text-lg font-bold"
-          style={{ color: NAVY }}
-        >
-          <Scale className="h-4 w-4" style={{ color: GOLD }} />
-          Presentation
-        </h2>
-        <div className="flex items-center gap-3">
-          {/* Dot indicators */}
-          <div className="flex gap-1.5">
-            {slides.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentSlide(i)}
-                aria-label={`Slide ${i + 1}`}
-                className="h-2 rounded-full transition-all"
-                style={{
-                  width: i === currentSlide ? 24 : 8,
-                  backgroundColor:
-                    i === currentSlide ? NAVY : `${NAVY}25`,
-                }}
-              />
-            ))}
+    <>
+      <SlideAnimations />
+      <div className="space-y-4">
+        {/* Top bar */}
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2.5">
+            <div
+              className="flex h-7 w-7 items-center justify-center rounded-lg"
+              style={{
+                background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY_LIGHT} 100%)`,
+              }}
+            >
+              <Scale className="h-3.5 w-3.5 text-white" />
+            </div>
+            <span
+              className="text-lg font-bold tracking-tight"
+              style={{ fontFamily: "'Georgia', serif", color: NAVY }}
+            >
+              Presentation
+            </span>
+            <span
+              className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest"
+              style={{ backgroundColor: `${GOLD}15`, color: GOLD }}
+            >
+              {slides.length} slides
+            </span>
+          </h2>
+          <div className="flex items-center gap-4">
+            {/* Pill dot indicators */}
+            <div className="flex items-center gap-1.5">
+              {slides.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => goTo(i)}
+                  aria-label={`Slide ${i + 1}`}
+                  className="rounded-full transition-all duration-500 ease-out"
+                  style={{
+                    width: i === currentSlide ? 28 : 8,
+                    height: 8,
+                    backgroundColor: i === currentSlide ? NAVY : `${NAVY}20`,
+                    boxShadow:
+                      i === currentSlide
+                        ? `0 0 8px ${NAVY}30`
+                        : "none",
+                  }}
+                />
+              ))}
+            </div>
+            {/* Fullscreen toggle */}
+            <button
+              onClick={() => setFullscreen(!fullscreen)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 hover:scale-105 hover:shadow-md"
+              style={{
+                borderColor: `${NAVY}15`,
+                backgroundColor: "white",
+              }}
+              aria-label={fullscreen ? "Quitter le plein ecran" : "Plein ecran"}
+            >
+              {fullscreen ? (
+                <Minimize2 className="h-4 w-4" style={{ color: NAVY }} />
+              ) : (
+                <Maximize2 className="h-4 w-4" style={{ color: NAVY }} />
+              )}
+            </button>
           </div>
-          {/* Fullscreen toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setFullscreen(!fullscreen)}
-          >
-            {fullscreen ? (
-              <Minimize2 className="h-4 w-4" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
-            )}
-          </Button>
         </div>
-      </div>
 
-      {/* Slide area */}
-      <div
-        className={containerClass}
-        onKeyDown={handleKeyDown}
-        tabIndex={0}
-        role="region"
-        aria-label="Slide presentation"
-        aria-roledescription="carousel"
-      >
-        <Card
-          className={`overflow-hidden ${
-            fullscreen
-              ? "h-full rounded-none border-0"
-              : "h-[500px]"
-          }`}
-        >
-          <SlideShell
-            slide={slides[currentSlide]}
-            index={currentSlide}
-            total={slides.length}
+        {/* Fullscreen backdrop */}
+        {fullscreen && (
+          <div
+            className="fixed inset-0 z-40"
+            style={{
+              backgroundColor: "rgba(15, 23, 42, 0.85)",
+              backdropFilter: "blur(8px)",
+            }}
+            onClick={() => setFullscreen(false)}
           />
-        </Card>
+        )}
 
-        {/* Left arrow */}
-        <div className="absolute inset-y-0 left-2 flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 rounded-full bg-background/80 shadow-md backdrop-blur"
-            onClick={goPrev}
-            disabled={currentSlide === 0}
-            aria-label="Slide precedente"
+        {/* Slide area */}
+        <div
+          className={
+            fullscreen
+              ? "fixed inset-4 z-50 flex items-center justify-center sm:inset-8 lg:inset-16"
+              : "relative"
+          }
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+          role="region"
+          aria-label="Slide presentation"
+          aria-roledescription="carousel"
+        >
+          <div
+            className={`w-full overflow-hidden rounded-2xl border shadow-lg ${
+              fullscreen ? "h-full" : "h-[520px] sm:h-[560px]"
+            }`}
+            style={{
+              borderColor: `${NAVY}12`,
+              boxShadow: fullscreen
+                ? `0 25px 60px rgba(0,0,0,0.3), 0 0 0 1px ${NAVY}10`
+                : `0 4px 20px ${NAVY}08, 0 1px 3px ${NAVY}05`,
+              backgroundColor: "#fafbfd",
+            }}
           >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        </div>
+            {/* Slide track with horizontal transition */}
+            <div
+              ref={trackRef}
+              className="flex h-full transition-transform duration-500 ease-out"
+              style={{
+                width: `${slides.length * 100}%`,
+                transform: `translateX(-${(currentSlide * 100) / slides.length}%)`,
+              }}
+            >
+              {slides.map((slide, i) => (
+                <div
+                  key={i}
+                  className="h-full"
+                  style={{ width: `${100 / slides.length}%` }}
+                >
+                  <SlideShell
+                    slide={slide}
+                    index={i}
+                    total={slides.length}
+                    direction={direction}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
 
-        {/* Right arrow */}
-        <div className="absolute inset-y-0 right-2 flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 rounded-full bg-background/80 shadow-md backdrop-blur"
-            onClick={goNext}
-            disabled={currentSlide === slides.length - 1}
-            aria-label="Slide suivante"
+          {/* Left arrow */}
+          <div
+            className={`absolute ${
+              fullscreen ? "-left-2 sm:-left-6" : "-left-3 sm:-left-5"
+            } inset-y-0 flex items-center`}
           >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
+            <button
+              onClick={goPrev}
+              disabled={currentSlide === 0}
+              className="flex h-11 w-11 items-center justify-center rounded-full border shadow-lg transition-all duration-200 hover:scale-110 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.95)",
+                borderColor: `${NAVY}15`,
+                backdropFilter: "blur(8px)",
+              }}
+              aria-label="Slide precedente"
+            >
+              <ChevronLeft className="h-5 w-5" style={{ color: NAVY }} />
+            </button>
+          </div>
+
+          {/* Right arrow */}
+          <div
+            className={`absolute ${
+              fullscreen ? "-right-2 sm:-right-6" : "-right-3 sm:-right-5"
+            } inset-y-0 flex items-center`}
+          >
+            <button
+              onClick={goNext}
+              disabled={currentSlide === slides.length - 1}
+              className="flex h-11 w-11 items-center justify-center rounded-full border shadow-lg transition-all duration-200 hover:scale-110 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.95)",
+                borderColor: `${NAVY}15`,
+                backdropFilter: "blur(8px)",
+              }}
+              aria-label="Slide suivante"
+            >
+              <ChevronRight className="h-5 w-5" style={{ color: NAVY }} />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
