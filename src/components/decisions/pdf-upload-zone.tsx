@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -31,8 +30,6 @@ export function PdfUploadZone() {
       setError(null);
 
       try {
-        const supabase = createClient();
-
         // 1. Create decision entry
         setProgress(20);
         const res = await fetch("/api/decisions", {
@@ -52,16 +49,20 @@ export function PdfUploadZone() {
         setDecisionId(decision.id);
         setProgress(40);
 
-        // 2. Upload PDF to Supabase Storage
+        // 2. Upload PDF via API
         const pdfPath = `${decision.cabinet_id}/${decision.id}.pdf`;
-        const { error: uploadError } = await supabase.storage
-          .from("decisions-pdfs")
-          .upload(pdfPath, file, {
-            contentType: "application/pdf",
-          });
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("path", pdfPath);
 
-        if (uploadError) {
-          throw new Error(`Erreur upload: ${uploadError.message}`);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const uploadErr = await uploadRes.json();
+          throw new Error(`Erreur upload: ${uploadErr.error}`);
         }
 
         // Update decision with pdf_path

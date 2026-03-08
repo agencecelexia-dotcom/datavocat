@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { DEMO_USER, DEMO_CABINET_ID } from "@/lib/demo";
 import type { Decision } from "@/types/database";
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
+  const supabase = createAdminClient();
 
   const searchParams = request.nextUrl.searchParams;
   const page = parseInt(searchParams.get("page") || "1");
@@ -49,37 +43,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
-
-  // Get user's cabinet
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("cabinet_id")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile?.cabinet_id) {
-    return NextResponse.json(
-      { error: "Aucun cabinet associé" },
-      { status: 400 }
-    );
-  }
-
+  const supabase = createAdminClient();
   const body = await request.json();
 
   const { data, error } = await supabase
     .from("decisions")
     .insert({
       ...body,
-      uploaded_by: user.id,
-      cabinet_id: profile.cabinet_id,
+      uploaded_by: DEMO_USER.id,
+      cabinet_id: DEMO_CABINET_ID,
       status: "pending",
     })
     .select()

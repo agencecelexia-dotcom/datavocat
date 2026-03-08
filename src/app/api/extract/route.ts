@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function getQStashClient() {
   const { Client } = require("@upstash/qstash") as typeof import("@upstash/qstash");
@@ -7,16 +7,7 @@ function getQStashClient() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-
-  // Verify authentication
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  }
+  const supabase = createAdminClient();
 
   const body = await request.json();
   const { decision_id, pdf_path } = body;
