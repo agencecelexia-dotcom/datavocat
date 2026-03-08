@@ -131,14 +131,14 @@ export function Header({ userEmail, userName }: HeaderProps) {
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground cursor-pointer transition-all duration-200 hover:bg-accent hover:text-foreground"
                   >
                     <Settings className="h-4 w-4" />
-                    Parametres
+                    Paramètres
                   </button>
                   <button
                     onClick={handleSignOut}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground cursor-pointer transition-all duration-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
                   >
                     <LogOut className="h-4 w-4" />
-                    Deconnexion
+                    Déconnexion
                   </button>
                 </div>
               </div>

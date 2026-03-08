@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { searchJudilibreForAnalysis } from "@/lib/judilibre/client";
+import { getAuthContext } from "@/lib/supabase/auth-helper";
 
 export const maxDuration = 60;
 
@@ -60,12 +61,19 @@ function getQualiteLabel(qualite: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return new Response(JSON.stringify({ error: "Non authentifié" }), {
+      status: 401, headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const { juridiction, qualite, client, adversaire, faits, arguments: args, demandes } =
     await request.json();
 
   if (!juridiction || !qualite || !client || !adversaire || !faits || !demandes) {
     return new Response(
-      JSON.stringify({ error: "Tous les champs obligatoires doivent etre remplis" }),
+      JSON.stringify({ error: "Tous les champs obligatoires doivent être remplis" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -100,7 +108,7 @@ ${demandes}
 ${judilibreContext}
 
 ═══ INSTRUCTIONS ═══
-Genere les conclusions juridiques completes en suivant le format obligatoire defini dans ton systeme prompt.
+Génère les conclusions juridiques complètes en suivant le format obligatoire defini dans ton systeme prompt.
 Utilise la jurisprudence Judilibre ci-dessus pour appuyer les arguments.
 Cite les references ECLI et les articles de loi pertinents.`;
 

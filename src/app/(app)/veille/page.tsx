@@ -61,21 +61,21 @@ interface SavedWatch {
 
 const CHAMBERS: Record<string, string> = {
   soc: "Chambre sociale",
-  civ1: "1ere chambre civile",
-  civ2: "2eme chambre civile",
-  civ3: "3eme chambre civile",
+  civ1: "1ère chambre civile",
+  civ2: "2ème chambre civile",
+  civ3: "3ème chambre civile",
   com: "Chambre commerciale",
   crim: "Chambre criminelle",
   mi: "Chambre mixte",
-  pl: "Assemblee pleniere",
+  pl: "Assemblée plénière",
 };
 
 const CHAMBER_OPTIONS = [
   { value: "", label: "Toutes les chambres" },
   { value: "soc", label: "Chambre sociale" },
-  { value: "civ1", label: "1ere chambre civile" },
-  { value: "civ2", label: "2eme chambre civile" },
-  { value: "civ3", label: "3eme chambre civile" },
+  { value: "civ1", label: "1ère chambre civile" },
+  { value: "civ2", label: "2ème chambre civile" },
+  { value: "civ3", label: "3ème chambre civile" },
   { value: "com", label: "Chambre commerciale" },
   { value: "crim", label: "Chambre criminelle" },
 ];
@@ -286,7 +286,7 @@ export default function VeillePage() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher des decisions (ex: licenciement economique, prise d'acte...)"
+              placeholder="Rechercher des décisions (ex: licenciement economique, prise d'acte...)"
               className="h-11 pl-10 text-base focus:border-[#1e3a5f] focus:ring-[#1e3a5f]/30"
             />
           </div>
@@ -314,7 +314,7 @@ export default function VeillePage() {
             className="flex cursor-pointer items-center gap-1.5 text-sm text-[#1e3a5f] transition-colors duration-200 hover:text-[#1e3a5f]/70"
           >
             <Filter className="size-3.5" />
-            <span>Filtres avances</span>
+            <span>Filtres avancés</span>
             <ChevronDown
               className={`size-3.5 transition-transform ${showFilters ? "rotate-180" : ""}`}
             />
@@ -341,7 +341,7 @@ export default function VeillePage() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">
-                  Date debut
+                  Date début
                 </label>
                 <Input
                   type="date"
@@ -407,7 +407,7 @@ export default function VeillePage() {
       {hasSearched && !loading && (
         <div className="space-y-4">
           <h2 className="font-serif text-lg font-semibold text-[#1e3a5f]">
-            {total} decision{total !== 1 ? "s" : ""} trouvee{total !== 1 ? "s" : ""}
+            {total} decision{total !== 1 ? "s" : ""} trouvée{total !== 1 ? "s" : ""}
           </h2>
 
           <div className="grid gap-4">
@@ -572,7 +572,7 @@ export default function VeillePage() {
       {watches.length > 0 && (
         <div className="space-y-4 border-t border-[#1e3a5f]/10 pt-8">
           <h2 className="font-serif text-xl font-semibold text-[#1e3a5f]">
-            Recherches sauvegardees
+            Recherches sauvegardées
           </h2>
 
           <div className="grid gap-3">
@@ -598,11 +598,11 @@ export default function VeillePage() {
                     </div>
                     <div className="flex gap-3 text-xs text-muted-foreground">
                       <span>
-                        Creee le{" "}
+                        Créée le{" "}
                         {new Date(watch.createdAt).toLocaleDateString("fr-FR")}
                       </span>
                       {watch.resultCount !== undefined && (
-                        <span>{watch.resultCount} resultats</span>
+                        <span>{watch.resultCount} résultats</span>
                       )}
                     </div>
                   </div>

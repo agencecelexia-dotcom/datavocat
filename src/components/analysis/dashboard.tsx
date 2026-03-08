@@ -46,7 +46,7 @@ const fmt = (v: number | null) =>
         currency: "EUR",
         maximumFractionDigits: 0,
       }).format(v)
-    : "\u2014";
+    : "\—";
 
 function pctColor(pct: number): string {
   if (pct >= 60) return EMERALD;
@@ -194,12 +194,12 @@ function ConfidenceBadge({
 }) {
   if (!confiance) return null;
   const map = {
-    "\u00e9lev\u00e9": {
+    "élevé": {
       bg: "rgba(45,106,79,0.1)",
       color: EMERALD,
       border: "rgba(45,106,79,0.25)",
       icon: ShieldCheck,
-      label: "Confiance \u00e9lev\u00e9e",
+      label: "Confiance élevée",
     },
     moyen: {
       bg: "rgba(202,103,2,0.1)",
@@ -262,7 +262,7 @@ function HeroSection({
       ? "Perspective favorable"
       : value >= 40
         ? "Issue incertaine"
-        : "Perspective d\u00e9favorable";
+        : "Perspective défavorable";
 
   const mainColor = pctColor(value);
 
@@ -321,7 +321,7 @@ function HeroSection({
             marginBottom: 8,
           }}
         >
-          Probabilit\u00e9 de succ\u00e8s
+          Probabilité de succès
         </p>
 
         {/* Giant counter */}
@@ -410,7 +410,7 @@ function HeroSection({
               }}
             >
               <BarChart3 style={{ width: 14, height: 14 }} />
-              {echantillon} d\u00e9cisions analys\u00e9es
+              {echantillon} décisions analysées
             </span>
           )}
           <ConfidenceBadge confiance={confiance} />
@@ -431,7 +431,7 @@ function HeroSection({
               }}
             >
               <Target style={{ width: 14, height: 14 }} />
-              Fiabilit\u00e9 : {fiabCounter}/100
+              Fiabilité : {fiabCounter}/100
             </span>
           )}
         </div>
@@ -646,7 +646,7 @@ function ArgumentsChart({
 
   const sorted = [...args].sort((a, b) => (b.taux ?? 0) - (a.taux ?? 0));
   const data = sorted.map((a) => ({
-    name: a.name.length > 48 ? a.name.slice(0, 46) + "\u2026" : a.name,
+    name: a.name.length > 48 ? a.name.slice(0, 46) + "\…" : a.name,
     taux: a.taux ?? 0,
   }));
 
@@ -654,7 +654,7 @@ function ArgumentsChart({
     <AnimatedSection>
       <DashCard>
         <SectionHeading icon={BarChart3}>
-          Taux de succ\u00e8s par argument
+          Taux de succès par argument
         </SectionHeading>
 
         <div ref={ref} style={{ height: Math.max(240, args.length * 56) }}>
@@ -694,7 +694,7 @@ function ArgumentsChart({
                 tickLine={false}
               />
               <Tooltip
-                formatter={(v) => [`${v} %`, "Taux de succ\u00e8s"]}
+                formatter={(v) => [`${v} %`, "Taux de succès"]}
                 contentStyle={{
                   borderRadius: 12,
                   border: "none",
@@ -913,7 +913,7 @@ function InstancesDonut({
     <AnimatedSection>
       <DashCard>
         <SectionHeading icon={Target}>
-          R\u00e9partition par instance
+          Répartition par instance
         </SectionHeading>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -1057,7 +1057,7 @@ function MontantsScale({
     <AnimatedSection>
       <DashCard>
         <SectionHeading icon={Banknote}>
-          Fourchette des montants allou\u00e9s
+          Fourchette des montants alloués
         </SectionHeading>
 
         <div
@@ -1114,7 +1114,7 @@ function MontantsScale({
                     marginBottom: 4,
                   }}
                 >
-                  M\u00e9dian
+                  Médian
                 </div>
                 <div
                   style={{
@@ -1247,7 +1247,7 @@ function FiabiliteBar({
     <AnimatedSection>
       <DashCard>
         <SectionHeading icon={ShieldCheck}>
-          Indice de fiabilit\u00e9
+          Indice de fiabilité
         </SectionHeading>
 
         <div ref={ref}>
@@ -1381,8 +1381,8 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
                 margin: "2px 0 0",
               }}
             >
-              Synth\u00e8se jurim\u00e9trique
-              {data.sourceCount > 0 && ` \u2022 ${data.sourceCount} sources`}
+              Synthèse jurimétrique
+              {data.sourceCount > 0 && ` \• ${data.sourceCount} sources`}
             </p>
           </div>
         </div>
@@ -1408,7 +1408,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
       >
         {data.tauxSuccesGlobal !== null && (
           <KpiCard
-            label="Taux de succ\u00e8s"
+            label="Taux de succès"
             value={`${data.tauxSuccesGlobal}`}
             suffix="%"
             icon={TrendingUp}
@@ -1418,7 +1418,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
         )}
         {data.echantillon !== null && (
           <KpiCard
-            label="D\u00e9cisions analys\u00e9es"
+            label="Décisions analysées"
             value={data.echantillon}
             icon={Users}
             accentColor={NAVY}
@@ -1436,11 +1436,11 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
         )}
         {data.montants.median !== null && (
           <KpiCard
-            label="Montant m\u00e9dian"
+            label="Montant médian"
             value={new Intl.NumberFormat("fr-FR", {
               maximumFractionDigits: 0,
             }).format(data.montants.median)}
-            suffix="\u20ac"
+            suffix="\€"
             icon={Banknote}
             accentColor={EMERALD}
             delay={0.15}

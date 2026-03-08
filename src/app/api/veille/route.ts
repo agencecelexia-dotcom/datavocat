@@ -1,9 +1,15 @@
 import { NextRequest } from "next/server";
 import { searchJudilibre } from "@/lib/judilibre/client";
+import { getAuthContext } from "@/lib/supabase/auth-helper";
 
 export const maxDuration = 30;
 
 export async function GET(request: NextRequest) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return Response.json({ error: "Non authentifié" }, { status: 401 });
+  }
+
   const sp = request.nextUrl.searchParams;
   const query = sp.get("query");
   if (!query) return Response.json({ error: "query requis" }, { status: 400 });

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { DEMO_USER, DEMO_CABINET_ID } from "@/lib/demo";
+import { getAuthContext } from "@/lib/supabase/auth-helper";
 import type { Decision } from "@/types/database";
 
 export async function GET(request: NextRequest) {
-  const supabase = createAdminClient();
+  const auth = await getAuthContext();
+  if (!auth) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
 
+  const supabase = createAdminClient();
   const searchParams = request.nextUrl.searchParams;
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "20");
@@ -22,6 +26,13 @@ export async function GET(request: NextRequest) {
     )
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
+
+  // Scope to user's cabinet
+  if (auth.cabinetId) {
+    query = query.eq("cabinet_id", auth.cabinetId);
+  } else {
+    query = query.eq("uploaded_by", auth.userId);
+  }
 
   if (status) query = query.eq("status", status as Decision["status"]);
   if (juridiction_type) query = query.eq("juridiction_type", juridiction_type);
@@ -43,6 +54,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
+
   const supabase = createAdminClient();
   const body = await request.json();
 
@@ -50,8 +66,8 @@ export async function POST(request: NextRequest) {
     .from("decisions")
     .insert({
       ...body,
-      uploaded_by: DEMO_USER.id,
-      cabinet_id: DEMO_CABINET_ID,
+      uploaded_by: auth.userId,
+      cabinet_id: auth.cabinetId,
       status: "pending",
     })
     .select()

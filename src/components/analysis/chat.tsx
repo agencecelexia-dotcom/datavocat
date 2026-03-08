@@ -98,7 +98,7 @@ export function AnalysisChat({ analysisContext, query }: AnalysisChatProps) {
         ...newMessages,
         {
           role: "assistant",
-          content: "Erreur de connexion. Verifiez votre connexion internet.",
+          content: "Erreur de connexion. Vérifiez votre connexion internet.",
         },
       ]);
     } finally {

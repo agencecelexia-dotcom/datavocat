@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getAuthContext } from "@/lib/supabase/auth-helper";
 
 export const maxDuration = 30;
 
@@ -8,6 +9,13 @@ export const maxDuration = 30;
  * Format: Simple PDF 1.4 with proper French text
  */
 export async function POST(request: NextRequest) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return new Response(JSON.stringify({ error: "Non authentifié" }), {
+      status: 401, headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const { query, response } = await request.json();
 
   if (!response) {
@@ -31,7 +39,7 @@ export async function POST(request: NextRequest) {
 
   // Build simple PDF content
   const title = "DATAVOCAT — Analyse Jurimetrique";
-  const subtitle = `Genere le ${date}`;
+  const subtitle = `Généré le ${date}`;
 
   const fullText = [
     title,
@@ -48,8 +56,8 @@ export async function POST(request: NextRequest) {
     "",
     "═".repeat(50),
     "",
-    "Genere par Datavocat — Analyse jurimetrique assistee par IA",
-    "Ce document est un outil d'aide a la decision strategique.",
+    "Généré par Datavocat — Analyse jurimétrique assistée par IA",
+    "Ce document est un outil d'aide à la décision stratégique.",
   ].join("\n");
 
   // Generate minimal PDF

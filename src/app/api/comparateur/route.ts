@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { searchJudilibreForAnalysis } from "@/lib/judilibre/client";
+import { getAuthContext } from "@/lib/supabase/auth-helper";
 
 export const maxDuration = 60;
 
@@ -49,6 +50,13 @@ REGLES :
 - Cite les ECLI quand disponibles`;
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return new Response(JSON.stringify({ error: "Non authentifié" }), {
+      status: 401, headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const { context, strategyA, strategyB } = await request.json();
 
   if (!context || !strategyA || !strategyB) {

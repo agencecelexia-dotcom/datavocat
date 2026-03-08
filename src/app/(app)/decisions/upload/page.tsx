@@ -19,9 +19,9 @@ export default function UploadPage() {
       {/* Process steps */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { icon: FileText, title: "Upload", desc: "Deposez votre PDF" },
-          { icon: Cpu, title: "Extraction IA", desc: "39 champs analyses" },
-          { icon: CheckCircle2, title: "Validation", desc: "Verifiez et validez" },
+          { icon: FileText, title: "Upload", desc: "Déposez votre PDF" },
+          { icon: Cpu, title: "Extraction IA", desc: "39 champs analysés" },
+          { icon: CheckCircle2, title: "Validation", desc: "Vérifiez et validez" },
         ].map((step, i) => (
           <div key={i} className="flex flex-col items-center rounded-xl border border-border/30 bg-card p-4 text-center">
             <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e3a5f]/5">

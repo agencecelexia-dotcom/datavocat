@@ -51,7 +51,7 @@ export default function HistoriquePage() {
           Historique
         </h1>
         <p className="text-muted-foreground">
-          Vos analyses jurimetriques precedentes
+          Vos analyses jurimétriques précédentes
         </p>
       </div>
 
@@ -70,7 +70,7 @@ export default function HistoriquePage() {
             Aucune analyse
           </p>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Lancez votre premiere analyse jurimetrique pour voir l&apos;historique ici.
+            Lancez votre première analyse jurimétrique pour voir l&apos;historique ici.
           </p>
           <Link href="/" className="mt-5">
             <Button className="cursor-pointer gap-2 bg-[#1e3a5f] text-white hover:bg-[#162d4a]">
@@ -116,7 +116,7 @@ export default function HistoriquePage() {
                   }
                 >
                   {a.status === "done"
-                    ? "Termine"
+                    ? "Terminé"
                     : a.status === "error"
                     ? "Erreur"
                     : "En cours"}

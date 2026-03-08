@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getAuthContext } from "@/lib/supabase/auth-helper";
 import {
   Document,
   Packer,
@@ -17,6 +18,13 @@ import {
 export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return new Response(JSON.stringify({ error: "Non authentifié" }), {
+      status: 401, headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const { query, response, parsed } = await request.json();
 
   if (!response) {

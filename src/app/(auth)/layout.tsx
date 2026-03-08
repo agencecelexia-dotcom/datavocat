@@ -35,15 +35,15 @@ export default function AuthLayout({
               <span className="block text-[#c9a96e]">au service du droit</span>
             </h2>
             <p className="max-w-sm text-sm leading-relaxed text-slate-400">
-              Analysez la jurisprudence, anticipez les issues contentieuses et renforcez vos strategies grace a l&apos;IA.
+              Analysez la jurisprudence, anticipez les issues contentieuses et renforcez vos stratégies grâce à l&apos;IA.
             </p>
 
             {/* Feature pills */}
             <div className="flex flex-col gap-3 pt-2">
               {[
-                { icon: Brain, text: "Analyse IA de 500 000+ decisions" },
-                { icon: BarChart3, text: "Statistiques jurimetriques temps reel" },
-                { icon: Shield, text: "Donnees chiffrees et securisees" },
+                { icon: Brain, text: "Analyse IA de 500 000+ décisions" },
+                { icon: BarChart3, text: "Statistiques jurimétriques temps réel" },
+                { icon: Shield, text: "Données chiffrées et sécurisées" },
                 { icon: Gavel, text: "Sources Judilibre + data.gouv.fr" },
               ].map((feature, i) => (
                 <div
@@ -61,7 +61,7 @@ export default function AuthLayout({
           <div className="space-y-4">
             <blockquote className="border-l-2 border-[#c9a96e]/40 pl-4">
               <p className="text-sm italic leading-relaxed text-slate-400">
-                &laquo; Datavocat a transforme notre approche contentieuse. Les donnees jurimetriques nous permettent de conseiller nos clients avec une precision inegalee. &raquo;
+                &laquo; Datavocat a transformé notre approche contentieuse. Les données jurimétriques nous permettent de conseiller nos clients avec une précision inégalée. &raquo;
               </p>
               <footer className="mt-2 text-xs text-slate-500">
                 Me Sophie Laurent — Avocate en droit social, Paris
@@ -70,9 +70,9 @@ export default function AuthLayout({
             <div className="flex items-center gap-6 text-xs text-slate-500">
               <span>Conforme RGPD</span>
               <span className="h-3 w-px bg-slate-700" />
-              <span>Heberge en France</span>
+              <span>Hébergé en France</span>
               <span className="h-3 w-px bg-slate-700" />
-              <span>Donnees chiffrees</span>
+              <span>Données chiffrées</span>
             </div>
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function AuthLayout({
           <span className="h-3 w-px bg-border" />
           <span>Conditions d&apos;utilisation</span>
           <span className="h-3 w-px bg-border" />
-          <span>Politique de confidentialite</span>
+          <span>Politique de confidentialité</span>
         </div>
       </div>
     </div>

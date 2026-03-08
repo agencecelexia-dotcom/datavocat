@@ -50,17 +50,17 @@ export default function RegisterPage() {
           <CheckCircle2 className="h-8 w-8 text-emerald-600" />
         </div>
         <h1 className="font-serif text-3xl tracking-tight text-foreground">
-          Inscription envoyee
+          Inscription envoyée
         </h1>
         <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          Un email de confirmation a ete envoye a <strong className="text-foreground">{email}</strong>. Verifiez votre boite de reception pour activer votre compte.
+          Un email de confirmation a été envoyé à <strong className="text-foreground">{email}</strong>. Vérifiez votre boîte de réception pour activer votre compte.
         </p>
         <Link
           href="/login"
           className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#1e3a5f] transition-colors hover:text-[#c9a96e] cursor-pointer"
         >
           <ArrowRight className="h-4 w-4 rotate-180" />
-          Retour a la connexion
+          Retour à la connexion
         </Link>
       </div>
     );
@@ -79,7 +79,7 @@ export default function RegisterPage() {
           Creer un compte
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Commencez a analyser la jurisprudence en quelques minutes
+          Commencez à analyser la jurisprudence en quelques minutes
         </p>
       </div>
 
@@ -112,7 +112,7 @@ export default function RegisterPage() {
               <Input
                 id="cabinetName"
                 type="text"
-                placeholder="Dupont & Associes"
+                placeholder="Dupont & Associés"
                 value={cabinetName}
                 onChange={(e) => setCabinetName(e.target.value)}
                 required
@@ -149,7 +149,7 @@ export default function RegisterPage() {
             <Input
               id="password"
               type="password"
-              placeholder="Minimum 6 caracteres"
+              placeholder="Minimum 6 caractères"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               minLength={6}
@@ -174,17 +174,17 @@ export default function RegisterPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
-              Creer mon compte
+              Créer mon compte
               <ArrowRight className="h-4 w-4" />
             </>
           )}
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">
-          En creant un compte, vous acceptez nos{" "}
+          En créant un compte, vous acceptez nos{" "}
           <span className="underline underline-offset-2 cursor-pointer">conditions d&apos;utilisation</span>{" "}
           et notre{" "}
-          <span className="underline underline-offset-2 cursor-pointer">politique de confidentialite</span>.
+          <span className="underline underline-offset-2 cursor-pointer">politique de confidentialité</span>.
         </p>
       </form>
 
@@ -197,7 +197,7 @@ export default function RegisterPage() {
 
       {/* Login link */}
       <p className="text-center text-sm text-muted-foreground">
-        Deja un compte ?{" "}
+        Déjà un compte ?{" "}
         <Link
           href="/login"
           className="font-semibold text-[#1e3a5f] underline-offset-4 transition-colors hover:text-[#c9a96e] hover:underline cursor-pointer"

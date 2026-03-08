@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { DATAVOCAT_SYSTEM_PROMPT } from "@/lib/claude/analyze-prompt";
@@ -17,22 +18,49 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // Get the authenticated user
+  const serverSupabase = await createClient();
+  const { data: { user } } = await serverSupabase.auth.getUser();
+
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Non authentifié" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Use admin client for writes (needed for streaming callback after response)
   const supabase = createAdminClient();
 
-  // Create or update analysis record
+  // Create or update analysis record — always scoped to user
   let id = analysisId;
   if (!id) {
     const { data } = await supabase
       .from("analyses")
-      .insert({ query, status: "streaming" })
+      .insert({ query, status: "streaming", user_id: user.id })
       .select("id")
       .single();
     id = data?.id;
   } else {
+    // Verify the analysis belongs to this user before updating
+    const { data: existing } = await supabase
+      .from("analyses")
+      .select("user_id")
+      .eq("id", id)
+      .single();
+
+    if (!existing || existing.user_id !== user.id) {
+      return new Response(JSON.stringify({ error: "Acces refuse" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     await supabase
       .from("analyses")
       .update({ status: "streaming" })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
   }
 
   // Search both sources in parallel with timeouts

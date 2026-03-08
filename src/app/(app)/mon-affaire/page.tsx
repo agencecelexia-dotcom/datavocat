@@ -146,7 +146,7 @@ export default function MonAffairePage() {
               onClick={handleModifyParams}
               className="cursor-pointer border border-[#1e3a5f] text-[#1e3a5f] transition-all duration-200 hover:bg-[#1e3a5f]/5"
             >
-              Modifier les parametres
+              Modifier les paramètres
             </Button>
             <Button
               onClick={handleReanalyze}

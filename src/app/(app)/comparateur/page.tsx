@@ -49,10 +49,10 @@ export default function ComparateurPage() {
     <div className="mx-auto max-w-6xl space-y-8">
       <div>
         <h1 className="font-serif text-2xl font-bold tracking-tight text-[#1e3a5f]">
-          Comparateur de strategies
+          Comparateur de stratégies
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Comparez deux strategies juridiques pour identifier la plus adaptee a
+          Comparez deux stratégies juridiques pour identifier la plus adaptée a
           votre affaire.
         </p>
       </div>
@@ -65,7 +65,7 @@ export default function ComparateurPage() {
         <textarea
           className="w-full rounded-md border border-[#1e3a5f]/20 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f]/30"
           rows={4}
-          placeholder="Decrivez les faits de l'affaire, le contexte, les parties en presence..."
+          placeholder="Décrivez les faits de l'affaire, le contexte, les parties en présence..."
           value={context}
           onChange={(e) => setContext(e.target.value)}
         />
@@ -75,12 +75,12 @@ export default function ComparateurPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <div className="rounded-lg border border-[#1e3a5f]/20 bg-card p-6 shadow-sm">
           <label className="mb-2 block font-serif text-sm font-semibold text-[#1e3a5f]">
-            Strategie A
+            Stratégie A
           </label>
           <textarea
             className="w-full rounded-md border border-[#1e3a5f]/20 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f]/30"
             rows={5}
-            placeholder="Decrivez la premiere strategie..."
+            placeholder="Décrivez la première stratégie..."
             value={strategyA}
             onChange={(e) => setStrategyA(e.target.value)}
           />
@@ -88,12 +88,12 @@ export default function ComparateurPage() {
 
         <div className="rounded-lg border border-[#1e3a5f]/20 bg-card p-6 shadow-sm">
           <label className="mb-2 block font-serif text-sm font-semibold text-[#1e3a5f]">
-            Strategie B
+            Stratégie B
           </label>
           <textarea
             className="w-full rounded-md border border-[#1e3a5f]/20 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f]/30"
             rows={5}
-            placeholder="Decrivez la deuxieme strategie..."
+            placeholder="Décrivez la deuxième stratégie..."
             value={strategyB}
             onChange={(e) => setStrategyB(e.target.value)}
           />
@@ -115,7 +115,7 @@ export default function ComparateurPage() {
               Analyse en cours...
             </span>
           ) : (
-            "Comparer les strategies"
+            "Comparer les stratégies"
           )}
         </button>
       </div>
@@ -150,7 +150,7 @@ export default function ComparateurPage() {
           {!parsed.strategyA.title && !parsed.verdict && (
             <div className="rounded-lg border border-[#1e3a5f]/20 bg-card p-6 shadow-sm">
               <h2 className="mb-4 font-serif text-xl font-bold text-[#1e3a5f]">
-                Resultat de la comparaison
+                Résultat de la comparaison
               </h2>
               <div
                 className="prose prose-sm max-w-none dark:prose-invert"
@@ -223,39 +223,39 @@ function parseComparison(raw: string): ParsedComparison {
 
   // Split by ## headings
   const stratAMatch = raw.match(
-    /## Strategie A\s*:\s*(.+?)\n([\s\S]*?)(?=## Strategie B|$)/i
+    /## Stratégie A\s*:\s*(.+?)\n([\s\S]*?)(?=## Stratégie B|$)/i
   );
   const stratBMatch = raw.match(
-    /## Strategie B\s*:\s*(.+?)\n([\s\S]*?)(?=## Verdict|$)/i
+    /## Stratégie B\s*:\s*(.+?)\n([\s\S]*?)(?=## Verdict|$)/i
   );
   const verdictMatch = raw.match(/## Verdict comparatif\s*\n([\s\S]*)/i);
 
   if (stratAMatch) {
     const body = stratAMatch[2];
-    const taux = extractSection(body, "Taux de succes estime");
+    const taux = extractSection(body, "Taux de succès estimé");
     result.strategyA = {
       title: stratAMatch[1].trim(),
       taux,
       tauxColor: getTauxColor(taux),
       arguments: extractSection(body, "Arguments principaux"),
       risques: extractSection(body, "Risques"),
-      delais: extractSection(body, "Delais previsibles"),
-      montants: extractSection(body, "Montants previsibles"),
+      delais: extractSection(body, "Délais prévisibles"),
+      montants: extractSection(body, "Montants prévisibles"),
       raw: body,
     };
   }
 
   if (stratBMatch) {
     const body = stratBMatch[2];
-    const taux = extractSection(body, "Taux de succes estime");
+    const taux = extractSection(body, "Taux de succès estimé");
     result.strategyB = {
       title: stratBMatch[1].trim(),
       taux,
       tauxColor: getTauxColor(taux),
       arguments: extractSection(body, "Arguments principaux"),
       risques: extractSection(body, "Risques"),
-      delais: extractSection(body, "Delais previsibles"),
-      montants: extractSection(body, "Montants previsibles"),
+      delais: extractSection(body, "Délais prévisibles"),
+      montants: extractSection(body, "Montants prévisibles"),
       raw: body,
     };
   }
@@ -286,7 +286,7 @@ function StrategyCard({
       {strategy.taux && (
         <div className="mb-4 rounded-md bg-muted/50 p-4 text-center">
           <p className="text-xs font-medium text-muted-foreground">
-            Taux de succes estime
+            Taux de succès estimé
           </p>
           <p className={`font-serif text-3xl font-bold ${strategy.tauxColor}`}>
             {strategy.taux.match(/\d+\s*%/)?.[0] || strategy.taux}
@@ -313,7 +313,7 @@ function StrategyCard({
       {strategy.risques && (
         <div className="mb-3">
           <h3 className="mb-1 font-serif text-sm font-semibold text-[#9b2226]">
-            Risques identifies
+            Risques identifiés
           </h3>
           <div
             className="text-sm text-muted-foreground"
@@ -328,7 +328,7 @@ function StrategyCard({
       {strategy.delais && (
         <div className="mb-3">
           <h3 className="mb-1 font-serif text-sm font-semibold text-[#1e3a5f]">
-            Delais previsibles
+            Délais prévisibles
           </h3>
           <p className="text-sm text-muted-foreground">{strategy.delais}</p>
         </div>
@@ -338,7 +338,7 @@ function StrategyCard({
       {strategy.montants && (
         <div>
           <h3 className="mb-1 font-serif text-sm font-semibold text-[#c9a96e]">
-            Montants previsibles
+            Montants prévisibles
           </h3>
           <p className="text-sm text-muted-foreground">{strategy.montants}</p>
         </div>

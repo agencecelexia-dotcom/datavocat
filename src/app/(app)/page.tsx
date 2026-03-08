@@ -186,7 +186,7 @@ export default function AnalyzePage() {
         }
       }
     } catch {
-      setResponse("Erreur de connexion. Verifiez votre connexion internet.");
+      setResponse("Erreur de connexion. Vérifiez votre connexion internet.");
     } finally {
       setLoading(false);
       setPhase("done");

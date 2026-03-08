@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthContext } from "@/lib/supabase/auth-helper";
 import { monAffaireSchema } from "@/lib/validators/decision";
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
+
   const supabase = createAdminClient();
 
   const body = await request.json();

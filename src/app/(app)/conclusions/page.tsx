@@ -17,10 +17,10 @@ const JURIDICTIONS = [
 
 const QUALITES = [
   { value: "demandeur", label: "Demandeur" },
-  { value: "defendeur", label: "Defendeur" },
+  { value: "defendeur", label: "Défendeur" },
   { value: "appelant", label: "Appelant" },
-  { value: "intime", label: "Intime" },
-  { value: "requerant", label: "Requerant" },
+  { value: "intime", label: "Intimé" },
+  { value: "requerant", label: "Requérant" },
 ];
 
 const TEMPLATES_KEY = "datavocat_conclusion_templates";
@@ -86,7 +86,7 @@ function formatMarkdown(text: string): string {
   html = html.replace(
     /ECLI:[A-Z]{2}:[A-Z0-9]+:\d{4}:[A-Z0-9.]+/g,
     (match) =>
-      `<a href="https://www.legifrance.gouv.fr/search?query=${encodeURIComponent(match)}" target="_blank" rel="noopener noreferrer" class="text-[#c9a96e] underline hover:text-[#1e3a5f]">${match}</a>`
+      `<a href="https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(match)}" target="_blank" rel="noopener noreferrer" class="text-[#c9a96e] underline hover:text-[#1e3a5f]">${match}</a>`
   );
   // Line breaks
   html = html.replace(/\n\n/g, "<br/><br/>");
@@ -200,7 +200,7 @@ export default function ConclusionsPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Erreur lors de la generation");
+      if (!res.ok) throw new Error("Erreur lors de la génération");
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
@@ -217,7 +217,7 @@ export default function ConclusionsPage() {
     } catch (error) {
       console.error(error);
       setResult(
-        "Une erreur est survenue lors de la generation des conclusions."
+        "Une erreur est survenue lors de la génération des conclusions."
       );
     } finally {
       setLoading(false);
@@ -284,10 +284,10 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
       {/* Header */}
       <div>
         <h1 className="font-serif text-2xl font-bold tracking-tight text-[#1e3a5f]">
-          Generateur de conclusions
+          Générateur de conclusions
         </h1>
         <p className="mt-1 text-muted-foreground">
-          Generez un projet de conclusions juridiques a partir de vos elements
+          Générez un projet de conclusions juridiques à partir de vos éléments
           de fait et de droit
         </p>
       </div>
@@ -338,7 +338,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="font-serif text-[#1e3a5f]">
-            Elements de l&apos;affaire
+            Éléments de l&apos;affaire
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -353,7 +353,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
                 value={juridiction}
                 onChange={(e) => setJuridiction(e.target.value)}
               >
-                <option value="">Selectionnez...</option>
+                <option value="">Sélectionnez...</option>
                 {JURIDICTIONS.map((j) => (
                   <option key={j} value={j}>
                     {j}
@@ -371,7 +371,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
                 value={qualite}
                 onChange={(e) => setQualite(e.target.value)}
               >
-                <option value="">Selectionnez...</option>
+                <option value="">Sélectionnez...</option>
                 {QUALITES.map((q) => (
                   <option key={q.value} value={q.value}>
                     {q.label}
@@ -406,14 +406,14 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
             </div>
           </div>
 
-          {/* Faits et procedure */}
+          {/* Faits et procédure */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1e3a5f]">
-              Faits et procedure
+              Faits et procédure
             </label>
             <Textarea
               className="min-h-[120px]"
-              placeholder="Exposez les faits de maniere chronologique et la procedure engagee..."
+              placeholder="Exposez les faits de manière chronologique et la procédure engagée..."
               value={faits}
               onChange={(e) => setFaits(e.target.value)}
             />
@@ -439,7 +439,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
             </label>
             <Textarea
               className="min-h-[80px]"
-              placeholder="Que demande votre client ? (indemnites, annulation, dommages-interets...)"
+              placeholder="Que demande votre client ? (indemnités, annulation, dommages-intérêts...)"
               value={demandes}
               onChange={(e) => setDemandes(e.target.value)}
             />
@@ -474,10 +474,10 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                     />
                   </svg>
-                  Generation des conclusions en cours...
+                  Génération des conclusions en cours...
                 </span>
               ) : (
-                "Generer les conclusions"
+                "Générer les conclusions"
               )}
             </Button>
             <Button
@@ -516,7 +516,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
             />
           </svg>
           <span className="font-serif text-sm">
-            Generation des conclusions en cours...
+            Génération des conclusions en cours...
           </span>
         </div>
       )}
@@ -539,7 +539,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
                 onClick={handleExportDocx}
                 className="cursor-pointer border-[#c9a96e] text-[#c9a96e] transition-all duration-200 hover:bg-[#c9a96e]/10"
               >
-                Telecharger DOCX
+                Télécharger DOCX
               </Button>
             </div>
           </CardHeader>

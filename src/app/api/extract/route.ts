@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthContext } from "@/lib/supabase/auth-helper";
 
 function getQStashClient() {
   const { Client } = require("@upstash/qstash") as typeof import("@upstash/qstash");
@@ -7,6 +8,11 @@ function getQStashClient() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await getAuthContext();
+  if (!auth) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
+
   const supabase = createAdminClient();
 
   const body = await request.json();
@@ -20,11 +26,18 @@ export async function POST(request: NextRequest) {
   }
 
   // Verify decision exists and belongs to user's cabinet
-  const { data: decision, error: fetchError } = await supabase
+  let decisionQuery = supabase
     .from("decisions")
     .select("id, status, cabinet_id")
-    .eq("id", decision_id)
-    .single();
+    .eq("id", decision_id);
+
+  if (auth.cabinetId) {
+    decisionQuery = decisionQuery.eq("cabinet_id", auth.cabinetId);
+  } else {
+    decisionQuery = decisionQuery.eq("uploaded_by", auth.userId);
+  }
+
+  const { data: decision, error: fetchError } = await decisionQuery.single();
 
   if (fetchError || !decision) {
     return NextResponse.json(

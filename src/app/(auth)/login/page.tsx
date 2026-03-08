@@ -46,7 +46,7 @@ export default function LoginPage() {
           Bon retour
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Connectez-vous a votre espace d&apos;analyse jurimetrique
+          Connectez-vous à votre espace d&apos;analyse jurimétrique
         </p>
       </div>
 
@@ -79,7 +79,7 @@ export default function LoginPage() {
               type="button"
               className="text-xs font-medium text-[#c9a96e] transition-colors hover:text-[#b8944f] cursor-pointer"
             >
-              Mot de passe oublie ?
+              Mot de passe oublié ?
             </button>
           </div>
           <div className="relative">
@@ -131,7 +131,7 @@ export default function LoginPage() {
           href="/register"
           className="font-semibold text-[#1e3a5f] underline-offset-4 transition-colors hover:text-[#c9a96e] hover:underline cursor-pointer"
         >
-          Creer un compte gratuitement
+          Créer un compte gratuitement
         </Link>
       </p>
     </div>

@@ -30,7 +30,7 @@ const navItems = [
     icon: History,
   },
   {
-    label: "Decisions",
+    label: "Décisions",
     href: "/decisions",
     icon: FileText,
   },
@@ -164,7 +164,7 @@ export function Sidebar() {
 
         {/* Branding */}
         <div className="flex items-center justify-center gap-2 text-[10px] text-slate-600">
-          <span>Analyse Jurimetrique</span>
+          <span>Analyse Jurimétrique</span>
           <span className="h-2.5 w-px bg-slate-700/50" />
           <span>v1.0</span>
         </div>

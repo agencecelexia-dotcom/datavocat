@@ -50,7 +50,7 @@ export default function DecisionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-3xl tracking-tight text-[#1e3a5f]">Decisions</h1>
+          <h1 className="font-serif text-3xl tracking-tight text-[#1e3a5f]">Décisions</h1>
           <p className="text-muted-foreground">
             {total} decision{total !== 1 ? "s" : ""} dans la base
           </p>
@@ -96,7 +96,7 @@ export default function DecisionsPage() {
             <SelectItem value="pending" className="cursor-pointer">En attente</SelectItem>
             <SelectItem value="extracting" className="cursor-pointer">Extraction...</SelectItem>
             <SelectItem value="review" className="cursor-pointer">A valider</SelectItem>
-            <SelectItem value="validated" className="cursor-pointer">Validees</SelectItem>
+            <SelectItem value="validated" className="cursor-pointer">Validées</SelectItem>
             <SelectItem value="error" className="cursor-pointer">Erreur</SelectItem>
           </SelectContent>
         </Select>
@@ -120,9 +120,9 @@ export default function DecisionsPage() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1e3a5f]/5">
             <Upload className="h-6 w-6 text-[#1e3a5f]/40" />
           </div>
-          <p className="text-lg font-semibold text-foreground">Aucune decision</p>
+          <p className="text-lg font-semibold text-foreground">Aucune décision</p>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Commencez par uploader un PDF de decision de justice ou importez depuis data.gouv.fr
+            Commencez par uploader un PDF de décision de justice ou importez depuis data.gouv.fr
           </p>
           <div className="mt-5 flex gap-3">
             <Link href="/decisions/upload">
@@ -150,7 +150,7 @@ export default function DecisionsPage() {
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
           >
-            Precedent
+            Précédent
           </Button>
           <span className="flex items-center px-4 text-sm text-muted-foreground">
             Page {page} / {Math.ceil(total / 20)}

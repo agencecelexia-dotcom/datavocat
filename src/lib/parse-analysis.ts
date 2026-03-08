@@ -49,12 +49,12 @@ export interface ParsedAnalysis {
  * Build a clickable URL for a French court decision reference
  */
 function buildSourceUrl(ecli: string): string {
-  // Legifrance search by ECLI
+  // ECLI → Cour de cassation direct decision page
   if (ecli.startsWith("ECLI:")) {
-    return `https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(ecli)}`;
+    return `https://www.courdecassation.fr/decision/${encodeURIComponent(ecli)}`;
   }
-  // Pourvoi number search
-  return `https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(ecli)}`;
+  // Pourvoi number → Cour de cassation search
+  return `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ecli)}`;
 }
 
 /**
@@ -115,7 +115,7 @@ function extractSources(text: string): SourceReference[] {
     sources.push({
       type: "decision",
       reference: ref,
-      url: `https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(ref)}`,
+      url: `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ref)}`,
       date: match[2],
       chamber: match[1],
       solution: "",

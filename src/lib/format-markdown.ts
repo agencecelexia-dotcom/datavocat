@@ -174,7 +174,7 @@ function applyInlineFormatting(line: string): string {
       // ECLI references — badge-like clickable
       .replace(
         /(ECLI:[A-Z]{2}:[A-Z]+:\d{4}:[A-Z0-9.]+)/g,
-        `<a href="https://www.legifrance.gouv.fr/search/juri?query=$1" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700/50 px-2 py-0.5 font-mono text-[11px] text-blue-800 dark:text-blue-300 no-underline hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors">$1${EXTERNAL_LINK_SVG}</a>`
+        `<a href="https://www.courdecassation.fr/decision/$1" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700/50 px-2 py-0.5 font-mono text-[11px] text-blue-800 dark:text-blue-300 no-underline hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors">$1${EXTERNAL_LINK_SVG}</a>`
       )
       // Pourvoi numbers — badge-like clickable (n° XX-XXXXX)
       .replace(
