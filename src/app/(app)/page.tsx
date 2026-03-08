@@ -1,17 +1,26 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Scale, Send, Loader2, Sparkles } from "lucide-react";
+import { Scale, Send, Loader2, Sparkles, BarChart3, Presentation } from "lucide-react";
+import { parseAnalysisResponse } from "@/lib/parse-analysis";
+import { AnalysisDashboard } from "@/components/analysis/dashboard";
+import { AnalysisSlides } from "@/components/analysis/slides";
 
 export default function AnalyzePage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<"text" | "dashboard" | "slides">("text");
   const responseRef = useRef<HTMLDivElement>(null);
+
+  const parsedData = useMemo(() => {
+    if (!response || loading) return null;
+    return parseAnalysisResponse(response);
+  }, [response, loading]);
 
   useEffect(() => {
     if (responseRef.current) {
@@ -148,7 +157,46 @@ export default function AnalyzePage() {
             <p className="text-sm">{query}</p>
           </Card>
 
-          {/* AI response */}
+          {/* View toggle tabs */}
+          {!loading && parsedData && (
+            <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-1">
+              <button
+                onClick={() => setActiveView("text")}
+                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  activeView === "text"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Scale className="h-4 w-4" />
+                Rapport
+              </button>
+              <button
+                onClick={() => setActiveView("dashboard")}
+                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  activeView === "dashboard"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <BarChart3 className="h-4 w-4" />
+                Dashboard
+              </button>
+              <button
+                onClick={() => setActiveView("slides")}
+                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  activeView === "slides"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Presentation className="h-4 w-4" />
+                Presentation
+              </button>
+            </div>
+          )}
+
+          {/* Content area */}
           <div
             ref={responseRef}
             className="flex-1 overflow-y-auto rounded-lg border bg-card p-6"
@@ -161,12 +209,28 @@ export default function AnalyzePage() {
                 </span>
               </div>
             )}
-            <div
-              className="prose prose-sm max-w-none dark:prose-invert"
-              dangerouslySetInnerHTML={{ __html: formatMarkdown(response) }}
-            />
-            {loading && response && (
-              <span className="inline-block h-4 w-2 animate-pulse bg-primary" />
+
+            {/* Text view (default, also shown while streaming) */}
+            {(activeView === "text" || loading) && (
+              <>
+                <div
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{ __html: formatMarkdown(response) }}
+                />
+                {loading && response && (
+                  <span className="inline-block h-4 w-2 animate-pulse bg-primary" />
+                )}
+              </>
+            )}
+
+            {/* Dashboard view */}
+            {activeView === "dashboard" && !loading && parsedData && (
+              <AnalysisDashboard data={parsedData} />
+            )}
+
+            {/* Slides view */}
+            {activeView === "slides" && !loading && parsedData && (
+              <AnalysisSlides data={parsedData} query={query} />
             )}
           </div>
 
