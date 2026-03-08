@@ -35,33 +35,48 @@ export async function POST(request: NextRequest) {
       .eq("id", id);
   }
 
-  // Search multiple sources in parallel with the full query
-  // searchJudilibreForAnalysis now handles keyword extraction internally
+  // Search multiple sources in parallel with the full query (with 8s timeout each)
+  const withTimeout = <T>(promise: Promise<T>, fallback: T, ms = 8000): Promise<T> =>
+    Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
+
   const [datagouvrContext, judilibreContext] = await Promise.all([
-    searchCourtDecisions(query).catch(
-      () => "Recherche data.gouv.fr indisponible."
+    withTimeout(
+      searchCourtDecisions(query).catch(() => ""),
+      "",
     ),
-    searchJudilibreForAnalysis(query).catch(
-      () => "API Judilibre indisponible."
+    withTimeout(
+      searchJudilibreForAnalysis(query).catch(() => ""),
+      "",
     ),
   ]);
+
+  // Determine source availability for dynamic instructions
+  const hasJudilibre = judilibreContext.includes("JUDILIBRE") && judilibreContext.includes("decisions trouvees");
+  const hasDatagouv = datagouvrContext.length > 50 && !datagouvrContext.includes("Aucun jeu");
 
   // Stream Claude analysis
   const anthropic = getAnthropicClient();
 
+  let sourceBlock = "";
+  if (hasJudilibre) {
+    sourceBlock += `\n${judilibreContext}\n`;
+  }
+  if (hasDatagouv) {
+    sourceBlock += `\n═══ DONNEES DATA.GOUV.FR ═══\n${datagouvrContext}\n`;
+  }
+
+  const sourceInstruction = hasJudilibre
+    ? "Des decisions Judilibre sont fournies ci-dessous — analyse-les en priorite (ce sont des decisions reelles verifiables). Complete avec tes connaissances."
+    : "IMPORTANT : L'API Judilibre n'a pas retourne de resultats pour cette recherche. Tu DOIS quand meme fournir une analyse COMPLETE et DETAILLEE basee sur tes connaissances approfondies de la jurisprudence francaise. Tu connais des milliers d'arrets — mobilise-les. Cite les arrets de principe, les tendances, les statistiques documentees. Ne dis PAS que tu n'as pas de donnees — tu en as dans tes connaissances.";
+
   const userMessage = `DEMANDE DE L'AVOCAT :
 ${query}
-
-${judilibreContext}
-
-═══ DONNEES DATA.GOUV.FR ═══
-${datagouvrContext}
-
+${sourceBlock}
 ═══ INSTRUCTIONS ═══
+${sourceInstruction}
 Analyse cette demande en suivant la structure definie dans ton systeme prompt.
-Base-toi sur les decisions Judilibre ci-dessus (source prioritaire, ce sont de vraies decisions) ET sur les donnees data.gouv.fr ET sur ta connaissance de la jurisprudence francaise.
-Si les donnees sont insuffisantes, complete avec tes connaissances en le signalant explicitement dans les limites.
-Cite les references ECLI et numeros de pourvoi quand disponibles.`;
+Fournis une analyse RICHE avec des statistiques, des decisions cles, et des recommandations strategiques concretes.
+Cite les references les plus precises possibles (ECLI, numeros de pourvoi, dates).`;
 
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",
