@@ -21,8 +21,14 @@ import {
   Search,
   Database,
   Brain,
+  ExternalLink,
+  BookOpen,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  CheckCircle2,
 } from "lucide-react";
-import { parseAnalysisResponse } from "@/lib/parse-analysis";
+import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisSlides } from "@/components/analysis/slides";
 
@@ -44,6 +50,7 @@ export default function AnalyzePage() {
   const [activeView, setActiveView] = useState<
     "text" | "dashboard" | "slides"
   >("text");
+  const [showSources, setShowSources] = useState(false);
   const responseRef = useRef<HTMLDivElement>(null);
 
   // Clarification state
@@ -124,6 +131,7 @@ export default function AnalyzePage() {
     setResponse("");
     setAnalysisId(null);
     setActiveView("text");
+    setShowSources(false);
 
     try {
       const res = await fetch("/api/analyze", {
@@ -170,6 +178,7 @@ export default function AnalyzePage() {
     setQuestions([]);
     setAnswers({});
     setActiveView("text");
+    setShowSources(false);
   };
 
   const setAnswer = (id: string, value: string) => {
@@ -177,7 +186,7 @@ export default function AnalyzePage() {
   };
 
   const handleExport = async (format: "pdf" | "docx") => {
-    if (!analysisId || !response) return;
+    if (!response) return;
     try {
       const res = await fetch(`/api/export/${format}`, {
         method: "POST",
@@ -214,7 +223,7 @@ export default function AnalyzePage() {
   ).length;
 
   return (
-    <div className="mx-auto flex h-full max-w-4xl flex-col">
+    <div className="mx-auto flex h-full max-w-5xl flex-col">
       {phase === "input" ? (
         /* ═══ INPUT STATE ═══ */
         <div className="flex flex-1 flex-col items-center justify-center gap-10 px-4">
@@ -232,7 +241,7 @@ export default function AnalyzePage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="w-full space-y-4">
+          <form onSubmit={handleSubmit} className="w-full max-w-3xl space-y-4">
             <div className="relative">
               <Textarea
                 value={query}
@@ -264,7 +273,7 @@ export default function AnalyzePage() {
             </p>
           </form>
 
-          <div className="w-full space-y-3">
+          <div className="w-full max-w-3xl space-y-3">
             <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <Sparkles className="h-4 w-4 text-gold" />
               Exemples de demandes
@@ -304,10 +313,7 @@ export default function AnalyzePage() {
 
           <div className="space-y-4">
             {questions.map((q, idx) => (
-              <Card
-                key={q.id}
-                className="border-border/60 p-5 shadow-sm"
-              >
+              <Card key={q.id} className="border-border/60 p-5 shadow-sm">
                 <label className="mb-3 block text-sm font-medium leading-relaxed">
                   <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                     {idx + 1}
@@ -406,28 +412,54 @@ export default function AnalyzePage() {
               )}
           </Card>
 
-          {/* View toggle tabs */}
+          {/* Source count + Fiabilite + View toggle */}
           {phase === "done" && parsedData && (
-            <div className="flex shrink-0 gap-1 rounded-lg bg-muted/60 p-1">
-              {[
-                { key: "text" as const, label: "Rapport", icon: FileText },
-                { key: "dashboard" as const, label: "Dashboard", icon: BarChart3 },
-                { key: "slides" as const, label: "Presentation", icon: Presentation },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveView(tab.key)}
-                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
-                    activeView === tab.key
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              ))}
+            <div className="flex shrink-0 flex-wrap items-center gap-3">
+              {/* Sources & fiabilite badges */}
+              <SourcesBadge data={parsedData} onClick={() => setShowSources(!showSources)} />
+              <FiabiliteBadge fiabilite={parsedData.fiabilite} />
+
+              <div className="flex-1" />
+
+              {/* View tabs */}
+              <div className="flex gap-1 rounded-lg bg-muted/60 p-1">
+                {[
+                  {
+                    key: "text" as const,
+                    label: "Rapport",
+                    icon: FileText,
+                  },
+                  {
+                    key: "dashboard" as const,
+                    label: "Dashboard",
+                    icon: BarChart3,
+                  },
+                  {
+                    key: "slides" as const,
+                    label: "Presentation",
+                    icon: Presentation,
+                  },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveView(tab.key)}
+                    className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                      activeView === tab.key
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <tab.icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* Sources panel (collapsible) */}
+          {showSources && parsedData && parsedData.sources.length > 0 && (
+            <SourcesPanel sources={parsedData.sources} />
           )}
 
           {/* Content area */}
@@ -449,13 +481,25 @@ export default function AnalyzePage() {
                 </div>
                 <div className="mx-auto max-w-sm space-y-3">
                   {[
-                    { icon: Search, text: "Recherche dans les bases de donnees...", delay: "0s" },
-                    { icon: Database, text: "Interrogation de data.gouv.fr...", delay: "0.5s" },
-                    { icon: Brain, text: "Analyse jurimetrique...", delay: "1s" },
+                    {
+                      icon: Search,
+                      text: "Recherche Judilibre (Cour de cassation)...",
+                      delay: "0s",
+                    },
+                    {
+                      icon: Database,
+                      text: "Interrogation de data.gouv.fr...",
+                      delay: "0.5s",
+                    },
+                    {
+                      icon: Brain,
+                      text: "Analyse jurimetrique par IA...",
+                      delay: "1s",
+                    },
                   ].map((step, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-3 text-sm text-muted-foreground animate-pulse"
+                      className="flex animate-pulse items-center gap-3 text-sm text-muted-foreground"
                       style={{ animationDelay: step.delay }}
                     >
                       <step.icon className="h-4 w-4 shrink-0" />
@@ -538,32 +582,193 @@ export default function AnalyzePage() {
   );
 }
 
+/* ═══ SOURCES BADGE ═══ */
+function SourcesBadge({
+  data,
+  onClick,
+}: {
+  data: ParsedAnalysis;
+  onClick: () => void;
+}) {
+  const count = data.sourceCount;
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-sm font-medium text-primary transition-all hover:bg-primary/10 hover:shadow-sm"
+    >
+      <BookOpen className="h-4 w-4" />
+      <span>
+        {count} source{count !== 1 ? "s" : ""}
+      </span>
+      {count > 0 && (
+        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+      )}
+    </button>
+  );
+}
+
+/* ═══ FIABILITE BADGE ═══ */
+function FiabiliteBadge({
+  fiabilite,
+}: {
+  fiabilite: ParsedAnalysis["fiabilite"];
+}) {
+  const config: Record<
+    string,
+    { bg: string; text: string; icon: typeof ShieldCheck }
+  > = {
+    "Tres eleve": {
+      bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
+      text: "text-emerald-700 dark:text-emerald-400",
+      icon: ShieldCheck,
+    },
+    Eleve: {
+      bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
+      text: "text-emerald-700 dark:text-emerald-400",
+      icon: ShieldCheck,
+    },
+    Moyen: {
+      bg: "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
+      text: "text-amber-700 dark:text-amber-400",
+      icon: ShieldAlert,
+    },
+    Faible: {
+      bg: "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
+      text: "text-rose-700 dark:text-rose-400",
+      icon: ShieldX,
+    },
+    "Tres faible": {
+      bg: "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
+      text: "text-rose-700 dark:text-rose-400",
+      icon: ShieldX,
+    },
+  };
+
+  const c = config[fiabilite.label] || config["Faible"];
+  const Icon = c.icon;
+
+  return (
+    <div
+      className={`group relative inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium ${c.bg} ${c.text}`}
+    >
+      <Icon className="h-4 w-4" />
+      <span>
+        Fiabilite : {fiabilite.label} ({fiabilite.score}/100)
+      </span>
+      {/* Tooltip on hover */}
+      <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 hidden w-72 rounded-lg border bg-card p-3 text-xs text-foreground shadow-lg group-hover:block">
+        <p className="font-medium">Details du score de fiabilite</p>
+        <p className="mt-1 text-muted-foreground">{fiabilite.details}</p>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${fiabilite.score}%`,
+              backgroundColor:
+                fiabilite.score >= 60
+                  ? "#2d6a4f"
+                  : fiabilite.score >= 40
+                    ? "#ca6702"
+                    : "#9b2226",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══ SOURCES PANEL ═══ */
+function SourcesPanel({
+  sources,
+}: {
+  sources: ParsedAnalysis["sources"];
+}) {
+  return (
+    <Card className="shrink-0 border-primary/20 bg-primary/[0.02] p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <BookOpen className="h-4 w-4 text-primary" />
+        <h3 className="font-serif text-sm font-semibold text-primary">
+          Sources de jurisprudence ({sources.length})
+        </h3>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {sources.map((source, i) => (
+          <a
+            key={i}
+            href={source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3 transition-all hover:border-primary/40 hover:shadow-sm"
+          >
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+              {i + 1}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-foreground group-hover:text-primary">
+                {source.reference}
+              </p>
+              {(source.chamber || source.date) && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {[source.chamber, source.date, source.solution]
+                    .filter(Boolean)
+                    .join(" — ")}
+                </p>
+              )}
+            </div>
+            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-primary" />
+          </a>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/* ═══ MARKDOWN FORMATTER ═══ */
 function formatMarkdown(text: string): string {
-  return text
-    .replace(
-      /^## (.+)$/gm,
-      '<h2 class="font-serif text-xl font-bold mt-8 mb-3 pb-2 border-b border-border/40 text-primary">$1</h2>'
-    )
-    .replace(
-      /^### (.+)$/gm,
-      '<h3 class="text-base font-semibold mt-5 mb-2">$1</h3>'
-    )
-    .replace(
-      /^\- (.+)$/gm,
-      '<li class="ml-4 py-0.5 leading-relaxed">$1</li>'
-    )
-    .replace(
-      /^\d+\. (.+)$/gm,
-      '<li class="ml-4 py-0.5 leading-relaxed">$1</li>'
-    )
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\|(.+)\|/g, (match) => {
-      const cells = match
-        .split("|")
-        .filter(Boolean)
-        .map((c) => c.trim());
-      return `<div class="flex gap-4 py-1.5 text-sm border-b border-border/30">${cells.map((c) => `<span class="flex-1">${c}</span>`).join("")}</div>`;
-    })
-    .replace(/\n\n/g, "<br/><br/>")
-    .replace(/\n/g, "<br/>");
+  return (
+    text
+      // Headings
+      .replace(
+        /^## (.+)$/gm,
+        '<h2 class="font-serif text-xl font-bold mt-8 mb-3 pb-2 border-b border-border/40 text-primary">$1</h2>'
+      )
+      .replace(
+        /^### (.+)$/gm,
+        '<h3 class="text-base font-semibold mt-5 mb-2">$1</h3>'
+      )
+      // Lists
+      .replace(
+        /^\- (.+)$/gm,
+        '<li class="ml-4 py-0.5 leading-relaxed">$1</li>'
+      )
+      .replace(
+        /^\d+\. (.+)$/gm,
+        '<li class="ml-4 py-0.5 leading-relaxed list-decimal">$1</li>'
+      )
+      // Bold
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      // Make ECLI references clickable
+      .replace(
+        /(ECLI:[A-Z]{2}:[A-Z]+:\d{4}:[A-Z0-9.]+)/g,
+        '<a href="https://www.legifrance.gouv.fr/search/juri?query=$1" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary font-mono text-xs">$1<svg class="inline h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>'
+      )
+      // Make pourvoi numbers clickable (n° XX-XXXXX)
+      .replace(
+        /n[°o]\s*(\d{2,4}[-/.]\d{2,5}(?:\.\d+)?)/g,
+        '<a href="https://www.legifrance.gouv.fr/search/juri?query=$1" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary font-mono text-xs">n° $1<svg class="inline h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>'
+      )
+      // Tables
+      .replace(/\|(.+)\|/g, (match) => {
+        const cells = match
+          .split("|")
+          .filter(Boolean)
+          .map((c) => c.trim());
+        if (cells.every((c) => /^[-:]+$/.test(c))) return "";
+        return `<div class="flex gap-4 py-1.5 text-sm border-b border-border/30">${cells.map((c) => `<span class="flex-1">${c}</span>`).join("")}</div>`;
+      })
+      // Line breaks
+      .replace(/\n\n/g, "<br/><br/>")
+      .replace(/\n/g, "<br/>")
+  );
 }

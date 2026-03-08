@@ -18,170 +18,283 @@ import {
 } from "recharts";
 import {
   TrendingUp,
-  TrendingDown,
-  Minus,
   Scale,
   Users,
   Landmark,
   Banknote,
   ShieldCheck,
   AlertTriangle,
-  Info,
+  CircleDot,
 } from "lucide-react";
 
-// Datavocat palette: navy, gold, emerald, bordeaux, amber, violet
-const COLORS = [
-  "#1e3a5f", // navy (primary)
-  "#c9a96e", // gold (accent)
-  "#2d6a4f", // emerald (success)
-  "#7c3aed", // violet
-  "#ca6702", // amber (warning)
-  "#5b8ec9", // light navy
-  "#9b2226", // bordeaux
-  "#4ead82", // light emerald
-];
+// ── Palette ──────────────────────────────────────────────────────────
+const NAVY = "#1e3a5f";
+const GOLD = "#c9a96e";
+const EMERALD = "#2d6a4f";
+const VIOLET = "#7c3aed";
+const AMBER = "#ca6702";
+const LIGHT_NAVY = "#5b8ec9";
+const BORDEAUX = "#9b2226";
 
-const GAUGE_COLOR = "#1e3a5f";
-const GAUGE_BG = "#e5e2db";
+const PIE_COLORS = [NAVY, GOLD, EMERALD, VIOLET, AMBER, LIGHT_NAVY, BORDEAUX];
 
-interface DashboardProps {
-  data: ParsedAnalysis;
+// ── Helpers ──────────────────────────────────────────────────────────
+const fmt = (v: number | null) =>
+  v !== null
+    ? new Intl.NumberFormat("fr-FR", {
+        style: "currency",
+        currency: "EUR",
+        maximumFractionDigits: 0,
+      }).format(v)
+    : "—";
+
+function pctColor(pct: number): string {
+  if (pct >= 60) return EMERALD;
+  if (pct >= 40) return AMBER;
+  return BORDEAUX;
 }
 
-function KpiCard({
-  label,
-  value,
-  suffix,
-  icon: Icon,
-  trend,
-  color,
+// ── Confidence badge ─────────────────────────────────────────────────
+function ConfidenceBadge({
+  confiance,
 }: {
-  label: string;
-  value: string | number | null;
-  suffix?: string;
-  icon: React.ElementType;
-  trend?: "up" | "down" | "neutral";
-  color?: string;
+  confiance: ParsedAnalysis["confiance"];
 }) {
-  if (value === null || value === undefined) return null;
-  const TrendIcon =
-    trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
-  const trendColor =
-    trend === "up"
-      ? "text-emerald-500"
-      : trend === "down"
-        ? "text-rose-500"
-        : "text-muted-foreground";
+  if (!confiance) return null;
+  const map = {
+    "élevé": {
+      bg: "bg-emerald-50",
+      text: "text-emerald-700",
+      border: "border-emerald-200",
+      icon: ShieldCheck,
+      label: "Confiance élevée",
+    },
+    moyen: {
+      bg: "bg-amber-50",
+      text: "text-amber-700",
+      border: "border-amber-200",
+      icon: AlertTriangle,
+      label: "Confiance moyenne",
+    },
+    faible: {
+      bg: "bg-red-50",
+      text: "text-red-700",
+      border: "border-red-200",
+      icon: AlertTriangle,
+      label: "Confiance faible",
+    },
+  };
+  const c = map[confiance];
+  const Icon = c.icon;
 
   return (
-    <Card className="relative overflow-hidden p-5">
-      <div
-        className="absolute inset-y-0 left-0 w-1"
-        style={{ backgroundColor: color || GAUGE_COLOR }}
-      />
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {label}
-          </p>
-          <p className="mt-1 text-3xl font-bold tabular-nums">
-            {value}
-            {suffix && (
-              <span className="ml-1 text-lg font-normal text-muted-foreground">
-                {suffix}
-              </span>
-            )}
-          </p>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${c.bg} ${c.text} ${c.border}`}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {c.label}
+    </span>
+  );
+}
+
+// ── Hero gauge (semi-circle) ─────────────────────────────────────────
+function HeroGauge({
+  value,
+  echantillon,
+  confiance,
+}: {
+  value: number;
+  echantillon: number | null;
+  confiance: ParsedAnalysis["confiance"];
+}) {
+  const gaugeData = [{ name: "score", value, fill: pctColor(value) }];
+  const verdict =
+    value >= 60
+      ? "Perspective favorable"
+      : value >= 40
+        ? "Issue incertaine"
+        : "Perspective défavorable";
+
+  return (
+    <Card className="px-6 pb-6 pt-8">
+      <div className="flex flex-col items-center">
+        <h3 className="font-serif text-sm font-medium uppercase tracking-widest text-muted-foreground">
+          Probabilité de succès
+        </h3>
+
+        {/* Semi-circle gauge */}
+        <div className="relative mx-auto mt-4 h-[160px] w-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart
+              cx="50%"
+              cy="100%"
+              innerRadius="65%"
+              outerRadius="100%"
+              startAngle={180}
+              endAngle={0}
+              data={gaugeData}
+              barSize={20}
+            >
+              <RadialBar
+                dataKey="value"
+                cornerRadius={10}
+                background={{ fill: "#e8e5de" }}
+              />
+            </RadialBarChart>
+          </ResponsiveContainer>
+          <div className="absolute inset-x-0 bottom-0 text-center">
+            <span
+              className="font-serif text-6xl font-bold tabular-nums"
+              style={{ color: pctColor(value) }}
+            >
+              {value}
+            </span>
+            <span className="ml-1 text-2xl font-medium text-muted-foreground">
+              %
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          {trend && <TrendIcon className={`h-4 w-4 ${trendColor}`} />}
-          <Icon className="h-5 w-5 text-muted-foreground/60" />
+
+        <p className="mt-3 text-sm font-medium text-muted-foreground">
+          {verdict}
+        </p>
+
+        {/* Meta strip */}
+        <div className="mt-4 flex items-center gap-4">
+          {echantillon !== null && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <CircleDot className="h-3 w-3" />
+              {echantillon} décisions analysées
+            </span>
+          )}
+          <ConfidenceBadge confiance={confiance} />
         </div>
       </div>
     </Card>
   );
 }
 
-function GaugeChart({ value }: { value: number }) {
-  const data = [
-    { name: "score", value, fill: GAUGE_COLOR },
-    { name: "rest", value: 100 - value, fill: GAUGE_BG },
-  ];
-
+// ── KPI Card ─────────────────────────────────────────────────────────
+function KpiCard({
+  label,
+  value,
+  suffix,
+  icon: Icon,
+  borderColor,
+}: {
+  label: string;
+  value: string | number;
+  suffix?: string;
+  icon: React.ElementType;
+  borderColor: string;
+}) {
   return (
-    <div className="relative mx-auto h-40 w-40">
-      <ResponsiveContainer width="100%" height="100%">
-        <RadialBarChart
-          cx="50%"
-          cy="100%"
-          innerRadius="70%"
-          outerRadius="100%"
-          startAngle={180}
-          endAngle={0}
-          data={[data[0]]}
-          barSize={14}
+    <Card className="relative overflow-hidden py-5 pl-5 pr-4">
+      <div
+        className="absolute inset-y-0 left-0 w-1 rounded-l-xl"
+        style={{ backgroundColor: borderColor }}
+      />
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-1.5 font-serif text-3xl font-bold tabular-nums leading-none">
+            {value}
+            {suffix && (
+              <span className="ml-1 text-base font-normal text-muted-foreground">
+                {suffix}
+              </span>
+            )}
+          </p>
+        </div>
+        <div
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: borderColor + "14" }}
         >
-          <RadialBar
-            dataKey="value"
-            cornerRadius={8}
-            background={{ fill: GAUGE_BG }}
-          />
-        </RadialBarChart>
-      </ResponsiveContainer>
-      <div className="absolute inset-x-0 bottom-2 text-center">
-        <span className="text-3xl font-bold">{value}%</span>
+          <Icon className="h-4.5 w-4.5" style={{ color: borderColor }} />
+        </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
+// ── Arguments horizontal bar chart ───────────────────────────────────
 function ArgumentsChart({
   args,
 }: {
   args: ParsedAnalysis["arguments"];
 }) {
   if (args.length === 0) return null;
-  const data = args.map((a, i) => ({
-    name: a.name.length > 30 ? a.name.slice(0, 28) + "..." : a.name,
+
+  const sorted = [...args].sort((a, b) => (b.taux ?? 0) - (a.taux ?? 0));
+  const data = sorted.map((a) => ({
+    name: a.name.length > 40 ? a.name.slice(0, 38) + "…" : a.name,
     taux: a.taux ?? 0,
-    fill: COLORS[i % COLORS.length],
   }));
 
   return (
-    <Card className="p-5">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        Taux de succes par argument
+    <Card className="p-6">
+      <h3 className="mb-6 font-serif text-base font-semibold">
+        Taux de succès par argument
       </h3>
-      <div style={{ height: Math.max(200, args.length * 48) }}>
+      <div style={{ height: Math.max(220, args.length * 52) }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ left: 0, right: 50, top: 0, bottom: 0 }}
+          >
+            <defs>
+              <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={NAVY} />
+                <stop offset="100%" stopColor={GOLD} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              horizontal={false}
+              stroke="#e5e2db"
+            />
             <XAxis
               type="number"
               domain={[0, 100]}
               tickFormatter={(v) => `${v}%`}
               fontSize={11}
+              stroke="#94a3b8"
+              axisLine={false}
             />
             <YAxis
               type="category"
               dataKey="name"
-              width={180}
-              fontSize={11}
-              tick={{ fill: "hsl(var(--foreground))" }}
+              width={200}
+              fontSize={12}
+              tick={{ fill: "#334155" }}
+              axisLine={false}
+              tickLine={false}
             />
             <Tooltip
               formatter={(v) => [`${v}%`, "Taux de succes"]}
               contentStyle={{
-                borderRadius: 8,
-                border: "1px solid hsl(var(--border))",
-                background: "hsl(var(--card))",
+                borderRadius: 10,
+                border: "none",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                fontSize: 13,
               }}
             />
-            <Bar dataKey="taux" radius={[0, 6, 6, 0]} barSize={24}>
-              {data.map((entry, i) => (
-                <Cell key={i} fill={entry.fill} />
-              ))}
-            </Bar>
+            <Bar
+              dataKey="taux"
+              fill="url(#barGradient)"
+              radius={[0, 8, 8, 0]}
+              barSize={28}
+              label={{
+                position: "right",
+                formatter: (v: unknown) => `${v}%`,
+                fontSize: 12,
+                fontWeight: 600,
+                fill: NAVY,
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -189,241 +302,279 @@ function ArgumentsChart({
   );
 }
 
-function JurisdictionsChart({
+// ── Jurisdictions grid ───────────────────────────────────────────────
+function JurisdictionsGrid({
   jurisdictions,
 }: {
   jurisdictions: ParsedAnalysis["juridictions"];
 }) {
   if (jurisdictions.length === 0) return null;
-  const data = jurisdictions.map((j) => ({
-    name: j.name,
-    taux: j.taux ?? 0,
-  }));
 
   return (
-    <Card className="p-5">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        Taux par juridiction
+    <Card className="p-6">
+      <h3 className="mb-5 font-serif text-base font-semibold">
+        Analyse par juridiction
       </h3>
-      <div style={{ height: Math.max(180, jurisdictions.length * 44) }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
-            <XAxis
-              type="number"
-              domain={[0, 100]}
-              tickFormatter={(v) => `${v}%`}
-              fontSize={11}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={160}
-              fontSize={11}
-              tick={{ fill: "hsl(var(--foreground))" }}
-            />
-            <Tooltip
-              formatter={(v) => [`${v}%`, "Taux"]}
-              contentStyle={{
-                borderRadius: 8,
-                border: "1px solid hsl(var(--border))",
-                background: "hsl(var(--card))",
-              }}
-            />
-            <Bar dataKey="taux" fill="hsl(173, 58%, 39%)" radius={[0, 6, 6, 0]} barSize={22} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {jurisdictions.map((j) => {
+          const taux = j.taux ?? 0;
+          const color = pctColor(taux);
+          return (
+            <div
+              key={j.name}
+              className="rounded-xl border border-border/60 bg-muted/30 p-4 transition-shadow hover:shadow-md"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground">{j.name}</p>
+                <span
+                  className="font-serif text-lg font-bold tabular-nums"
+                  style={{ color }}
+                >
+                  {taux}%
+                </span>
+              </div>
+              {/* Mini progress bar */}
+              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${taux}%`,
+                    backgroundColor: color,
+                  }}
+                />
+              </div>
+              {j.delai && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Délai moyen : {j.delai}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </Card>
   );
 }
 
-function InstancesPie({
+// ── Instances donut ──────────────────────────────────────────────────
+function InstancesDonut({
   instances,
 }: {
   instances: ParsedAnalysis["instances"];
 }) {
   if (instances.length === 0) return null;
+
   const data = instances.map((inst, i) => ({
     name: inst.name,
     value: inst.taux ?? 0,
-    fill: COLORS[i % COLORS.length],
+    fill: PIE_COLORS[i % PIE_COLORS.length],
   }));
 
   return (
-    <Card className="p-5">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        Repartition par instance
+    <Card className="p-6">
+      <h3 className="mb-4 font-serif text-base font-semibold">
+        Répartition par instance
       </h3>
-      <div className="h-52">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={50}
-              outerRadius={80}
-              paddingAngle={3}
-              dataKey="value"
-              label={({ name, value }) => `${name}: ${value}%`}
-              labelLine={false}
-              fontSize={11}
-            >
-              {data.map((entry, i) => (
-                <Cell key={i} fill={entry.fill} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(v) => [`${v}%`]}
-              contentStyle={{
-                borderRadius: 8,
-                border: "1px solid hsl(var(--border))",
-                background: "hsl(var(--card))",
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+      <div className="flex items-center justify-center gap-6">
+        <div className="h-[200px] w-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={55}
+                outerRadius={85}
+                paddingAngle={4}
+                dataKey="value"
+                strokeWidth={0}
+              >
+                {data.map((entry, i) => (
+                  <Cell key={i} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(v) => [`${v}%`]}
+                contentStyle={{
+                  borderRadius: 10,
+                  border: "none",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                  fontSize: 13,
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        {/* Custom legend */}
+        <div className="flex flex-col gap-2.5">
+          {data.map((entry, i) => (
+            <div key={i} className="flex items-center gap-2.5">
+              <div
+                className="h-3 w-3 shrink-0 rounded-sm"
+                style={{ backgroundColor: entry.fill }}
+              />
+              <span className="text-sm text-foreground">{entry.name}</span>
+              <span className="ml-auto font-serif text-sm font-bold tabular-nums">
+                {entry.value}%
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </Card>
   );
 }
 
-function MontantsCard({
+// ── Montants visual scale ────────────────────────────────────────────
+function MontantsScale({
   montants,
 }: {
   montants: ParsedAnalysis["montants"];
 }) {
-  if (!montants.min && !montants.median && !montants.max) return null;
-  const fmt = (v: number | null) =>
-    v !== null
-      ? new Intl.NumberFormat("fr-FR", {
-          style: "currency",
-          currency: "EUR",
-          maximumFractionDigits: 0,
-        }).format(v)
-      : "—";
+  if (
+    montants.min === null &&
+    montants.median === null &&
+    montants.max === null
+  )
+    return null;
+
+  const min = montants.min ?? 0;
+  const max = montants.max ?? 0;
+  const median = montants.median ?? 0;
+  const range = max - min || 1;
+
+  // Position median on the bar (clamped 5-95%)
+  const medianPct = Math.min(95, Math.max(5, ((median - min) / range) * 100));
 
   return (
-    <Card className="p-5">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        Fourchette de montants
+    <Card className="p-6">
+      <h3 className="mb-6 font-serif text-base font-semibold">
+        Fourchette des montants alloués
       </h3>
-      <div className="flex items-end justify-between gap-4">
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground">Min</p>
-          <p className="mt-1 text-lg font-semibold text-emerald-600">
-            {fmt(montants.min)}
-          </p>
+
+      <div className="relative mx-auto max-w-lg px-4">
+        {/* Labels above markers */}
+        <div className="relative mb-2 h-14">
+          {/* Min label */}
+          <div className="absolute left-0 text-center" style={{ transform: "translateX(-50%)" }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Min
+            </p>
+            <p className="mt-0.5 text-sm font-bold" style={{ color: EMERALD }}>
+              {fmt(montants.min)}
+            </p>
+          </div>
+
+          {/* Median label */}
+          {montants.median !== null && (
+            <div
+              className="absolute text-center"
+              style={{
+                left: `${medianPct}%`,
+                transform: "translateX(-50%)",
+              }}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Médian
+              </p>
+              <p className="mt-0.5 text-lg font-bold" style={{ color: NAVY }}>
+                {fmt(montants.median)}
+              </p>
+            </div>
+          )}
+
+          {/* Max label */}
+          <div className="absolute right-0 text-center" style={{ transform: "translateX(50%)" }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Max
+            </p>
+            <p className="mt-0.5 text-sm font-bold" style={{ color: BORDEAUX }}>
+              {fmt(montants.max)}
+            </p>
+          </div>
         </div>
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground">Median</p>
-          <p className="mt-1 text-2xl font-bold">{fmt(montants.median)}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground">Max</p>
-          <p className="mt-1 text-lg font-semibold text-rose-600">
-            {fmt(montants.max)}
-          </p>
+
+        {/* Gradient bar */}
+        <div className="relative h-3 overflow-hidden rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-red-500">
+          {/* Min marker */}
+          <div
+            className="absolute top-1/2 h-5 w-1.5 -translate-y-1/2 rounded-full bg-white shadow-md"
+            style={{ left: "0%" }}
+          />
+          {/* Median marker */}
+          {montants.median !== null && (
+            <div
+              className="absolute top-1/2 -translate-y-1/2"
+              style={{ left: `${medianPct}%` }}
+            >
+              <div className="h-6 w-2 -translate-x-1/2 rounded-full bg-white shadow-lg"
+                style={{ border: `2px solid ${NAVY}` }}
+              />
+            </div>
+          )}
+          {/* Max marker */}
+          <div
+            className="absolute right-0 top-1/2 h-5 w-1.5 -translate-y-1/2 rounded-full bg-white shadow-md"
+          />
         </div>
       </div>
-      {/* Visual bar */}
-      {montants.min !== null && montants.max !== null && (
-        <div className="mt-4 h-3 overflow-hidden rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-rose-400 opacity-80" />
-      )}
     </Card>
   );
 }
 
-function ConfidenceBadge({
-  confiance,
-  echantillon,
-}: {
-  confiance: ParsedAnalysis["confiance"];
-  echantillon: number | null;
-}) {
-  const config = {
-    "élevé": { color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: ShieldCheck },
-    moyen: { color: "bg-amber-100 text-amber-800 border-amber-200", icon: AlertTriangle },
-    faible: { color: "bg-rose-100 text-rose-800 border-rose-200", icon: AlertTriangle },
-  };
-
-  const c = confiance ? config[confiance] : null;
-  const Icon = c?.icon ?? Info;
-
-  return (
-    <div className="flex items-center gap-3">
-      {c && (
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${c.color}`}
-        >
-          <Icon className="h-3.5 w-3.5" />
-          Confiance {confiance}
-        </span>
-      )}
-      {echantillon && (
-        <span className="text-xs text-muted-foreground">
-          {echantillon} decisions analysees
-        </span>
-      )}
-    </div>
-  );
-}
-
-export function AnalysisDashboard({ data }: DashboardProps) {
+// ── Main Dashboard ───────────────────────────────────────────────────
+export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
   const hasStats =
     data.tauxSuccesGlobal !== null ||
     data.arguments.length > 0 ||
     data.juridictions.length > 0 ||
     data.instances.length > 0 ||
-    (data.montants.min !== null || data.montants.max !== null);
+    data.montants.min !== null ||
+    data.montants.max !== null;
 
   if (!hasStats) return null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-lg font-bold">
-          <Scale className="h-5 w-5 text-primary" />
+    <div className="space-y-8">
+      {/* ── Header ──────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-xl"
+          style={{ backgroundColor: NAVY + "12" }}
+        >
+          <Scale className="h-5 w-5" style={{ color: NAVY }} />
+        </div>
+        <h2 className="font-serif text-xl font-bold tracking-tight">
           Tableau de bord analytique
         </h2>
-        <ConfidenceBadge
-          confiance={data.confiance}
-          echantillon={data.echantillon}
-        />
       </div>
 
-      {/* KPI row */}
+      {/* ── Hero gauge ──────────────────────────────────── */}
+      {data.tauxSuccesGlobal !== null && (
+        <HeroGauge
+          value={data.tauxSuccesGlobal}
+          echantillon={data.echantillon}
+          confiance={data.confiance}
+        />
+      )}
+
+      {/* ── KPI strip ───────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {data.tauxSuccesGlobal !== null && (
           <KpiCard
-            label="Taux de succes global"
-            value={data.tauxSuccesGlobal}
+            label="Taux de succès"
+            value={`${data.tauxSuccesGlobal}`}
             suffix="%"
             icon={TrendingUp}
-            trend={
-              data.tauxSuccesGlobal > 60
-                ? "up"
-                : data.tauxSuccesGlobal < 40
-                  ? "down"
-                  : "neutral"
-            }
-            color={
-              data.tauxSuccesGlobal > 60
-                ? "hsl(142, 71%, 45%)"
-                : data.tauxSuccesGlobal < 40
-                  ? "hsl(349, 89%, 60%)"
-                  : "hsl(43, 96%, 56%)"
-            }
+            borderColor={pctColor(data.tauxSuccesGlobal)}
           />
         )}
         {data.echantillon !== null && (
           <KpiCard
-            label="Decisions analysees"
+            label="Décisions analysées"
             value={data.echantillon}
             icon={Users}
-            color="hsl(250, 56%, 57%)"
+            borderColor={VIOLET}
           />
         )}
         {data.juridictions.length > 0 && (
@@ -431,46 +582,33 @@ export function AnalysisDashboard({ data }: DashboardProps) {
             label="Juridictions"
             value={data.juridictions.length}
             icon={Landmark}
-            color="hsl(173, 58%, 39%)"
+            borderColor={LIGHT_NAVY}
           />
         )}
         {data.montants.median !== null && (
           <KpiCard
-            label="Montant median"
+            label="Montant médian"
             value={new Intl.NumberFormat("fr-FR", {
               maximumFractionDigits: 0,
             }).format(data.montants.median)}
-            suffix="EUR"
+            suffix="€"
             icon={Banknote}
-            color="hsl(199, 89%, 48%)"
+            borderColor={GOLD}
           />
         )}
       </div>
 
-      {/* Gauge + charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {data.tauxSuccesGlobal !== null && (
-          <Card className="flex flex-col items-center justify-center p-6">
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Probabilite de succes
-            </h3>
-            <GaugeChart value={data.tauxSuccesGlobal} />
-            <p className="mt-2 text-sm text-muted-foreground">
-              {data.tauxSuccesGlobal >= 60
-                ? "Perspective favorable"
-                : data.tauxSuccesGlobal >= 40
-                  ? "Issue incertaine"
-                  : "Perspective defavorable"}
-            </p>
-          </Card>
-        )}
-        <InstancesPie instances={data.instances} />
-        <MontantsCard montants={data.montants} />
+      {/* ── Arguments chart ─────────────────────────────── */}
+      <ArgumentsChart args={data.arguments} />
+
+      {/* ── Jurisdictions + Instances row ────────────────── */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <JurisdictionsGrid jurisdictions={data.juridictions} />
+        <InstancesDonut instances={data.instances} />
       </div>
 
-      {/* Detailed charts */}
-      <ArgumentsChart args={data.arguments} />
-      <JurisdictionsChart jurisdictions={data.juridictions} />
+      {/* ── Montants scale ──────────────────────────────── */}
+      <MontantsScale montants={data.montants} />
     </div>
   );
 }
