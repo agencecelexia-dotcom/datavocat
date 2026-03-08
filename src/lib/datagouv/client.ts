@@ -38,12 +38,22 @@ export async function getDatasetResources(datasetId: string) {
  * Search for court decision datasets related to a legal topic
  */
 export async function searchCourtDecisions(topic: string): Promise<string> {
+  // Extract short keywords from the topic (remove verbose natural language)
+  const keywords = topic
+    .toLowerCase()
+    .replace(/[^a-zàâäéèêëïîôùûüÿç\s-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 3)
+    .slice(0, 5)
+    .join(" ");
+
+  const shortTopic = keywords || topic.slice(0, 60);
+
   // Search multiple queries to maximize results
   const queries = [
-    `décisions justice ${topic}`,
-    `jurisprudence ${topic}`,
-    `JUDILIBRE ${topic}`,
-    `arrêts ${topic}`,
+    `décisions justice ${shortTopic}`,
+    `jurisprudence ${shortTopic}`,
+    `JUDILIBRE ${shortTopic}`,
   ];
 
   const allDatasets: DatagouvDataset[] = [];

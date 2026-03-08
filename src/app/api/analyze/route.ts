@@ -35,14 +35,13 @@ export async function POST(request: NextRequest) {
       .eq("id", id);
   }
 
-  // Search multiple sources in parallel
-  const searchTerms = query.slice(0, 300);
-
+  // Search multiple sources in parallel with the full query
+  // searchJudilibreForAnalysis now handles keyword extraction internally
   const [datagouvrContext, judilibreContext] = await Promise.all([
-    searchCourtDecisions(searchTerms).catch(
+    searchCourtDecisions(query).catch(
       () => "Recherche data.gouv.fr indisponible."
     ),
-    searchJudilibreForAnalysis(searchTerms).catch(
+    searchJudilibreForAnalysis(query).catch(
       () => "API Judilibre indisponible."
     ),
   ]);

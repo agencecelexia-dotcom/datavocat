@@ -225,8 +225,107 @@ export async function getTaxonomy(
 }
 
 /**
+ * Extract legal keywords from a natural language query.
+ * Splits the user's verbose question into focused search terms.
+ */
+function extractSearchQueries(userQuery: string): string[] {
+  // Common French legal stop words to remove
+  const stopWords = new Set([
+    "mon", "ma", "mes", "le", "la", "les", "un", "une", "des", "de", "du",
+    "au", "aux", "en", "dans", "par", "pour", "sur", "avec", "sans", "son",
+    "sa", "ses", "ce", "cette", "ces", "qui", "que", "quoi", "dont", "ou",
+    "est", "sont", "a", "ont", "fait", "faire", "peut", "doit", "depuis",
+    "il", "elle", "nous", "vous", "ils", "elles", "se", "ne", "pas",
+    "client", "locataire", "proprietaire", "bailleur", "employeur", "salarie",
+    "demandeur", "defendeur", "avocat", "quelles", "quelle", "quel", "quels",
+    "comment", "combien", "pourquoi", "voit", "voir", "esperer", "obtenir",
+  ]);
+
+  // Legal domain keywords to detect (maps to focused search terms)
+  const legalDomains: Record<string, string[]> = {
+    "bail commercial": ["bail commercial", "renouvellement bail", "indemnite eviction", "L145-14 code commerce"],
+    "licenciement": ["licenciement", "indemnite licenciement", "cause reelle serieuse"],
+    "divorce": ["divorce", "prestation compensatoire", "partage communaute"],
+    "accident travail": ["accident travail", "faute inexcusable", "rente incapacite"],
+    "construction": ["malfacon", "responsabilite constructeur", "garantie decennale"],
+    "propriete intellectuelle": ["contrefacon", "marque", "brevet", "droit auteur"],
+    "concurrence": ["concurrence deloyale", "clause non-concurrence"],
+    "responsabilite civile": ["responsabilite civile", "prejudice", "indemnisation"],
+    "droit social": ["contrat travail", "convention collective", "accord collectif"],
+    "immobilier": ["vente immobiliere", "vice cache", "servitude"],
+    "succession": ["succession", "testament", "reserve hereditaire", "quotite disponible"],
+    "copropriete": ["copropriete", "charges copropriete", "assemblee generale"],
+  };
+
+  const queryLower = userQuery.toLowerCase();
+  const queries: string[] = [];
+
+  // 1. Detect legal domain and add domain-specific queries
+  for (const [domain, terms] of Object.entries(legalDomains)) {
+    const domainWords = domain.split(" ");
+    if (domainWords.every((w) => queryLower.includes(w))) {
+      queries.push(...terms);
+      break;
+    }
+  }
+
+  // 2. Extract meaningful legal terms from the query
+  const words = queryLower
+    .replace(/['']/g, " ")
+    .replace(/[^a-zàâäéèêëïîôùûüÿç\s-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !stopWords.has(w));
+
+  // Build 2-word and 3-word ngrams (legal terms are often multi-word)
+  const ngrams: string[] = [];
+  for (let i = 0; i < words.length - 1; i++) {
+    ngrams.push(`${words[i]} ${words[i + 1]}`);
+    if (i < words.length - 2) {
+      ngrams.push(`${words[i]} ${words[i + 1]} ${words[i + 2]}`);
+    }
+  }
+
+  // Add individual meaningful words
+  const legalTerms = words.filter(
+    (w) => w.length > 4 || ["bail", "dol", "abus", "vice", "faute"].includes(w)
+  );
+
+  // Combine: domain queries + best ngrams + individual terms
+  if (ngrams.length > 0) {
+    queries.push(ngrams[0]); // First bigram is usually the most relevant
+    if (ngrams.length > 2) queries.push(ngrams[Math.floor(ngrams.length / 2)]);
+  }
+  if (legalTerms.length > 0) {
+    queries.push(legalTerms.slice(0, 4).join(" "));
+  }
+
+  // 3. Fallback: simplified version of original query
+  if (queries.length === 0) {
+    queries.push(legalTerms.join(" ") || userQuery.slice(0, 100));
+  }
+
+  // Deduplicate
+  return [...new Set(queries)].slice(0, 5);
+}
+
+/**
+ * Detect which Judilibre chamber is most relevant for the query.
+ */
+function detectChamber(query: string): string[] | undefined {
+  const q = query.toLowerCase();
+  if (q.includes("travail") || q.includes("licenciement") || q.includes("salari") || q.includes("employeur") || q.includes("accord collectif")) return ["soc"];
+  if (q.includes("bail commercial") || q.includes("commerce") || q.includes("societe") || q.includes("banque") || q.includes("fonds de commerce")) return ["com", "civ3"];
+  if (q.includes("divorce") || q.includes("succession") || q.includes("famille") || q.includes("mariage")) return ["civ1"];
+  if (q.includes("accident") || q.includes("assurance") || q.includes("prejudice corporel")) return ["civ2"];
+  if (q.includes("construction") || q.includes("immobilier") || q.includes("copropriete") || q.includes("bail")) return ["civ3"];
+  if (q.includes("penal") || q.includes("infraction") || q.includes("delit")) return ["crim"];
+  return undefined; // No filter = search all chambers
+}
+
+/**
  * Search and format results for injection into Claude analysis context.
- * This is the main function called by /api/analyze.
+ * Uses multi-strategy search: extracts keywords, runs parallel searches,
+ * deduplicates, and always returns maximum relevant results.
  */
 export async function searchJudilibreForAnalysis(
   userQuery: string
@@ -237,33 +336,93 @@ export async function searchJudilibreForAnalysis(
   }
 
   try {
-    // Search with AND operator for more relevant results
-    const result = await searchJudilibre({
-      query: userQuery.slice(0, 300),
-      operator: "and",
-      sort: "score",
-      order: "desc",
-      pageSize: 20,
-    });
+    const searchQueries = extractSearchQueries(userQuery);
+    const chamber = detectChamber(userQuery);
 
-    if (result.results.length === 0) {
-      // Retry with OR operator (broader)
-      const retryResult = await searchJudilibre({
-        query: userQuery.slice(0, 300),
+    // Run all search strategies in parallel
+    const searchPromises = searchQueries.map((q) =>
+      searchJudilibre({
+        query: q,
         operator: "or",
         sort: "score",
         order: "desc",
-        pageSize: 15,
-      });
+        pageSize: 10,
+        chamber,
+      }).catch(() => ({ results: [], total: 0, query: q } as JudilibreSearchResult))
+    );
 
-      if (retryResult.results.length === 0) {
-        return `Judilibre : aucune decision trouvee pour cette recherche.`;
+    // Also run a broad search with OR on the full query (truncated)
+    searchPromises.push(
+      searchJudilibre({
+        query: userQuery.slice(0, 200),
+        operator: "or",
+        sort: "score",
+        order: "desc",
+        pageSize: 10,
+      }).catch(() => ({ results: [], total: 0, query: userQuery } as JudilibreSearchResult))
+    );
+
+    const allResults = await Promise.all(searchPromises);
+
+    // Deduplicate by ECLI
+    const seenEcli = new Set<string>();
+    const uniqueDecisions: JudilibreDecision[] = [];
+    let totalAcrossSearches = 0;
+
+    for (const result of allResults) {
+      totalAcrossSearches = Math.max(totalAcrossSearches, result.total);
+      for (const dec of result.results) {
+        const key = dec.ecli || dec.id;
+        if (!seenEcli.has(key)) {
+          seenEcli.add(key);
+          uniqueDecisions.push(dec);
+        }
       }
-
-      return formatJudilibreResults(retryResult);
     }
 
-    return formatJudilibreResults(result);
+    if (uniqueDecisions.length === 0) {
+      // Last resort: single-word searches on the most important terms
+      const lastResortTerms = extractSearchQueries(userQuery)
+        .flatMap((q) => q.split(" "))
+        .filter((w) => w.length > 4)
+        .slice(0, 3);
+
+      for (const term of lastResortTerms) {
+        try {
+          const r = await searchJudilibre({
+            query: term,
+            operator: "or",
+            sort: "score",
+            order: "desc",
+            pageSize: 5,
+            chamber,
+          });
+          for (const dec of r.results) {
+            const key = dec.ecli || dec.id;
+            if (!seenEcli.has(key)) {
+              seenEcli.add(key);
+              uniqueDecisions.push(dec);
+            }
+          }
+          totalAcrossSearches = Math.max(totalAcrossSearches, r.total);
+        } catch {
+          // continue
+        }
+      }
+    }
+
+    if (uniqueDecisions.length === 0) {
+      return `Judilibre : aucune decision trouvee. Recherches tentees : ${searchQueries.join(" | ")}`;
+    }
+
+    // Take the top 20 unique decisions
+    const topDecisions = uniqueDecisions.slice(0, 20);
+
+    return formatJudilibreResults({
+      results: topDecisions,
+      total: totalAcrossSearches,
+      query: searchQueries.join(" + "),
+    });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erreur inconnue";
     return `Erreur Judilibre : ${msg}`;
