@@ -71,6 +71,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string | null;
+          client_id: string | null;
           query: string;
           response: string | null;
           status: string;
@@ -80,6 +81,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id?: string | null;
+          client_id?: string | null;
           query: string;
           response?: string | null;
           status?: string;
@@ -89,9 +91,52 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string | null;
+          client_id?: string | null;
           query?: string;
           response?: string | null;
           status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      clients: {
+        Row: {
+          id: string;
+          user_id: string;
+          cabinet_id: string | null;
+          prenom: string;
+          nom: string;
+          email: string | null;
+          telephone: string | null;
+          entreprise: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          cabinet_id?: string | null;
+          prenom: string;
+          nom: string;
+          email?: string | null;
+          telephone?: string | null;
+          entreprise?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          cabinet_id?: string | null;
+          prenom?: string;
+          nom?: string;
+          email?: string | null;
+          telephone?: string | null;
+          entreprise?: string | null;
+          notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -886,7 +886,36 @@ function buildSlides(data: AnalysisData, query: string): SlideDefinition[] {
   }
 
   // =====================
-  // 8. RECOMMANDATION
+  // 8. DÉCISIONS CLÉS
+  // =====================
+  if (data.decisionsClés) {
+    slides.push({
+      icon: <BookOpen className="h-5 w-5 text-white" />,
+      title: "Décisions clés",
+      subtitle: "JURISPRUDENCE DE RÉFÉRENCE",
+      content: (
+        <div className="mx-auto max-w-2xl">
+          <div
+            className="mb-6 rounded-xl border-l-4 bg-white/60 px-5 py-4 shadow-sm"
+            style={{ borderColor: NAVY }}
+          >
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" style={{ color: NAVY }} />
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: NAVY }}>
+                Arrêts de principe identifiés
+              </p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            {parseBulletLines(data.decisionsClés)}
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  // =====================
+  // 9. RECOMMANDATION
   // =====================
   if (data.recommandation) {
     slides.push({
@@ -1052,6 +1081,131 @@ function buildSlides(data: AnalysisData, query: string): SlideDefinition[] {
         </div>
       ),
     });
+  }
+
+  // =====================
+  // 12. SYNTHÈSE CLIENT
+  // =====================
+  {
+    const hasStats = data.tauxSuccesGlobal !== null;
+    const hasArgs = data.arguments.length > 0;
+    const hasReco = !!data.recommandation;
+    const hasMontants = data.montants.min !== null || data.montants.max !== null;
+
+    if (hasStats || hasArgs || hasReco) {
+      const bestArg = hasArgs
+        ? data.arguments.reduce((best, a) =>
+            (a.taux ?? 0) > (best.taux ?? 0) ? a : best
+          )
+        : null;
+
+      slides.push({
+        icon: <Scale className="h-5 w-5 text-white" />,
+        title: "Synthèse & Conclusion",
+        subtitle: "POINTS CLÉS À RETENIR",
+        content: (
+          <div className="flex h-full flex-col items-center justify-center gap-8">
+            {/* Key metrics row */}
+            <div className="grid w-full max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
+              {hasStats && (
+                <div
+                  className="rounded-xl border p-4 text-center"
+                  style={{
+                    background: `linear-gradient(135deg, ${NAVY}08, ${NAVY}03)`,
+                    borderColor: `${NAVY}20`,
+                  }}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${NAVY}60` }}>
+                    Taux de succès
+                  </p>
+                  <p className="mt-1 text-3xl font-extrabold" style={{ color: NAVY }}>
+                    {data.tauxSuccesGlobal}%
+                  </p>
+                </div>
+              )}
+              {bestArg && bestArg.taux !== null && (
+                <div
+                  className="rounded-xl border p-4 text-center"
+                  style={{
+                    background: `linear-gradient(135deg, ${EMERALD}08, ${EMERALD}03)`,
+                    borderColor: `${EMERALD}20`,
+                  }}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${EMERALD}60` }}>
+                    Meilleur argument
+                  </p>
+                  <p className="mt-1 text-3xl font-extrabold" style={{ color: EMERALD }}>
+                    {bestArg.taux}%
+                  </p>
+                  <p className="mt-0.5 truncate text-[10px] text-gray-400">
+                    {bestArg.name}
+                  </p>
+                </div>
+              )}
+              {hasMontants && data.montants.median !== null && (
+                <div
+                  className="rounded-xl border p-4 text-center"
+                  style={{
+                    background: `linear-gradient(135deg, ${GOLD}10, ${GOLD}03)`,
+                    borderColor: `${GOLD}25`,
+                  }}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${GOLD}80` }}>
+                    Montant médian
+                  </p>
+                  <p className="mt-1 text-3xl font-extrabold" style={{ color: GOLD }}>
+                    {formatCurrency(data.montants.median)}
+                  </p>
+                </div>
+              )}
+              {data.sourceCount !== undefined && data.sourceCount > 0 && (
+                <div
+                  className="rounded-xl border p-4 text-center"
+                  style={{
+                    background: `linear-gradient(135deg, ${NAVY}05, transparent)`,
+                    borderColor: `${NAVY}15`,
+                  }}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${NAVY}50` }}>
+                    Sources citées
+                  </p>
+                  <p className="mt-1 text-3xl font-extrabold" style={{ color: NAVY }}>
+                    {data.sourceCount}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Recommandation summary */}
+            {hasReco && (
+              <div
+                className="w-full max-w-2xl rounded-xl border-l-4 bg-white/70 px-6 py-5 shadow-sm"
+                style={{ borderColor: EMERALD }}
+              >
+                <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: EMERALD }}>
+                  Recommandation principale
+                </p>
+                <p className="text-sm leading-relaxed text-gray-700">
+                  {data.recommandation
+                    .split("\n")
+                    .filter((l) => l.trim())
+                    .slice(0, 3)
+                    .map((l) => l.replace(/^[-*]\s*/, "").replace(/\*\*/g, ""))
+                    .join(" ")}
+                </p>
+              </div>
+            )}
+
+            {/* Disclaimer */}
+            <p className="max-w-lg text-center text-[10px] leading-relaxed text-gray-400">
+              Ce rapport est généré par intelligence artificielle à titre indicatif.
+              Il ne constitue pas un avis juridique et doit être validé par un professionnel du droit.
+              Les statistiques sont basées sur la jurisprudence disponible et peuvent varier.
+            </p>
+          </div>
+        ),
+      });
+    }
   }
 
   return slides;

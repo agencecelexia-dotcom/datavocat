@@ -9,7 +9,7 @@ import { searchJusticeDatasets } from "@/lib/datagouv/mcp-client";
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
-  const { query, analysisId } = await request.json();
+  const { query, analysisId, clientId } = await request.json();
 
   if (!query || typeof query !== "string") {
     return new Response(JSON.stringify({ error: "query requis" }), {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   if (!id) {
     const { data } = await supabase
       .from("analyses")
-      .insert({ query, status: "streaming", user_id: user.id })
+      .insert({ query, status: "streaming", user_id: user.id, client_id: clientId || null })
       .select("id")
       .single();
     id = data?.id;

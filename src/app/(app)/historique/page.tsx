@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, FileText, Scale, ArrowRight } from "lucide-react";
+import { Clock, FileText, Scale, ArrowRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Analysis {
@@ -12,6 +12,8 @@ interface Analysis {
   query: string;
   status: string;
   created_at: string;
+  client_id: string | null;
+  client_name?: string | null;
 }
 
 function SkeletonRow({ delay }: { delay: number }) {
@@ -35,10 +37,20 @@ export default function HistoriquePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/analyses?limit=50")
-      .then((r) => r.json())
-      .then((data) => {
-        setAnalyses(Array.isArray(data) ? data : []);
+    Promise.all([
+      fetch("/api/analyses?limit=50").then((r) => r.json()),
+      fetch("/api/clients").then((r) => (r.ok ? r.json() : [])),
+    ])
+      .then(([data, clients]) => {
+        const clientMap: Record<string, string> = {};
+        for (const c of clients) {
+          clientMap[c.id] = `${c.prenom} ${c.nom}`;
+        }
+        const enriched = (Array.isArray(data) ? data : []).map((a: Analysis) => ({
+          ...a,
+          client_name: a.client_id ? clientMap[a.client_id] || null : null,
+        }));
+        setAnalyses(enriched);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -94,15 +106,23 @@ export default function HistoriquePage() {
                   <p className="truncate text-sm font-medium text-foreground group-hover:text-[#1e3a5f]">
                     {a.query}
                   </p>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {new Date(a.created_at).toLocaleDateString("fr-FR", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {new Date(a.created_at).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {a.client_name && (
+                      <span className="flex items-center gap-1 rounded-full bg-[#1e3a5f]/5 px-2 py-0.5 text-[#1e3a5f]">
+                        <User className="h-3 w-3" />
+                        {a.client_name}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <Badge

@@ -13,6 +13,7 @@ import {
   GitCompareArrows,
   ScrollText,
   Eye,
+  Users,
   Sparkles,
   Command,
 } from "lucide-react";
@@ -58,6 +59,11 @@ const navItems = [
     label: "Veille juridique",
     href: "/veille",
     icon: Eye,
+  },
+  {
+    label: "Clients",
+    href: "/clients",
+    icon: Users,
   },
 ];
 

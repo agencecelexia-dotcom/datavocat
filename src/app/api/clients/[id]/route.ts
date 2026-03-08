@@ -14,7 +14,7 @@ export async function GET(
   }
 
   const { data, error } = await supabase
-    .from("analyses")
+    .from("clients")
     .select("*")
     .eq("id", id)
     .eq("user_id", user.id)
@@ -42,12 +42,16 @@ export async function PATCH(
   const body = await request.json();
   const updates: Record<string, string | null> = {};
 
-  if ("client_id" in body) {
-    updates.client_id = body.client_id || null;
+  for (const key of ["prenom", "nom", "email", "telephone", "entreprise", "notes"]) {
+    if (key in body) {
+      updates[key] = body[key]?.trim() || null;
+    }
   }
 
+  updates.updated_at = new Date().toISOString();
+
   const { data, error } = await supabase
-    .from("analyses")
+    .from("clients")
     .update(updates)
     .eq("id", id)
     .eq("user_id", user.id)
@@ -74,7 +78,7 @@ export async function DELETE(
   }
 
   const { error } = await supabase
-    .from("analyses")
+    .from("clients")
     .delete()
     .eq("id", id)
     .eq("user_id", user.id);
