@@ -48,9 +48,9 @@ export function CaseForm({ onSubmit, loading, initialValues }: CaseFormProps) {
   return (
     <form onSubmit={form.handleSubmit(onSubmit as any)}>
       <div className="space-y-6">
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Paramètres de l&apos;affaire</CardTitle>
+            <CardTitle className="font-serif text-[#1e3a5f]">Paramètres de l&apos;affaire</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -154,9 +154,9 @@ export function CaseForm({ onSubmit, loading, initialValues }: CaseFormProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Motifs invoqués</CardTitle>
+            <CardTitle className="font-serif text-[#1e3a5f]">Motifs invoqués</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {[
@@ -182,9 +182,9 @@ export function CaseForm({ onSubmit, loading, initialValues }: CaseFormProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Contexte temporel</CardTitle>
+            <CardTitle className="font-serif text-[#1e3a5f]">Contexte temporel</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -204,7 +204,7 @@ export function CaseForm({ onSubmit, loading, initialValues }: CaseFormProps) {
           </CardContent>
         </Card>
 
-        <Button type="submit" size="lg" className="w-full" disabled={loading}>
+        <Button type="submit" size="lg" className="w-full cursor-pointer bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f]" disabled={loading}>
           <Search className="mr-2 h-4 w-4" />
           {loading ? "Analyse en cours..." : "Analyser mon affaire"}
         </Button>

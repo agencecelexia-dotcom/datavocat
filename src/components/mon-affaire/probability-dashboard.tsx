@@ -26,15 +26,15 @@ export function ProbabilityDashboard({
   reportLoading,
 }: ProbabilityDashboardProps) {
   const getScoreColor = (score: number) => {
-    if (score >= 60) return "text-green-600";
-    if (score >= 40) return "text-yellow-600";
-    return "text-red-600";
+    if (score >= 60) return "text-[#2d6a4f]";
+    if (score >= 40) return "text-[#ca6702]";
+    return "text-[#9b2226]";
   };
 
   return (
     <div className="space-y-6">
       {/* Score principal */}
-      <Card>
+      <Card className="shadow-sm">
         <CardContent className="flex flex-col items-center py-8">
           <p className="mb-2 text-sm text-muted-foreground">
             Probabilité de succès estimée
@@ -61,43 +61,43 @@ export function ProbabilityDashboard({
 
       {/* Métriques */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-sm font-medium text-[#1e3a5f]">
               Taux de recevabilité
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-[#1e3a5f]">
               {result.taux_recevabilite != null
                 ? `${result.taux_recevabilite}%`
-                : "—"}
+                : "---"}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Délai moyen</CardTitle>
+            <CardTitle className="text-sm font-medium text-[#1e3a5f]">Délai moyen</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-[#1e3a5f]">
               {result.delai_moyen != null
                 ? `${result.delai_moyen} mois`
-                : "—"}
+                : "---"}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-sm font-medium text-[#1e3a5f]">
               Montant moyen condamnation
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-[#1e3a5f]">
               {result.montant_moyen != null
-                ? `${result.montant_moyen.toLocaleString("fr-FR")} €`
-                : "—"}
+                ? `${result.montant_moyen.toLocaleString("fr-FR")} EUR`
+                : "---"}
             </div>
           </CardContent>
         </Card>
@@ -105,9 +105,9 @@ export function ProbabilityDashboard({
 
       {/* Décisions similaires */}
       {result.decisions_proches && result.decisions_proches.length > 0 && (
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Décisions les plus similaires</CardTitle>
+            <CardTitle className="font-serif text-[#1e3a5f]">Décisions les plus similaires</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -156,7 +156,7 @@ export function ProbabilityDashboard({
       <Button
         onClick={onGenerateReport}
         size="lg"
-        className="w-full"
+        className="w-full cursor-pointer bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f]"
         disabled={reportLoading}
       >
         <FileText className="mr-2 h-4 w-4" />
