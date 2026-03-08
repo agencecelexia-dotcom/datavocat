@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { DATAVOCAT_SYSTEM_PROMPT } from "@/lib/claude/analyze-prompt";
-import { searchCourtDecisions } from "@/lib/datagouv/client";
 import { searchJudilibreForAnalysis } from "@/lib/judilibre/client";
 
 export const maxDuration = 60;
@@ -35,35 +34,20 @@ export async function POST(request: NextRequest) {
       .eq("id", id);
   }
 
-  // Search multiple sources in parallel with the full query (with 8s timeout each)
-  const withTimeout = <T>(promise: Promise<T>, fallback: T, ms = 8000): Promise<T> =>
-    Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
-
-  const [datagouvrContext, judilibreContext] = await Promise.all([
-    withTimeout(
-      searchCourtDecisions(query).catch(() => ""),
-      "",
-    ),
-    withTimeout(
-      searchJudilibreForAnalysis(query).catch(() => ""),
-      "",
-    ),
+  // Try Judilibre search with 8s timeout
+  const judilibreContext = await Promise.race([
+    searchJudilibreForAnalysis(query).catch(() => ""),
+    new Promise<string>((resolve) => setTimeout(() => resolve(""), 8000)),
   ]);
 
-  // Determine source availability for dynamic instructions
-  const hasJudilibre = judilibreContext.includes("JUDILIBRE") && judilibreContext.includes("decisions trouvees");
-  const hasDatagouv = datagouvrContext.length > 50 && !datagouvrContext.includes("Aucun jeu");
+  const hasJudilibre =
+    judilibreContext.includes("JUDILIBRE") &&
+    judilibreContext.includes("decisions trouvees");
 
   // Stream Claude analysis
   const anthropic = getAnthropicClient();
 
-  let sourceBlock = "";
-  if (hasJudilibre) {
-    sourceBlock += `\n${judilibreContext}\n`;
-  }
-  if (hasDatagouv) {
-    sourceBlock += `\n═══ DONNEES DATA.GOUV.FR ═══\n${datagouvrContext}\n`;
-  }
+  const sourceBlock = hasJudilibre ? `\n${judilibreContext}\n` : "";
 
   const sourceInstruction = hasJudilibre
     ? "Des decisions Judilibre sont fournies ci-dessous — analyse-les en priorite (ce sont des decisions reelles verifiables). Complete avec tes connaissances."
