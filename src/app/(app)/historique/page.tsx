@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, FileText, Scale, ArrowRight, User } from "lucide-react";
+import { Clock, FileText, Scale, ArrowRight, User, Gavel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Analysis {
@@ -14,6 +14,7 @@ interface Analysis {
   created_at: string;
   client_id: string | null;
   client_name?: string | null;
+  jugement_resultat: "favorable" | "partiellement_favorable" | "defavorable" | null;
 }
 
 function SkeletonRow({ delay }: { delay: number }) {
@@ -125,22 +126,43 @@ export default function HistoriquePage() {
                     )}
                   </div>
                 </div>
-                <Badge
-                  variant={a.status === "done" ? "default" : "secondary"}
-                  className={
-                    a.status === "done"
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                <div className="flex shrink-0 items-center gap-2">
+                  {a.jugement_resultat && (
+                    <span
+                      className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        a.jugement_resultat === "favorable"
+                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          : a.jugement_resultat === "partiellement_favorable"
+                            ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
+                      }`}
+                      title={`Jugement : ${a.jugement_resultat.replace("_", " ")}`}
+                    >
+                      <Gavel className="h-3 w-3" />
+                      {a.jugement_resultat === "favorable"
+                        ? "Favorable"
+                        : a.jugement_resultat === "partiellement_favorable"
+                          ? "Partiel"
+                          : "Défavorable"}
+                    </span>
+                  )}
+                  <Badge
+                    variant={a.status === "done" ? "default" : "secondary"}
+                    className={
+                      a.status === "done"
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : a.status === "error"
+                        ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        : ""
+                    }
+                  >
+                    {a.status === "done"
+                      ? "Terminé"
                       : a.status === "error"
-                      ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                      : ""
-                  }
-                >
-                  {a.status === "done"
-                    ? "Terminé"
-                    : a.status === "error"
-                    ? "Erreur"
-                    : "En cours"}
-                </Badge>
+                      ? "Erreur"
+                      : "En cours"}
+                  </Badge>
+                </div>
               </Card>
             </Link>
           ))}

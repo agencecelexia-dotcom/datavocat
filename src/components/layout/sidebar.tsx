@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -8,11 +7,8 @@ import {
   Scale,
   History,
   FileText,
-  Briefcase,
   BarChart3,
   GitCompareArrows,
-  ScrollText,
-  Eye,
   Users,
   Sparkles,
   Command,
@@ -36,11 +32,6 @@ const navItems = [
     icon: FileText,
   },
   {
-    label: "Mon Affaire",
-    href: "/mon-affaire",
-    icon: Briefcase,
-  },
-  {
     label: "Statistiques",
     href: "/statistiques",
     icon: BarChart3,
@@ -51,16 +42,6 @@ const navItems = [
     icon: GitCompareArrows,
   },
   {
-    label: "Conclusions",
-    href: "/conclusions",
-    icon: ScrollText,
-  },
-  {
-    label: "Veille juridique",
-    href: "/veille",
-    icon: Eye,
-  },
-  {
     label: "Clients",
     href: "/clients",
     icon: Users,
@@ -69,20 +50,6 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [veilleUnseen, setVeilleUnseen] = useState(0);
-
-  useEffect(() => {
-    const raw = localStorage.getItem("datavocat_veille_unseen");
-    const count = raw ? parseInt(raw, 10) : 0;
-    setVeilleUnseen(isNaN(count) ? 0 : count);
-  }, []);
-
-  useEffect(() => {
-    if (pathname === "/veille" || pathname.startsWith("/veille/")) {
-      setVeilleUnseen(0);
-      localStorage.setItem("datavocat_veille_unseen", "0");
-    }
-  }, [pathname]);
 
   return (
     <aside className="hidden w-[260px] shrink-0 flex-col bg-[#0c1929] lg:flex">
@@ -108,12 +75,11 @@ export function Sidebar() {
           const isActive =
             pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));
-          const showBadge = item.href === "/veille" && veilleUnseen > 0;
 
           return (
             <div key={item.href}>
               {/* Section divider before Statistiques */}
-              {i === 4 && (
+              {i === 3 && (
                 <div className="mx-2 my-3 h-px bg-white/[0.04]" />
               )}
               <Link
@@ -145,12 +111,6 @@ export function Sidebar() {
                 </span>
 
                 <span>{item.label}</span>
-
-                {showBadge && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500/90 px-1.5 text-[10px] font-bold text-white">
-                    {veilleUnseen > 9 ? "9+" : veilleUnseen}
-                  </span>
-                )}
               </Link>
             </div>
           );

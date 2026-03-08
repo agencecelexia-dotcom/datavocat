@@ -77,6 +77,22 @@ export default function LoginPage() {
             </Label>
             <button
               type="button"
+              onClick={async () => {
+                const supabase = createClient();
+                const emailValue = (document.getElementById("email") as HTMLInputElement)?.value;
+                if (!emailValue) {
+                  alert("Veuillez d'abord saisir votre adresse email.");
+                  return;
+                }
+                const { error } = await supabase.auth.resetPasswordForEmail(emailValue, {
+                  redirectTo: `${window.location.origin}/auth/callback`,
+                });
+                if (error) {
+                  alert(error.message);
+                } else {
+                  alert("Un email de réinitialisation a été envoyé à " + emailValue);
+                }
+              }}
               className="text-xs font-medium text-[#c9a96e] transition-colors hover:text-[#b8944f] cursor-pointer"
             >
               Mot de passe oublié ?

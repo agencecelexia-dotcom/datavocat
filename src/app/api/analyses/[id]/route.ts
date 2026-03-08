@@ -46,6 +46,21 @@ export async function PATCH(
     updates.client_id = body.client_id || null;
   }
 
+  if ("jugement_final" in body) {
+    updates.jugement_final = body.jugement_final || null;
+  }
+
+  if ("jugement_date" in body) {
+    updates.jugement_date = body.jugement_date || null;
+  }
+
+  if ("jugement_resultat" in body) {
+    const valid = ["favorable", "partiellement_favorable", "defavorable"];
+    updates.jugement_resultat = valid.includes(body.jugement_resultat)
+      ? body.jugement_resultat
+      : null;
+  }
+
   const { data, error } = await supabase
     .from("analyses")
     .update(updates)

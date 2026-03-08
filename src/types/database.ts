@@ -75,6 +75,9 @@ export type Database = {
           query: string;
           response: string | null;
           status: string;
+          jugement_final: string | null;
+          jugement_date: string | null;
+          jugement_resultat: "favorable" | "partiellement_favorable" | "defavorable" | null;
           created_at: string;
           updated_at: string;
         };
@@ -85,6 +88,9 @@ export type Database = {
           query: string;
           response?: string | null;
           status?: string;
+          jugement_final?: string | null;
+          jugement_date?: string | null;
+          jugement_resultat?: "favorable" | "partiellement_favorable" | "defavorable" | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -95,6 +101,9 @@ export type Database = {
           query?: string;
           response?: string | null;
           status?: string;
+          jugement_final?: string | null;
+          jugement_date?: string | null;
+          jugement_resultat?: "favorable" | "partiellement_favorable" | "defavorable" | null;
           created_at?: string;
           updated_at?: string;
         };

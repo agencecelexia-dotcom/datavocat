@@ -19,7 +19,14 @@ import {
   ShieldX,
   CheckCircle2,
   User,
+  Gavel,
+  ChevronDown,
+  ChevronUp,
+  Save,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { AnalysisChat } from "@/components/analysis/chat";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisSlides } from "@/components/analysis/slides";
@@ -34,6 +41,9 @@ interface Analysis {
   status: string;
   created_at: string;
   client_id: string | null;
+  jugement_final: string | null;
+  jugement_date: string | null;
+  jugement_resultat: "favorable" | "partiellement_favorable" | "defavorable" | null;
 }
 
 interface ClientOption {
@@ -51,6 +61,13 @@ export default function AnalysisDetailPage() {
   const [showSources, setShowSources] = useState(false);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  // Jugement final state
+  const [jugementOpen, setJugementOpen] = useState(false);
+  const [jugementFinal, setJugementFinal] = useState("");
+  const [jugementDate, setJugementDate] = useState("");
+  const [jugementResultat, setJugementResultat] = useState<string>("");
+  const [jugementSaving, setJugementSaving] = useState(false);
+  const [jugementSaved, setJugementSaved] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -61,6 +78,10 @@ export default function AnalysisDetailPage() {
         setAnalysis(data);
         setClients(clientsData);
         setSelectedClientId(data.client_id || "");
+        setJugementFinal(data.jugement_final || "");
+        setJugementDate(data.jugement_date ? data.jugement_date.split("T")[0] : "");
+        setJugementResultat(data.jugement_resultat || "");
+        if (data.jugement_resultat) setJugementOpen(true);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -104,6 +125,30 @@ export default function AnalysisDetailPage() {
       }
     } catch {
       // silently fail
+    }
+  };
+
+  const handleSaveJugement = async () => {
+    setJugementSaving(true);
+    setJugementSaved(false);
+    try {
+      const res = await fetch(`/api/analyses/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jugement_final: jugementFinal || null,
+          jugement_date: jugementDate ? new Date(jugementDate).toISOString() : null,
+          jugement_resultat: jugementResultat || null,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setAnalysis(updated);
+        setJugementSaved(true);
+        setTimeout(() => setJugementSaved(false), 3000);
+      }
+    } finally {
+      setJugementSaving(false);
     }
   };
 
@@ -277,6 +322,164 @@ export default function AnalysisDetailPage() {
           </div>
         ) : null}
       </div>
+
+      {/* Jugement final section */}
+      {analysis.response && analysis.status === "done" && (
+        <Card className="border-border/40 shadow-sm">
+          {/* Header — collapsible */}
+          <button
+            onClick={() => setJugementOpen(!jugementOpen)}
+            className="flex w-full cursor-pointer items-center justify-between px-5 py-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#c9a96e]/10">
+                <Gavel className="h-4 w-4 text-[#c9a96e]" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Jugement final</p>
+                <p className="text-xs text-muted-foreground">
+                  Comparez le résultat réel avec la prédiction
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {analysis.jugement_resultat && (
+                <Badge
+                  className={
+                    analysis.jugement_resultat === "favorable"
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      : analysis.jugement_resultat === "partiellement_favorable"
+                        ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                        : "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
+                  }
+                >
+                  {analysis.jugement_resultat === "favorable"
+                    ? "Favorable"
+                    : analysis.jugement_resultat === "partiellement_favorable"
+                      ? "Partiellement favorable"
+                      : "Défavorable"}
+                </Badge>
+              )}
+              {jugementOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+          </button>
+
+          {/* Collapsible content */}
+          {jugementOpen && (
+            <div className="space-y-4 border-t border-border/30 px-5 pb-5 pt-4">
+              {/* Comparison badge when judgment exists */}
+              {analysis.jugement_resultat && parsedData && (
+                <div className="flex items-center gap-3 rounded-lg border border-[#1e3a5f]/10 bg-[#1e3a5f]/[0.02] p-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-[#1e3a5f]">Résultat réel vs prédiction</span>
+                    <span className="text-muted-foreground">:</span>
+                    <Badge
+                      className={
+                        analysis.jugement_resultat === "favorable"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : analysis.jugement_resultat === "partiellement_favorable"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-rose-50 text-rose-700"
+                      }
+                    >
+                      {analysis.jugement_resultat === "favorable"
+                        ? "Favorable"
+                        : analysis.jugement_resultat === "partiellement_favorable"
+                          ? "Partiellement favorable"
+                          : "Défavorable"}
+                    </Badge>
+                    {parsedData.fiabilite && (
+                      <>
+                        <span className="text-muted-foreground/50">|</span>
+                        <span className="text-xs text-muted-foreground">
+                          Fiabilité prédiction : {parsedData.fiabilite.label} ({parsedData.fiabilite.score}/100)
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Result selector */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">Résultat</label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { value: "favorable", label: "Favorable", color: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" },
+                    { value: "partiellement_favorable", label: "Partiellement favorable", color: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-400" },
+                    { value: "defavorable", label: "Défavorable", color: "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/30 dark:text-rose-400" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setJugementResultat(jugementResultat === opt.value ? "" : opt.value)}
+                      className={`cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                        jugementResultat === opt.value
+                          ? opt.color + " shadow-sm"
+                          : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">
+                  Date du jugement
+                </label>
+                <Input
+                  type="date"
+                  value={jugementDate}
+                  onChange={(e) => setJugementDate(e.target.value)}
+                  className="max-w-xs"
+                />
+              </div>
+
+              {/* Judgment text */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">
+                  Détails du jugement
+                </label>
+                <Textarea
+                  value={jugementFinal}
+                  onChange={(e) => setJugementFinal(e.target.value)}
+                  placeholder="Résumé du jugement rendu, points clés, montants, etc."
+                  rows={4}
+                  className="resize-none"
+                />
+              </div>
+
+              {/* Save button */}
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleSaveJugement}
+                  disabled={jugementSaving}
+                  className="cursor-pointer gap-2 bg-[#1e3a5f] text-white hover:bg-[#162d4a]"
+                >
+                  {jugementSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Enregistrer le jugement
+                </Button>
+                {jugementSaved && (
+                  <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Enregistré
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Follow-up chat */}
       {analysis.response && analysis.status === "done" && (

@@ -41,7 +41,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/auth/callback") ||
-    pathname.startsWith("/api/");
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/cgu") ||
+    pathname.startsWith("/confidentialite") ||
+    pathname.startsWith("/mentions-legales");
 
   // Redirect unauthenticated users to /login for protected routes
   if (!user && !isPublicRoute) {

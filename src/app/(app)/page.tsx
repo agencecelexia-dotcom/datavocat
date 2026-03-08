@@ -394,9 +394,7 @@ export default function AnalyzePage() {
                   <Link
                     key={fav.id}
                     href={
-                      fav.type === "decision"
-                        ? `/decisions/${fav.id}`
-                        : `/veille`
+                      `/decisions/${fav.id}`
                     }
                     className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm transition-all duration-200 hover:bg-accent"
                   >
