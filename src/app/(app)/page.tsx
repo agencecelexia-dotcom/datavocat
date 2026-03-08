@@ -45,6 +45,24 @@ interface ClarifyQuestion {
 
 type Phase = "input" | "clarify" | "analyzing" | "done";
 
+const LAWYER_JOKES = [
+  "Pourquoi les avocats ne vont jamais a la plage ? Parce qu'ils ont peur que les chats les prennent pour du sable mouvant.",
+  "Quelle est la difference entre un avocat et un requin ? L'un est un predateur sans pitie, et l'autre est un poisson.",
+  "Un avocat demande a son client : 'Avez-vous dit toute la verite ?' Le client repond : 'Non, je vous ai engage pour ca.'",
+  "Comment appelle-t-on un avocat qui ne ment jamais ? Un debutant.",
+  "Pourquoi les avocats portent-ils la robe ? Pour cacher leur jeu.",
+  "Un juge demande a l'accuse : 'Pourquoi avez-vous vole cette voiture ?' L'accuse repond : 'Elle etait garee devant le palais de justice, j'ai cru que c'etait un service public.'",
+  "Que fait un avocat quand il fait froid ? Il met un article supplementaire.",
+  "Mon avocat m'a dit : 'J'ai une bonne et une mauvaise nouvelle.' La bonne : 'Votre femme a trouve une photo qui vaut 50 000 euros.' La mauvaise : 'C'est une photo de vous avec votre maitresse.'",
+  "Pourquoi les avocats font-ils de mauvais magiciens ? Parce qu'ils ne font que des tours de passe-passe juridiques.",
+  "Saviez-vous que 99% des avocats donnent une mauvaise image de la profession ? Le 100eme est en vacances.",
+  "Un avocat dit a un autre : 'On fait un proces ?' L'autre repond : 'D'accord, mais c'est moi qui gagne !'",
+  "La justice est aveugle. Heureusement, les avocats ont le nez creux.",
+  "Comment reconnait-on un bon avocat ? Il connait la loi. Et un excellent avocat ? Il connait le juge.",
+  "Pourquoi les avocats ne jouent-ils jamais a cache-cache ? Parce que personne ne les cherche.",
+  "Quelle est la devise des avocats ? 'In Deus we trust, tous les autres paient comptant.'",
+];
+
 export default function AnalyzePage() {
   const { favorites } = useFavorites();
   const [query, setQuery] = useState("");
@@ -554,62 +572,19 @@ export default function AnalyzePage() {
             ref={responseRef}
             className="flex-1 overflow-y-auto rounded-lg border border-border/40 border-t-4 border-t-[#1e3a5f] bg-white p-6 shadow-sm"
           >
-            {/* Loading animation */}
-            {loading && !response && (
-              <div className="space-y-6 py-8">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="relative">
-                    <div className="h-16 w-16 animate-spin rounded-full border-4 border-muted border-t-primary" />
-                    <Scale className="absolute inset-0 m-auto h-6 w-6 text-primary" />
-                  </div>
-                  <p className="font-serif text-lg text-foreground">
-                    Analyse en cours
-                  </p>
-                </div>
-                <div className="mx-auto max-w-sm space-y-3">
-                  {[
-                    {
-                      icon: Search,
-                      text: "Recherche Judilibre (Cour de cassation)...",
-                      delay: "0s",
-                    },
-                    {
-                      icon: Database,
-                      text: "Interrogation de data.gouv.fr...",
-                      delay: "0.5s",
-                    },
-                    {
-                      icon: Brain,
-                      text: "Analyse jurimetrique par IA...",
-                      delay: "1s",
-                    },
-                  ].map((step, i) => (
-                    <div
-                      key={i}
-                      className="flex animate-pulse items-center gap-3 text-sm text-muted-foreground"
-                      style={{ animationDelay: step.delay }}
-                    >
-                      <step.icon className="h-4 w-4 shrink-0" />
-                      <span>{step.text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {/* Loading screen with lawyer jokes — hides streaming text */}
+            {phase === "analyzing" && (
+              <AnalyzingScreen />
             )}
 
-            {/* Text view */}
-            {(activeView === "text" || phase === "analyzing") && response && (
-              <>
-                <div
-                  className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h2:text-xl prose-h2:text-primary prose-h3:text-base prose-strong:text-foreground"
-                  dangerouslySetInnerHTML={{
-                    __html: formatMarkdownSafe(response),
-                  }}
-                />
-                {loading && response && (
-                  <span className="inline-block h-4 w-2 animate-pulse bg-gold" />
-                )}
-              </>
+            {/* Text view — only shown when done */}
+            {activeView === "text" && phase === "done" && response && (
+              <div
+                className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h2:text-xl prose-h2:text-primary prose-h3:text-base prose-strong:text-foreground"
+                dangerouslySetInnerHTML={{
+                  __html: formatMarkdownSafe(response),
+                }}
+              />
             )}
 
             {/* Dashboard view */}
@@ -687,6 +662,128 @@ export default function AnalyzePage() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ═══ ANALYZING SCREEN (lawyer jokes) ═══ */
+function AnalyzingScreen() {
+  const [jokeIndex, setJokeIndex] = useState(() =>
+    Math.floor(Math.random() * LAWYER_JOKES.length)
+  );
+  const [stepIndex, setStepIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [fadeIn, setFadeIn] = useState(true);
+
+  const steps = [
+    { icon: Search, text: "Recherche dans Judilibre (Cour de cassation)...", duration: 8000 },
+    { icon: Database, text: "Interrogation de data.gouv.fr...", duration: 5000 },
+    { icon: Brain, text: "Analyse des decisions trouvees...", duration: 10000 },
+    { icon: Scale, text: "Redaction du rapport strategique...", duration: 25000 },
+  ];
+
+  // Cycle through jokes every 8 seconds with fade animation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFadeIn(false);
+      setTimeout(() => {
+        setJokeIndex((prev) => (prev + 1) % LAWYER_JOKES.length);
+        setFadeIn(true);
+      }, 400);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Progress through steps
+  useEffect(() => {
+    const stepTimers = steps.map((step, i) => {
+      const delay = steps.slice(0, i).reduce((sum, s) => sum + s.duration, 0);
+      return setTimeout(() => setStepIndex(i), delay);
+    });
+    return () => stepTimers.forEach(clearTimeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Smooth progress bar
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 95) return 95; // never reach 100 until done
+        return prev + 0.3;
+      });
+    }, 200);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex h-full min-h-[400px] flex-col items-center justify-center gap-8 py-8">
+      {/* Animated scale icon */}
+      <div className="relative">
+        <div className="h-20 w-20 animate-spin rounded-full border-4 border-[#1e3a5f]/10 border-t-[#c9a96e]" style={{ animationDuration: "3s" }} />
+        <Scale className="absolute inset-0 m-auto h-8 w-8 text-[#1e3a5f]" />
+      </div>
+
+      <div className="text-center">
+        <h2 className="font-serif text-2xl text-[#1e3a5f]">
+          Analyse en cours
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Cela peut prendre 30 a 60 secondes
+        </p>
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-full max-w-md">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-[#1e3a5f]/10">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#1e3a5f] to-[#c9a96e] transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Step indicators */}
+      <div className="w-full max-w-sm space-y-3">
+        {steps.map((step, i) => {
+          const isDone = i < stepIndex;
+          const isActive = i === stepIndex;
+          return (
+            <div
+              key={i}
+              className={`flex items-center gap-3 text-sm transition-all duration-500 ${
+                isDone
+                  ? "text-[#2d6a4f]"
+                  : isActive
+                    ? "text-[#1e3a5f] font-medium"
+                    : "text-muted-foreground/40"
+              }`}
+            >
+              {isDone ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-[#2d6a4f]" />
+              ) : isActive ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <step.icon className="h-4 w-4 shrink-0" />
+              )}
+              <span>{step.text}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Lawyer joke */}
+      <div className="w-full max-w-lg rounded-xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 p-5">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#c9a96e]">
+          Le saviez-vous ?
+        </p>
+        <p
+          className={`text-sm italic leading-relaxed text-[#1e3a5f]/80 transition-opacity duration-400 ${
+            fadeIn ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          &laquo; {LAWYER_JOKES[jokeIndex]} &raquo;
+        </p>
+      </div>
     </div>
   );
 }
