@@ -18,7 +18,10 @@ import {
   RefreshCw,
   Filter,
   ChevronDown,
+  Star,
 } from "lucide-react";
+import { CopyReference } from "@/components/ui/copy-reference";
+import { useFavorites } from "@/hooks/use-favorites";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -98,6 +101,8 @@ function saveWatches(watches: SavedWatch[]) {
 // ─── Page ────────────────────────────────────────────────────────────
 
 export default function VeillePage() {
+  const { toggleFavorite, isFavorite } = useFavorites();
+
   // Search form state
   const [query, setQuery] = useState("");
   const [chamber, setChamber] = useState("");
@@ -413,9 +418,33 @@ export default function VeillePage() {
               >
                 <CardHeader>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <CardTitle className="text-[#1e3a5f]">
-                      {CHAMBERS[dec.chamber] || dec.chamber}
-                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-[#1e3a5f]">
+                        {CHAMBERS[dec.chamber] || dec.chamber}
+                      </CardTitle>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite({
+                            id: dec.id,
+                            type: "veille",
+                            title: `${CHAMBERS[dec.chamber] || dec.chamber} - ${dec.solution_alt || dec.solution}`,
+                            date: dec.date,
+                            reference: dec.ecli || dec.number?.[0] || dec.id,
+                          });
+                        }}
+                        className="rounded-full p-1 transition-colors hover:bg-[#c9a96e]/10"
+                        title={isFavorite(dec.id) ? "Retirer des favoris" : "Ajouter aux favoris"}
+                      >
+                        <Star
+                          className={`h-4 w-4 transition-colors ${
+                            isFavorite(dec.id)
+                              ? "fill-[#c9a96e] text-[#c9a96e]"
+                              : "text-muted-foreground hover:text-[#c9a96e]"
+                          }`}
+                        />
+                      </button>
+                    </div>
                     <span className="text-xs text-muted-foreground">
                       {new Date(dec.date).toLocaleDateString("fr-FR", {
                         day: "numeric",
@@ -427,15 +456,24 @@ export default function VeillePage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {/* ECLI */}
-                  <a
-                    href={`https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(dec.ecli)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-[#1e3a5f] underline underline-offset-2 hover:text-[#c9a96e] transition-colors"
-                  >
-                    {dec.ecli}
-                    <ExternalLink className="size-3" />
-                  </a>
+                  <div className="flex items-center gap-1.5">
+                    <a
+                      href={`https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(dec.ecli)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-[#1e3a5f] underline underline-offset-2 hover:text-[#c9a96e] transition-colors"
+                    >
+                      {dec.ecli}
+                      <ExternalLink className="size-3" />
+                    </a>
+                    <CopyReference
+                      ecli={dec.ecli}
+                      pourvoi={dec.number?.[0]}
+                      juridiction={dec.jurisdiction}
+                      date={dec.date}
+                      chambre={CHAMBERS[dec.chamber] || dec.chamber}
+                    />
+                  </div>
 
                   {/* Pourvoi numbers */}
                   {dec.number && dec.number.length > 0 && (

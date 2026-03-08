@@ -27,12 +27,16 @@ import {
   ShieldAlert,
   ShieldX,
   CheckCircle2,
+  Star,
 } from "lucide-react";
+import Link from "next/link";
 import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisSlides } from "@/components/analysis/slides";
 import { AnalysisChat } from "@/components/analysis/chat";
 import { formatMarkdownSafe } from "@/lib/format-markdown";
+import { CopyMarkdown } from "@/components/ui/copy-markdown";
+import { useFavorites } from "@/hooks/use-favorites";
 
 interface ClarifyQuestion {
   id: string;
@@ -44,6 +48,7 @@ interface ClarifyQuestion {
 type Phase = "input" | "clarify" | "analyzing" | "done";
 
 export default function AnalyzePage() {
+  const { favorites } = useFavorites();
   const [query, setQuery] = useState("");
   const [phase, setPhase] = useState<Phase>("input");
   const [loading, setLoading] = useState(false);
@@ -292,6 +297,44 @@ export default function AnalyzePage() {
               ))}
             </div>
           </div>
+
+          {/* Favorites widget */}
+          {favorites.length > 0 && (
+            <div className="w-full max-w-3xl space-y-3">
+              <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Star className="h-4 w-4 fill-[#c9a96e] text-[#c9a96e]" />
+                Mes favoris
+              </p>
+              <div className="grid gap-2">
+                {favorites.slice(0, 5).map((fav) => (
+                  <Link
+                    key={fav.id}
+                    href={
+                      fav.type === "decision"
+                        ? `/decisions/${fav.id}`
+                        : `/veille`
+                    }
+                    className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-4 py-3 text-sm shadow-sm transition-all hover:border-[#c9a96e]/40 hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Star className="h-3.5 w-3.5 shrink-0 fill-[#c9a96e] text-[#c9a96e]" />
+                      <span className="truncate font-medium text-[#1e3a5f]">
+                        {fav.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
+                      <span className="font-mono">{fav.reference}</span>
+                      {fav.date && (
+                        <span>
+                          {new Date(fav.date).toLocaleDateString("fr-FR")}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : phase === "clarify" && !loading ? (
         /* ═══ CLARIFICATION STATE ═══ */
@@ -543,6 +586,33 @@ export default function AnalyzePage() {
             <AnalysisChat analysisContext={response} query={query} />
           )}
 
+          {/* Suggested follow-up questions */}
+          {phase === "done" && response && (
+            <div className="shrink-0 space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">
+                Questions suggerees
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "Et si on changeait de juridiction ?",
+                  "Quels sont les risques en appel ?",
+                  "Comment renforcer cet argument ?",
+                ].map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => {
+                      const enriched = query.trim() + "\n\nQUESTION COMPLEMENTAIRE : " + suggestion;
+                      launchAnalysis(enriched);
+                    }}
+                    className="rounded-full border border-[#c9a96e]/40 bg-[#c9a96e]/5 px-4 py-1.5 text-sm text-[#1e3a5f] transition-all hover:border-[#c9a96e] hover:bg-[#c9a96e]/15 hover:shadow-sm"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Actions bar */}
           {phase === "done" && (
             <div className="flex shrink-0 items-center gap-3">
@@ -554,15 +624,7 @@ export default function AnalyzePage() {
                 Nouvelle analyse
               </Button>
               <div className="flex-1" />
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-muted-foreground"
-                onClick={() => navigator.clipboard.writeText(response)}
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copier
-              </Button>
+              <CopyMarkdown content={response} />
               <Button
                 variant="outline"
                 size="sm"

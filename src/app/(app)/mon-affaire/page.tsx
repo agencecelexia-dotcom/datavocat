@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { CaseForm } from "@/components/mon-affaire/case-form";
 import { ProbabilityDashboard } from "@/components/mon-affaire/probability-dashboard";
+import { Button } from "@/components/ui/button";
 import type { MonAffaireInput } from "@/lib/validators/decision";
 import type { ScoreAffaireSimilaire } from "@/types/stats";
 import { formatMarkdownSafe } from "@/lib/format-markdown";
@@ -13,6 +14,12 @@ export default function MonAffairePage() {
   const [loading, setLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [report, setReport] = useState<string | null>(null);
+  const [formKey, setFormKey] = useState(0);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  const handleModifyParams = useCallback(() => {
+    formRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
   const handleSubmit = async (data: MonAffaireInput) => {
     setLoading(true);
@@ -35,6 +42,14 @@ export default function MonAffairePage() {
       setLoading(false);
     }
   };
+
+  const handleReanalyze = useCallback(() => {
+    if (params) {
+      setFormKey((k) => k + 1);
+      handleSubmit(params);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
 
   const handleGenerateReport = async () => {
     if (!result || !params) return;
@@ -108,14 +123,40 @@ export default function MonAffairePage() {
         </p>
       </div>
 
-      <CaseForm onSubmit={handleSubmit} loading={loading} />
+      <div ref={formRef}>
+        <CaseForm
+          key={formKey}
+          onSubmit={handleSubmit}
+          loading={loading}
+          initialValues={params || undefined}
+        />
+      </div>
 
       {result && (
-        <ProbabilityDashboard
-          result={result}
-          onGenerateReport={handleGenerateReport}
-          reportLoading={reportLoading}
-        />
+        <>
+          <ProbabilityDashboard
+            result={result}
+            onGenerateReport={handleGenerateReport}
+            reportLoading={reportLoading}
+          />
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleModifyParams}
+              className="border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f]/10"
+            >
+              Modifier les parametres
+            </Button>
+            <Button
+              onClick={handleReanalyze}
+              disabled={loading}
+              className="bg-[#c9a96e] text-white hover:bg-[#b8944f]"
+            >
+              {loading ? "Analyse en cours..." : "Relancer l'analyse"}
+            </Button>
+          </div>
+        </>
       )}
 
       {report && (

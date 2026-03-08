@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Menu, Scale, LogOut } from "lucide-react";
+import { Menu, Scale, LogOut, Moon, Sun } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileNav } from "./mobile-nav";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,33 @@ interface HeaderProps {
 export function Header({ userEmail, userName }: HeaderProps) {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("datavocat_theme");
+    if (stored === "dark") {
+      document.documentElement.classList.add("dark");
+      setIsDark(true);
+    } else if (stored === "light") {
+      document.documentElement.classList.remove("dark");
+      setIsDark(false);
+    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      document.documentElement.classList.add("dark");
+      setIsDark(true);
+    }
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    const newDark = !isDark;
+    setIsDark(newDark);
+    if (newDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("datavocat_theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("datavocat_theme", "light");
+    }
+  }, [isDark]);
 
   const isDemo = !userEmail;
 
@@ -57,6 +84,15 @@ export function Header({ userEmail, userName }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          aria-label={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </Button>
         {isDemo && (
           <Badge
             variant="secondary"

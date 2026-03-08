@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { CopyMarkdown } from "@/components/ui/copy-markdown";
 
 const JURIDICTIONS = [
   "Tribunal judiciaire",
@@ -21,6 +22,38 @@ const QUALITES = [
   { value: "intime", label: "Intime" },
   { value: "requerant", label: "Requerant" },
 ];
+
+const TEMPLATES_KEY = "datavocat_conclusion_templates";
+const MAX_TEMPLATES = 10;
+
+interface ConclusionTemplate {
+  id: string;
+  name: string;
+  juridiction: string;
+  qualite: string;
+  demandes: string;
+  client?: string;
+  adversaire?: string;
+  faits?: string;
+  args?: string;
+}
+
+function loadTemplates(): ConclusionTemplate[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(TEMPLATES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTemplates(templates: ConclusionTemplate[]) {
+  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
+}
 
 function formatMarkdown(text: string): string {
   // 1. Escape HTML to prevent XSS
@@ -94,7 +127,55 @@ export default function ConclusionsPage() {
   const [demandes, setDemandes] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+
+  // Templates state
+  const [templates, setTemplates] = useState<ConclusionTemplate[]>([]);
+
+  useEffect(() => {
+    setTemplates(loadTemplates());
+  }, []);
+
+  const handleSaveTemplate = useCallback(() => {
+    if (!juridiction && !qualite && !demandes) return;
+    const name = window.prompt("Nom du template :");
+    if (!name || !name.trim()) return;
+
+    const newTemplate: ConclusionTemplate = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      juridiction,
+      qualite,
+      demandes,
+      client,
+      adversaire,
+      faits,
+      args,
+    };
+
+    setTemplates((prev) => {
+      const updated = [newTemplate, ...prev].slice(0, MAX_TEMPLATES);
+      saveTemplates(updated);
+      return updated;
+    });
+  }, [juridiction, qualite, demandes, client, adversaire, faits, args]);
+
+  const handleLoadTemplate = useCallback((template: ConclusionTemplate) => {
+    setJuridiction(template.juridiction || "");
+    setQualite(template.qualite || "");
+    setDemandes(template.demandes || "");
+    if (template.client) setClient(template.client);
+    if (template.adversaire) setAdversaire(template.adversaire);
+    if (template.faits) setFaits(template.faits);
+    if (template.args) setArgs(template.args);
+  }, []);
+
+  const handleDeleteTemplate = useCallback((id: string) => {
+    setTemplates((prev) => {
+      const updated = prev.filter((t) => t.id !== id);
+      saveTemplates(updated);
+      return updated;
+    });
+  }, []);
 
   const canSubmit =
     juridiction && qualite && client && adversaire && faits && demandes;
@@ -142,13 +223,6 @@ export default function ConclusionsPage() {
       setLoading(false);
     }
   }, [canSubmit, juridiction, qualite, client, adversaire, faits, args, demandes]);
-
-  const handleCopy = useCallback(async () => {
-    if (!result) return;
-    await navigator.clipboard.writeText(result);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [result]);
 
   const handleExportDocx = useCallback(async () => {
     if (!result) return;
@@ -217,6 +291,48 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
           de fait et de droit
         </p>
       </div>
+
+      {/* Templates section */}
+      {templates.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-serif text-[#1e3a5f]">
+              Mes templates
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {templates.map((t) => (
+                <div
+                  key={t.id}
+                  className="group relative cursor-pointer rounded-lg border border-border/60 p-3 transition-all hover:border-[#c9a96e]/40 hover:shadow-sm"
+                  onClick={() => handleLoadTemplate(t)}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTemplate(t.id);
+                    }}
+                    className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-[#9b2226]/10 hover:text-[#9b2226] group-hover:opacity-100"
+                    aria-label="Supprimer le template"
+                  >
+                    &times;
+                  </button>
+                  <p className="text-sm font-medium text-[#1e3a5f]">
+                    {t.name}
+                  </p>
+                  {t.juridiction && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t.juridiction}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Form Card */}
       <Card>
@@ -329,8 +445,8 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
             />
           </div>
 
-          {/* Generate button */}
-          <div className="flex justify-center pt-2">
+          {/* Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Button
               onClick={handleGenerate}
               disabled={loading || !canSubmit}
@@ -363,6 +479,15 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
               ) : (
                 "Generer les conclusions"
               )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSaveTemplate}
+              disabled={!juridiction && !qualite && !demandes}
+              className="border-[#c9a96e] text-[#c9a96e] hover:bg-[#c9a96e]/10"
+            >
+              Sauvegarder comme template
             </Button>
           </div>
         </CardContent>
@@ -404,14 +529,10 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
               Projet de conclusions
             </CardTitle>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopy}
+              <CopyMarkdown
+                content={result}
                 className="border-[#c9a96e] text-[#c9a96e] hover:bg-[#c9a96e]/10"
-              >
-                {copied ? "Copie !" : "Copier"}
-              </Button>
+              />
               <Button
                 variant="outline"
                 size="sm"

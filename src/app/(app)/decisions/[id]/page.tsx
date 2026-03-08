@@ -5,8 +5,21 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Pencil, Check, Trash2, Save, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Pencil, Check, Trash2, Save, X, Star, Plus, ChevronDown, ChevronRight, StickyNote } from "lucide-react";
+import { CopyReference } from "@/components/ui/copy-reference";
 import type { Decision } from "@/types/database";
+import { useFavorites } from "@/hooks/use-favorites";
+import { useTags } from "@/hooks/use-tags";
+import { useNotes } from "@/hooks/use-notes";
+
+const TAG_COLORS = [
+  { bg: "bg-[#1e3a5f]/10", text: "text-[#1e3a5f]", border: "border-[#1e3a5f]/20" },
+  { bg: "bg-[#c9a96e]/10", text: "text-[#c9a96e]", border: "border-[#c9a96e]/20" },
+  { bg: "bg-[#2d6a4f]/10", text: "text-[#2d6a4f]", border: "border-[#2d6a4f]/20" },
+  { bg: "bg-[#9b2226]/10", text: "text-[#9b2226]", border: "border-[#9b2226]/20" },
+  { bg: "bg-[#ca6702]/10", text: "text-[#ca6702]", border: "border-[#ca6702]/20" },
+];
 
 const statusConfig: Record<
   string,
@@ -36,6 +49,23 @@ const tabItems: { key: TabKey; label: string }[] = [
   { key: "texte", label: "Texte integral" },
 ];
 
+function ConfidenceDot({ confidence }: { confidence: number | null | undefined }) {
+  if (confidence === null || confidence === undefined) return null;
+  const pct = Math.round(confidence * 100);
+  const color =
+    pct > 80
+      ? "bg-[#2d6a4f]"
+      : pct >= 50
+        ? "bg-orange-400"
+        : "bg-red-500";
+  return (
+    <span
+      className={`inline-block size-2 shrink-0 rounded-full ${color}`}
+      title={`Confiance : ${pct}%`}
+    />
+  );
+}
+
 function FieldRow({
   label,
   value,
@@ -44,6 +74,7 @@ function FieldRow({
   editValues,
   onEdit,
   type = "text",
+  confidence,
 }: {
   label: string;
   value: string | number | boolean | null | undefined;
@@ -52,6 +83,7 @@ function FieldRow({
   editValues: Record<string, string>;
   onEdit: (key: string, val: string) => void;
   type?: "text" | "boolean" | "number";
+  confidence?: number | null;
 }) {
   const display =
     value === null || value === undefined
@@ -64,7 +96,10 @@ function FieldRow({
 
   return (
     <div className="grid grid-cols-[200px_1fr] gap-4 border-b border-border/50 py-2 text-sm">
-      <span className="font-medium text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
+        <ConfidenceDot confidence={confidence} />
+        {label}
+      </span>
       {editing ? (
         type === "boolean" ? (
           <select
@@ -102,6 +137,15 @@ export default function DecisionDetailPage() {
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Favorites, tags, notes
+  const { toggleFavorite, isFavorite } = useFavorites();
+  const { addTag, removeTag, getTags } = useTags();
+  const { addNote, deleteNote, getNotes } = useNotes();
+  const [tagInput, setTagInput] = useState("");
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [noteInput, setNoteInput] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const fetchDecision = useCallback(async () => {
     setLoading(true);
@@ -225,6 +269,48 @@ export default function DecisionDetailPage() {
               {decision.juridiction_ville && ` \u2014 ${decision.juridiction_ville}`}
             </h1>
             <Badge variant={status.variant}>{status.label}</Badge>
+            <button
+              onClick={() =>
+                toggleFavorite({
+                  id: decision.id,
+                  type: "decision",
+                  title: decision.juridiction || decision.juridiction_type || "Decision",
+                  date: decision.date_decision || decision.created_at,
+                  reference: decision.numero_rg || decision.source_ref || decision.id,
+                })
+              }
+              className="rounded-full p-1.5 transition-colors hover:bg-[#c9a96e]/10"
+              title={isFavorite(decision.id) ? "Retirer des favoris" : "Ajouter aux favoris"}
+            >
+              <Star
+                className={`h-5 w-5 transition-colors ${
+                  isFavorite(decision.id)
+                    ? "fill-[#c9a96e] text-[#c9a96e]"
+                    : "text-muted-foreground hover:text-[#c9a96e]"
+                }`}
+              />
+            </button>
+            {decision.extraction_confidence !== null && decision.extraction_confidence !== undefined && (
+              <div className="flex items-center gap-1.5">
+                <div className="h-1.5 w-20 rounded-full bg-muted">
+                  <div
+                    className={`h-1.5 rounded-full ${
+                      Math.round((decision.extraction_confidence ?? 0) * 100) > 80
+                        ? "bg-[#2d6a4f]"
+                        : Math.round((decision.extraction_confidence ?? 0) * 100) >= 50
+                          ? "bg-orange-400"
+                          : "bg-red-500"
+                    }`}
+                    style={{
+                      width: `${Math.round((decision.extraction_confidence ?? 0) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {Math.round((decision.extraction_confidence ?? 0) * 100)}%
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4 pl-12 text-sm text-muted-foreground">
             {decision.date_decision && (
@@ -310,8 +396,160 @@ export default function DecisionDetailPage() {
               <span className="font-mono">{decision.numero_rg}</span>
             </div>
           )}
+          <CopyReference
+            ecli={decision.source_ref ?? undefined}
+            pourvoi={decision.numero_rg ?? undefined}
+            juridiction={decision.juridiction ?? decision.juridiction_type ?? undefined}
+            date={decision.date_decision ?? undefined}
+          />
         </div>
       )}
+
+      {/* Tags */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Tags</span>
+          <button
+            onClick={() => setShowTagInput(!showTagInput)}
+            className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-[#1e3a5f]/5 hover:text-[#1e3a5f]"
+            title="Ajouter un tag"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {getTags(id).map((tag, i) => {
+            const color = TAG_COLORS[i % TAG_COLORS.length];
+            return (
+              <span
+                key={tag}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${color.bg} ${color.text} ${color.border}`}
+              >
+                {tag}
+                <button
+                  onClick={() => removeTag(id, tag)}
+                  className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-black/10"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            );
+          })}
+          {showTagInput && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (tagInput.trim()) {
+                  addTag(id, tagInput.trim());
+                  setTagInput("");
+                  setShowTagInput(false);
+                }
+              }}
+              className="inline-flex"
+            >
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                placeholder="Nouveau tag..."
+                className="h-7 w-32 text-xs"
+                autoFocus
+                onBlur={() => {
+                  if (!tagInput.trim()) setShowTagInput(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setTagInput("");
+                    setShowTagInput(false);
+                  }
+                }}
+              />
+            </form>
+          )}
+          {getTags(id).length === 0 && !showTagInput && (
+            <span className="text-xs text-muted-foreground">Aucun tag</span>
+          )}
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div className="rounded-lg border bg-card">
+        <button
+          onClick={() => setNotesOpen(!notesOpen)}
+          className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-[#1e3a5f] transition-colors hover:bg-muted/30"
+        >
+          {notesOpen ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+          <StickyNote className="h-4 w-4" />
+          Notes
+          {getNotes(id).length > 0 && (
+            <span className="rounded-full bg-[#1e3a5f]/10 px-2 py-0.5 text-xs">
+              {getNotes(id).length}
+            </span>
+          )}
+        </button>
+        {notesOpen && (
+          <div className="space-y-3 border-t px-4 py-3">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (noteInput.trim()) {
+                  addNote(id, noteInput.trim());
+                  setNoteInput("");
+                }
+              }}
+              className="flex gap-2"
+            >
+              <Textarea
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                placeholder="Ajouter une note..."
+                className="min-h-[60px] resize-none text-sm"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!noteInput.trim()}
+                className="self-end bg-[#1e3a5f] text-white hover:bg-[#1e3a5f]/90"
+              >
+                Ajouter
+              </Button>
+            </form>
+            {getNotes(id).length > 0 && (
+              <div className="space-y-2">
+                {getNotes(id).map((note, i) => (
+                  <div
+                    key={`${note.updatedAt}-${i}`}
+                    className="group flex items-start gap-3 rounded-lg bg-muted/30 px-3 py-2"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{note.text}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {new Date(note.updatedAt).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => deleteNote(id, i)}
+                      className="rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-100 hover:text-red-600"
+                      title="Supprimer la note"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Custom tabs (simple state toggle) */}
       <div className="border-b">

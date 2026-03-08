@@ -122,15 +122,15 @@
 }
 
 .dark {
-  --background: #0f1623;
-  --foreground: #e8e6e1;
-  --card: #162033;
-  --card-foreground: #e8e6e1;
-  --popover: #162033;
-  --popover-foreground: #e8e6e1;
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --card: #1e293b;
+  --card-foreground: #e2e8f0;
+  --popover: #1e293b;
+  --popover-foreground: #e2e8f0;
 
-  --primary: #5b8ec9;
-  --primary-foreground: #0f1623;
+  --primary: #1e3a5f;
+  --primary-foreground: #e2e8f0;
 
   --secondary: #1e2d44;
   --secondary-foreground: #e8e6e1;
@@ -153,21 +153,39 @@
   --chart-4: #a78bfa;
   --chart-5: #e89b3e;
 
-  --sidebar: #0c1220;
-  --sidebar-foreground: #e8e6e1;
-  --sidebar-primary: #d4b87a;
-  --sidebar-primary-foreground: #0f1623;
+  --sidebar: #1e293b;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #c9a96e;
+  --sidebar-primary-foreground: #0f172a;
   --sidebar-accent: #162033;
   --sidebar-accent-foreground: #e8e6e1;
-  --sidebar-border: #1e2d44;
-  --sidebar-ring: #d4b87a;
+  --sidebar-border: #334155;
+  --sidebar-ring: #c9a96e;
 
-  --gold: #d4b87a;
-  --gold-foreground: #0f1623;
+  --gold: #c9a96e;
+  --gold-foreground: #0f172a;
   --success: #4ead82;
   --success-foreground: #0f1623;
   --warning: #e89b3e;
   --warning-foreground: #0f1623;
+}
+
+/* ═══ PRINT STYLES ═══ */
+@media print {
+  /* Hide navigation */
+  aside, header, nav, .mobile-nav, [data-sidebar], [data-header] { display: none !important; }
+  /* Full width content */
+  main { margin: 0 !important; padding: 20px !important; width: 100% !important; max-width: 100% !important; }
+  /* Header on every page */
+  body::before { content: "Datavocat — Confidentiel"; display: block; text-align: right; font-size: 10px; color: #999; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+  /* Clean backgrounds */
+  * { background: white !important; color: black !important; box-shadow: none !important; }
+  /* Keep charts visible */
+  .recharts-wrapper { color-adjust: exact; -webkit-print-color-adjust: exact; }
+  /* No page breaks in cards */
+  .card, [class*="Card"] { break-inside: avoid; }
+  /* Hide buttons and interactive elements */
+  button:not(.print-visible), [role="tablist"], input, textarea, select { display: none !important; }
 }
 
 @layer base {

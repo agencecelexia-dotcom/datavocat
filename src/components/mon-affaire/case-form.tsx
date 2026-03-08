@@ -21,9 +21,10 @@ import { Search } from "lucide-react";
 interface CaseFormProps {
   onSubmit: (data: MonAffaireInput) => void;
   loading?: boolean;
+  initialValues?: Partial<MonAffaireInput>;
 }
 
-export function CaseForm({ onSubmit, loading }: CaseFormProps) {
+export function CaseForm({ onSubmit, loading, initialValues }: CaseFormProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const form = useForm<MonAffaireInput>({
     resolver: zodResolver(monAffaireSchema) as any,
@@ -40,6 +41,7 @@ export function CaseForm({ onSubmit, loading }: CaseFormProps) {
       motif_objet_illicite: false,
       motif_contrepartie_illusoire: false,
       post_ordonnance_2017: true,
+      ...initialValues,
     },
   });
 

@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload } from "lucide-react";
+import { Upload, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 export default function DecisionsPage() {
@@ -19,6 +19,15 @@ export default function DecisionsPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [pendingValidation, setPendingValidation] = useState<number | null>(null);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("datavocat_pending_validation");
+    if (raw) {
+      const n = parseInt(raw, 10);
+      setPendingValidation(isNaN(n) ? null : n);
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchDecisions() {
@@ -53,6 +62,29 @@ export default function DecisionsPage() {
           </Button>
         </Link>
       </div>
+
+      {pendingValidation != null && pendingValidation > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-[#2d6a4f]/20 bg-[#2d6a4f]/5 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-[#2d6a4f]">
+            <CheckCircle2 className="h-4 w-4" />
+            <span>
+              <strong>{pendingValidation}</strong> decision{pendingValidation > 1 ? "s" : ""} avec
+              confiance &gt;90% en attente de validation
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-[#2d6a4f]/30 text-[#2d6a4f] hover:bg-[#2d6a4f]/10"
+            onClick={() => {
+              setPendingValidation(0);
+              localStorage.setItem("datavocat_pending_validation", "0");
+            }}
+          >
+            Tout valider
+          </Button>
+        </div>
+      )}
 
       <div className="flex gap-4">
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "all")}>
