@@ -3,46 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  FileText,
-  Upload,
-  Target,
-  BarChart3,
-  Scale,
-  Download,
-} from "lucide-react";
+import { MessageSquare, History, Scale } from "lucide-react";
 
 const navItems = [
   {
-    label: "Dashboard",
+    label: "Nouvelle analyse",
     href: "/",
-    icon: LayoutDashboard,
+    icon: MessageSquare,
   },
   {
-    label: "Décisions",
-    href: "/decisions",
-    icon: FileText,
-  },
-  {
-    label: "Upload PDF",
-    href: "/decisions/upload",
-    icon: Upload,
-  },
-  {
-    label: "Import data.gouv",
-    href: "/decisions/import",
-    icon: Download,
-  },
-  {
-    label: "Mon Affaire",
-    href: "/mon-affaire",
-    icon: Target,
-  },
-  {
-    label: "Statistiques",
-    href: "/statistiques",
-    icon: BarChart3,
+    label: "Historique",
+    href: "/historique",
+    icon: History,
   },
 ];
 

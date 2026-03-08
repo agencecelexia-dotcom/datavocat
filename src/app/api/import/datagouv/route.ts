@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchDecisionsDatagouv } from "@/lib/datagouv/client";
+import { searchCourtDecisions } from "@/lib/datagouv/client";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await searchDecisionsDatagouv(query);
+    const result = await searchCourtDecisions(query);
     return NextResponse.json({ result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue";

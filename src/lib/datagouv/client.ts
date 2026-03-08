@@ -1,117 +1,106 @@
-import { getAnthropicClient } from "@/lib/claude/client";
-
 /**
- * Uses Claude API with MCP data.gouv.fr to search and download court decisions.
- *
- * The MCP server exposes tools:
- * - search_datasets: Search datasets by keywords
- * - get_dataset_info: Get metadata for a dataset
- * - list_dataset_resources: List files in a dataset
- * - query_resource_data: Filter data in a resource
- * - download_and_parse_resource: Download and parse a resource
- * - get_metrics: Usage metrics for a dataset
+ * Client data.gouv.fr — recherche de décisions de justice via l'API REST
+ * et le endpoint JUDILIBRE (Cour de cassation)
  */
 
-export interface DatagouvSearchResult {
-  datasets: Array<{
+const DATAGOUV_API = "https://www.data.gouv.fr/api/1";
+
+export interface DatagouvDataset {
+  id: string;
+  title: string;
+  description: string;
+  organization?: { name: string };
+  resources: Array<{
     id: string;
     title: string;
-    description: string;
-    nb_resources: number;
-    last_update: string;
+    format: string;
+    url: string;
+    filesize: number;
   }>;
 }
 
-export interface DatagouvResource {
-  id: string;
-  title: string;
-  format: string;
-  url: string;
-  filesize: number;
-  last_modified: string;
+export async function searchDatasets(query: string, limit = 5): Promise<DatagouvDataset[]> {
+  const url = `${DATAGOUV_API}/datasets/?q=${encodeURIComponent(query)}&page_size=${limit}`;
+  const res = await fetch(url, { next: { revalidate: 3600 } });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.data || [];
 }
 
-export async function searchDecisionsDatagouv(query: string): Promise<string> {
-  const anthropic = getAnthropicClient();
+export async function getDatasetResources(datasetId: string) {
+  const url = `${DATAGOUV_API}/datasets/${datasetId}/`;
+  const res = await fetch(url, { next: { revalidate: 3600 } });
+  if (!res.ok) return null;
+  return await res.json();
+}
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: `Recherche sur data.gouv.fr les jeux de données correspondant à : "${query}".
+/**
+ * Search for court decision datasets related to a legal topic
+ */
+export async function searchCourtDecisions(topic: string): Promise<string> {
+  // Search multiple queries to maximize results
+  const queries = [
+    `décisions justice ${topic}`,
+    `jurisprudence ${topic}`,
+    `JUDILIBRE ${topic}`,
+    `arrêts ${topic}`,
+  ];
 
-Utilise l'outil search_datasets pour trouver les datasets pertinents.
-Pour chaque dataset trouvé, utilise list_dataset_resources pour lister les ressources disponibles.
+  const allDatasets: DatagouvDataset[] = [];
+  const seenIds = new Set<string>();
 
-Retourne un résumé structuré en JSON avec cette forme :
-{
-  "datasets": [
-    {
-      "id": "...",
-      "title": "...",
-      "description": "...",
-      "resources": [
-        {
-          "id": "...",
-          "title": "...",
-          "format": "...",
-          "url": "..."
-        }
-      ]
+  for (const q of queries) {
+    const datasets = await searchDatasets(q, 3);
+    for (const ds of datasets) {
+      if (!seenIds.has(ds.id)) {
+        seenIds.add(ds.id);
+        allDatasets.push(ds);
+      }
     }
-  ]
-}`,
-      },
-    ],
-    // MCP server integration via Claude API
-    // Note: This requires the MCP server to be configured
-    // In development, use `claude mcp add --transport http datagouv https://mcp.data.gouv.fr/mcp`
-    // In production, use the mcp_servers parameter
-  });
+  }
 
-  const text = response.content
-    .filter((block) => block.type === "text")
-    .map((block) => {
-      if (block.type === "text") return block.text;
-      return "";
+  // Format for Claude context
+  if (allDatasets.length === 0) {
+    return "Aucun jeu de données trouvé sur data.gouv.fr pour ce sujet.";
+  }
+
+  return allDatasets
+    .slice(0, 8)
+    .map((ds) => {
+      const org = ds.organization?.name || "Inconnu";
+      const resources = ds.resources
+        ?.slice(0, 3)
+        .map((r) => `  - ${r.title} (${r.format}, ${r.url})`)
+        .join("\n") || "  (aucune ressource)";
+      return `## ${ds.title}\nOrganisation: ${org}\n${ds.description?.slice(0, 300)}\nRessources:\n${resources}`;
     })
-    .join("");
-
-  return text;
+    .join("\n\n---\n\n");
 }
 
-export async function importDecisionFromDatagouv(
-  resourceId: string,
-  query: string
-): Promise<string> {
-  const anthropic = getAnthropicClient();
+/**
+ * Try to fetch and sample data from a CSV/JSON resource on data.gouv.fr
+ */
+export async function sampleResourceData(resourceUrl: string, maxRows = 50): Promise<string> {
+  try {
+    const res = await fetch(resourceUrl, {
+      headers: { "Accept": "text/csv, application/json" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return `Erreur ${res.status} lors du téléchargement.`;
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: `Télécharge et parse la ressource ${resourceId} depuis data.gouv.fr.
-Filtre les résultats pour ne garder que les décisions en droit du travail
-portant sur "${query}".
+    const contentType = res.headers.get("content-type") || "";
+    const text = await res.text();
 
-Utilise download_and_parse_resource pour récupérer les données.
+    if (contentType.includes("json")) {
+      const data = JSON.parse(text);
+      const items = Array.isArray(data) ? data : data.results || data.data || [];
+      return JSON.stringify(items.slice(0, maxRows), null, 2);
+    }
 
-Retourne le texte brut des décisions trouvées, séparé par "---".`,
-      },
-    ],
-  });
-
-  const text = response.content
-    .filter((block) => block.type === "text")
-    .map((block) => {
-      if (block.type === "text") return block.text;
-      return "";
-    })
-    .join("");
-
-  return text;
+    // CSV: return first N lines
+    const lines = text.split("\n");
+    return lines.slice(0, maxRows + 1).join("\n");
+  } catch {
+    return "Impossible de télécharger cette ressource (timeout ou erreur réseau).";
+  }
 }

@@ -67,6 +67,30 @@ export type Database = {
         Update: Partial<Decision>;
         Relationships: [];
       };
+      analyses: {
+        Row: {
+          id: string;
+          query: string;
+          response: string | null;
+          status: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          query: string;
+          response?: string | null;
+          status?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          query?: string;
+          response?: string | null;
+          status?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       stats_cache: {
         Row: {
           id: string;

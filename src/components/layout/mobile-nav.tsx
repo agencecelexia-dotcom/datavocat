@@ -3,22 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  FileText,
-  Upload,
-  Target,
-  BarChart3,
-  Download,
-} from "lucide-react";
+import { MessageSquare, History } from "lucide-react";
 
 const navItems = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Décisions", href: "/decisions", icon: FileText },
-  { label: "Upload PDF", href: "/decisions/upload", icon: Upload },
-  { label: "Import data.gouv", href: "/decisions/import", icon: Download },
-  { label: "Mon Affaire", href: "/mon-affaire", icon: Target },
-  { label: "Statistiques", href: "/statistiques", icon: BarChart3 },
+  { label: "Nouvelle analyse", href: "/", icon: MessageSquare },
+  { label: "Historique", href: "/historique", icon: History },
 ];
 
 export function MobileNav() {
