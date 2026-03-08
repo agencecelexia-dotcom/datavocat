@@ -15,6 +15,12 @@ import {
   MessageCircleQuestion,
   ArrowRight,
   SkipForward,
+  FileText,
+  FileDown,
+  Copy,
+  Search,
+  Database,
+  Brain,
 } from "lucide-react";
 import { parseAnalysisResponse } from "@/lib/parse-analysis";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
@@ -55,7 +61,7 @@ export default function AnalyzePage() {
     }
   }, [response]);
 
-  // Step 1: Submit query → get clarifying questions
+  // Step 1: Submit query -> get clarifying questions
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || loading) return;
@@ -73,7 +79,6 @@ export default function AnalyzePage() {
       });
 
       if (!res.ok) {
-        // Fallback: skip clarification, go straight to analysis
         await launchAnalysis(query.trim());
         return;
       }
@@ -83,22 +88,18 @@ export default function AnalyzePage() {
         setQuestions(data.questions.slice(0, 5));
         setLoading(false);
       } else {
-        // No questions needed, go straight to analysis
         await launchAnalysis(query.trim());
       }
     } catch {
-      // Fallback: skip clarification
       await launchAnalysis(query.trim());
     }
   };
 
-  // Step 2: Submit answers → launch full analysis
   const handleSubmitAnswers = async () => {
     const enrichedQuery = buildEnrichedQuery();
     await launchAnalysis(enrichedQuery);
   };
 
-  // Skip clarification
   const handleSkipClarification = async () => {
     await launchAnalysis(query.trim());
   };
@@ -109,15 +110,14 @@ export default function AnalyzePage() {
       (q) => answers[q.id] && answers[q.id].trim()
     );
     if (answeredQuestions.length > 0) {
-      enriched += "\n\nPRÉCISIONS COMPLÉMENTAIRES :";
+      enriched += "\n\nPRECISIONS COMPLEMENTAIRES :";
       for (const q of answeredQuestions) {
-        enriched += `\n- ${q.question} → ${answers[q.id].trim()}`;
+        enriched += `\n- ${q.question} -> ${answers[q.id].trim()}`;
       }
     }
     return enriched;
   };
 
-  // Launch streaming analysis
   const launchAnalysis = async (fullQuery: string) => {
     setLoading(true);
     setPhase("analyzing");
@@ -133,7 +133,7 @@ export default function AnalyzePage() {
       });
 
       if (!res.ok) {
-        setResponse("Erreur lors de l'analyse. Veuillez réessayer.");
+        setResponse("Erreur lors de l'analyse. Veuillez reessayer.");
         setPhase("done");
         setLoading(false);
         return;
@@ -155,7 +155,7 @@ export default function AnalyzePage() {
         }
       }
     } catch {
-      setResponse("Erreur de connexion. Vérifiez votre connexion internet.");
+      setResponse("Erreur de connexion. Verifiez votre connexion internet.");
     } finally {
       setLoading(false);
       setPhase("done");
@@ -176,10 +176,37 @@ export default function AnalyzePage() {
     setAnswers((prev) => ({ ...prev, [id]: value }));
   };
 
+  const handleExport = async (format: "pdf" | "docx") => {
+    if (!analysisId || !response) return;
+    try {
+      const res = await fetch(`/api/export/${format}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          analysisId,
+          query,
+          response,
+          parsed: parsedData,
+        }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `datavocat-analyse.${format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // silent fail
+    }
+  };
+
   const examples = [
-    "Mon client est un salarié licencié pour faute grave après 15 ans d'ancienneté dans une entreprise de BTP. Il conteste le motif. Quelles sont ses chances devant le CPH de Paris ?",
-    "Une OS non signataire veut contester un accord collectif sur le temps de travail dans une entreprise de 500 salariés. L'accord a été signé par des syndicats représentant 55% des votes. Quels arguments privilégier ?",
-    "Mon client locataire d'un bail commercial à Paris se voit refuser le renouvellement par le bailleur. Le bail dure depuis 12 ans. Quelles indemnités d'éviction peut-il espérer ?",
+    "Mon client est un salarie licencie pour faute grave apres 15 ans d'anciennete dans une entreprise de BTP. Il conteste le motif. Quelles sont ses chances devant le CPH de Paris ?",
+    "Une OS non signataire veut contester un accord collectif sur le temps de travail dans une entreprise de 500 salaries. L'accord a ete signe par des syndicats representant 55% des votes. Quels arguments privilegier ?",
+    "Mon client locataire d'un bail commercial a Paris se voit refuser le renouvellement par le bailleur. Le bail dure depuis 12 ans. Quelles indemnites d'eviction peut-il esperer ?",
   ];
 
   const answeredCount = questions.filter(
@@ -189,16 +216,19 @@ export default function AnalyzePage() {
   return (
     <div className="mx-auto flex h-full max-w-4xl flex-col">
       {phase === "input" ? (
-        // Input state
-        <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4">
+        /* ═══ INPUT STATE ═══ */
+        <div className="flex flex-1 flex-col items-center justify-center gap-10 px-4">
           <div className="text-center">
-            <div className="mb-4 flex items-center justify-center gap-3">
-              <Scale className="h-10 w-10 text-primary" />
-              <h1 className="text-4xl font-bold tracking-tight">Datavocat</h1>
+            <div className="mb-3 flex items-center justify-center gap-3">
+              <Scale className="h-10 w-10 text-gold" />
+              <h1 className="font-serif text-5xl tracking-tight text-foreground">
+                Datavocat
+              </h1>
             </div>
-            <p className="text-lg text-muted-foreground">
-              Décrivez votre affaire. L&apos;IA analyse la jurisprudence et vous
-              donne les statistiques et recommandations.
+            <p className="text-lg leading-relaxed text-muted-foreground">
+              Decrivez votre affaire. L&apos;IA analyse la jurisprudence
+              <br />
+              et produit statistiques et recommandations strategiques.
             </p>
           </div>
 
@@ -207,8 +237,8 @@ export default function AnalyzePage() {
               <Textarea
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Décrivez la situation juridique de votre client, le type de contentieux, les arguments envisagés..."
-                className="min-h-[140px] resize-none pr-14 text-base"
+                placeholder="Decrivez la situation juridique de votre client, le type de contentieux, les arguments envisages..."
+                className="min-h-[150px] resize-none border-border/60 bg-card pr-14 text-base shadow-sm transition-shadow focus:shadow-md"
                 disabled={loading}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -219,7 +249,7 @@ export default function AnalyzePage() {
               <Button
                 type="submit"
                 size="icon"
-                className="absolute bottom-3 right-3"
+                className="absolute bottom-3 right-3 bg-primary hover:bg-primary/90"
                 disabled={!query.trim() || loading}
               >
                 {loading ? (
@@ -230,13 +260,13 @@ export default function AnalyzePage() {
               </Button>
             </div>
             <p className="text-center text-xs text-muted-foreground">
-              Ctrl+Entrée pour envoyer — Toute matière juridique
+              Ctrl+Entree pour envoyer — Toute matiere juridique francaise
             </p>
           </form>
 
           <div className="w-full space-y-3">
             <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4 text-gold" />
               Exemples de demandes
             </p>
             <div className="grid gap-2">
@@ -244,7 +274,7 @@ export default function AnalyzePage() {
                 <button
                   key={i}
                   onClick={() => setQuery(example)}
-                  className="rounded-lg border bg-card p-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  className="rounded-lg border border-border/60 bg-card p-4 text-left text-sm leading-relaxed text-muted-foreground shadow-sm transition-all hover:border-gold/40 hover:shadow-md"
                 >
                   {example}
                 </button>
@@ -253,32 +283,33 @@ export default function AnalyzePage() {
           </div>
         </div>
       ) : phase === "clarify" && !loading ? (
-        // Clarification state
+        /* ═══ CLARIFICATION STATE ═══ */
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto py-6">
-          {/* Original query recap */}
-          <Card className="shrink-0 bg-muted/50 p-4">
-            <p className="text-sm">{query}</p>
+          <Card className="shrink-0 border-border/60 bg-card p-4 shadow-sm">
+            <p className="text-sm leading-relaxed">{query}</p>
           </Card>
 
-          {/* Questions */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-primary">
               <MessageCircleQuestion className="h-5 w-5" />
-              <h2 className="text-lg font-semibold">
-                Précisions pour affiner l&apos;analyse
+              <h2 className="font-serif text-xl">
+                Precisions pour affiner l&apos;analyse
               </h2>
             </div>
             <p className="text-sm text-muted-foreground">
-              Répondez aux questions ci-dessous pour obtenir une analyse plus
-              précise. Vous pouvez aussi passer directement à l&apos;analyse.
+              Repondez aux questions ci-dessous pour une analyse plus precise.
+              Vous pouvez aussi passer directement.
             </p>
           </div>
 
           <div className="space-y-4">
             {questions.map((q, idx) => (
-              <Card key={q.id} className="p-4">
-                <label className="mb-2 block text-sm font-medium">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+              <Card
+                key={q.id}
+                className="border-border/60 p-5 shadow-sm"
+              >
+                <label className="mb-3 block text-sm font-medium leading-relaxed">
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                     {idx + 1}
                   </span>
                   {q.question}
@@ -289,16 +320,15 @@ export default function AnalyzePage() {
                       <button
                         key={choice}
                         onClick={() => setAnswer(q.id, choice)}
-                        className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
+                        className={`rounded-full border px-4 py-1.5 text-sm transition-all ${
                           answers[q.id] === choice
-                            ? "border-primary bg-primary/10 font-medium text-primary"
-                            : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                            ? "border-primary bg-primary/10 font-medium text-primary shadow-sm"
+                            : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
                         }`}
                       >
                         {choice}
                       </button>
                     ))}
-                    {/* Allow custom input even for choice questions */}
                     {answers[q.id] &&
                       !q.choices.includes(answers[q.id]) && (
                         <span className="rounded-full border border-primary bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
@@ -318,7 +348,7 @@ export default function AnalyzePage() {
                   </div>
                 ) : (
                   <Input
-                    placeholder="Votre réponse..."
+                    placeholder="Votre reponse..."
                     className="mt-2"
                     value={answers[q.id] || ""}
                     onChange={(e) => setAnswer(q.id, e.target.value)}
@@ -328,8 +358,7 @@ export default function AnalyzePage() {
             ))}
           </div>
 
-          {/* Action buttons */}
-          <div className="flex shrink-0 items-center justify-between border-t pt-4">
+          <div className="flex shrink-0 items-center justify-between border-t border-border/60 pt-4">
             <Button
               variant="ghost"
               className="gap-2 text-muted-foreground"
@@ -339,7 +368,7 @@ export default function AnalyzePage() {
               Passer et analyser
             </Button>
             <Button
-              className="gap-2"
+              className="gap-2 bg-primary"
               onClick={handleSubmitAnswers}
               disabled={answeredCount === 0}
             >
@@ -354,15 +383,14 @@ export default function AnalyzePage() {
           </div>
         </div>
       ) : (
-        // Analyzing + Done state
+        /* ═══ ANALYZING + DONE STATE ═══ */
         <div className="flex flex-1 flex-col gap-4 overflow-hidden py-4">
-          {/* User query */}
-          <Card className="shrink-0 bg-muted/50 p-4">
-            <p className="text-sm">{query}</p>
-            {/* Show answered questions as context */}
+          {/* User query card */}
+          <Card className="shrink-0 border-border/60 bg-card p-4 shadow-sm">
+            <p className="text-sm leading-relaxed">{query}</p>
             {questions.length > 0 &&
               Object.keys(answers).some((k) => answers[k]?.trim()) && (
-                <div className="mt-2 border-t pt-2">
+                <div className="mt-2 border-t border-border/40 pt-2">
                   {questions
                     .filter((q) => answers[q.id]?.trim())
                     .map((q) => (
@@ -371,7 +399,7 @@ export default function AnalyzePage() {
                         className="text-xs text-muted-foreground"
                       >
                         <span className="font-medium">{q.question}</span>{" "}
-                        → {answers[q.id]}
+                        &rarr; {answers[q.id]}
                       </p>
                     ))}
                 </div>
@@ -380,68 +408,75 @@ export default function AnalyzePage() {
 
           {/* View toggle tabs */}
           {phase === "done" && parsedData && (
-            <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-1">
-              <button
-                onClick={() => setActiveView("text")}
-                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                  activeView === "text"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Scale className="h-4 w-4" />
-                Rapport
-              </button>
-              <button
-                onClick={() => setActiveView("dashboard")}
-                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                  activeView === "dashboard"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <BarChart3 className="h-4 w-4" />
-                Dashboard
-              </button>
-              <button
-                onClick={() => setActiveView("slides")}
-                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                  activeView === "slides"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Presentation className="h-4 w-4" />
-                Presentation
-              </button>
+            <div className="flex shrink-0 gap-1 rounded-lg bg-muted/60 p-1">
+              {[
+                { key: "text" as const, label: "Rapport", icon: FileText },
+                { key: "dashboard" as const, label: "Dashboard", icon: BarChart3 },
+                { key: "slides" as const, label: "Presentation", icon: Presentation },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveView(tab.key)}
+                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                    activeView === tab.key
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              ))}
             </div>
           )}
 
           {/* Content area */}
           <div
             ref={responseRef}
-            className="flex-1 overflow-y-auto rounded-lg border bg-card p-6"
+            className="flex-1 overflow-y-auto rounded-lg border border-border/60 bg-card p-6 shadow-sm"
           >
+            {/* Loading animation */}
             {loading && !response && (
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>
-                  Recherche dans data.gouv.fr et analyse en cours...
-                </span>
+              <div className="space-y-6 py-8">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative">
+                    <div className="h-16 w-16 animate-spin rounded-full border-4 border-muted border-t-primary" />
+                    <Scale className="absolute inset-0 m-auto h-6 w-6 text-primary" />
+                  </div>
+                  <p className="font-serif text-lg text-foreground">
+                    Analyse en cours
+                  </p>
+                </div>
+                <div className="mx-auto max-w-sm space-y-3">
+                  {[
+                    { icon: Search, text: "Recherche dans les bases de donnees...", delay: "0s" },
+                    { icon: Database, text: "Interrogation de data.gouv.fr...", delay: "0.5s" },
+                    { icon: Brain, text: "Analyse jurimetrique...", delay: "1s" },
+                  ].map((step, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 text-sm text-muted-foreground animate-pulse"
+                      style={{ animationDelay: step.delay }}
+                    >
+                      <step.icon className="h-4 w-4 shrink-0" />
+                      <span>{step.text}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Text view (default, also shown while streaming) */}
-            {(activeView === "text" || phase === "analyzing") && (
+            {/* Text view */}
+            {(activeView === "text" || phase === "analyzing") && response && (
               <>
                 <div
-                  className="prose prose-sm max-w-none dark:prose-invert"
+                  className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h2:text-xl prose-h2:text-primary prose-h3:text-base prose-strong:text-foreground"
                   dangerouslySetInnerHTML={{
                     __html: formatMarkdown(response),
                   }}
                 />
                 {loading && response && (
-                  <span className="inline-block h-4 w-2 animate-pulse bg-primary" />
+                  <span className="inline-block h-4 w-2 animate-pulse bg-gold" />
                 )}
               </>
             )}
@@ -457,23 +492,44 @@ export default function AnalyzePage() {
             )}
           </div>
 
-          {/* Actions */}
+          {/* Actions bar */}
           {phase === "done" && (
-            <div className="flex shrink-0 gap-3">
-              <Button onClick={handleNewAnalysis} variant="outline">
+            <div className="flex shrink-0 items-center gap-3">
+              <Button
+                onClick={handleNewAnalysis}
+                variant="outline"
+                className="gap-2"
+              >
                 Nouvelle analyse
               </Button>
-              {analysisId && (
-                <Button
-                  variant="ghost"
-                  className="text-muted-foreground"
-                  onClick={() => {
-                    navigator.clipboard.writeText(response);
-                  }}
-                >
-                  Copier le rapport
-                </Button>
-              )}
+              <div className="flex-1" />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-muted-foreground"
+                onClick={() => navigator.clipboard.writeText(response)}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copier
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-muted-foreground"
+                onClick={() => handleExport("pdf")}
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-muted-foreground"
+                onClick={() => handleExport("docx")}
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                DOCX
+              </Button>
             </div>
           )}
         </div>
@@ -484,20 +540,29 @@ export default function AnalyzePage() {
 
 function formatMarkdown(text: string): string {
   return text
-    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold mt-6 mb-2">$1</h2>')
+    .replace(
+      /^## (.+)$/gm,
+      '<h2 class="font-serif text-xl font-bold mt-8 mb-3 pb-2 border-b border-border/40 text-primary">$1</h2>'
+    )
     .replace(
       /^### (.+)$/gm,
-      '<h3 class="text-base font-semibold mt-4 mb-1">$1</h3>'
+      '<h3 class="text-base font-semibold mt-5 mb-2">$1</h3>'
     )
-    .replace(/^\- (.+)$/gm, '<li class="ml-4">• $1</li>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>')
+    .replace(
+      /^\- (.+)$/gm,
+      '<li class="ml-4 py-0.5 leading-relaxed">$1</li>'
+    )
+    .replace(
+      /^\d+\. (.+)$/gm,
+      '<li class="ml-4 py-0.5 leading-relaxed">$1</li>'
+    )
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\|(.+)\|/g, (match) => {
       const cells = match
         .split("|")
         .filter(Boolean)
         .map((c) => c.trim());
-      return `<div class="flex gap-4 py-1 text-sm">${cells.map((c) => `<span class="flex-1">${c}</span>`).join("")}</div>`;
+      return `<div class="flex gap-4 py-1.5 text-sm border-b border-border/30">${cells.map((c) => `<span class="flex-1">${c}</span>`).join("")}</div>`;
     })
     .replace(/\n\n/g, "<br/><br/>")
     .replace(/\n/g, "<br/>");

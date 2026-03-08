@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { DATAVOCAT_SYSTEM_PROMPT } from "@/lib/claude/analyze-prompt";
 import { searchCourtDecisions } from "@/lib/datagouv/client";
+import { searchJudilibreForAnalysis } from "@/lib/judilibre/client";
 
 export const maxDuration = 60;
 
@@ -34,35 +35,38 @@ export async function POST(request: NextRequest) {
       .eq("id", id);
   }
 
-  // Step 1: Search data.gouv.fr for relevant datasets
-  let datagouvrContext = "";
-  try {
-    // Extract key legal terms for search
-    const searchTerms = query.slice(0, 200);
-    datagouvrContext = await searchCourtDecisions(searchTerms);
-  } catch {
-    datagouvrContext = "Recherche data.gouv.fr indisponible.";
-  }
+  // Search multiple sources in parallel
+  const searchTerms = query.slice(0, 300);
 
-  // Step 2: Stream Claude analysis
+  const [datagouvrContext, judilibreContext] = await Promise.all([
+    searchCourtDecisions(searchTerms).catch(
+      () => "Recherche data.gouv.fr indisponible."
+    ),
+    searchJudilibreForAnalysis(searchTerms).catch(
+      () => "API Judilibre indisponible."
+    ),
+  ]);
+
+  // Stream Claude analysis
   const anthropic = getAnthropicClient();
 
   const userMessage = `DEMANDE DE L'AVOCAT :
 ${query}
 
-═══ DONNÉES DATA.GOUV.FR ═══
-Voici les jeux de données de décisions de justice trouvés sur data.gouv.fr en rapport avec cette demande :
+${judilibreContext}
 
+═══ DONNEES DATA.GOUV.FR ═══
 ${datagouvrContext}
 
 ═══ INSTRUCTIONS ═══
-Analyse cette demande en suivant la structure définie dans ton système prompt.
-Base-toi sur les données data.gouv.fr ci-dessus ET sur ta connaissance de la jurisprudence française pour produire une analyse jurimétrique complète.
-Si les données data.gouv.fr sont insuffisantes, complète avec tes connaissances en le signalant explicitement dans les limites.`;
+Analyse cette demande en suivant la structure definie dans ton systeme prompt.
+Base-toi sur les decisions Judilibre ci-dessus (source prioritaire, ce sont de vraies decisions) ET sur les donnees data.gouv.fr ET sur ta connaissance de la jurisprudence francaise.
+Si les donnees sont insuffisantes, complete avec tes connaissances en le signalant explicitement dans les limites.
+Cite les references ECLI et numeros de pourvoi quand disponibles.`;
 
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 8192,
+    max_tokens: 12000,
     system: DATAVOCAT_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
@@ -95,7 +99,10 @@ Si les données data.gouv.fr sont insuffisantes, complète avec tes connaissance
         if (id) {
           await supabase
             .from("analyses")
-            .update({ status: "error", response: fullResponse || String(err) })
+            .update({
+              status: "error",
+              response: fullResponse || String(err),
+            })
             .eq("id", id);
         }
       } finally {

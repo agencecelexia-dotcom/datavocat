@@ -29,19 +29,20 @@ import {
   Info,
 } from "lucide-react";
 
+// Datavocat palette: navy, gold, emerald, bordeaux, amber, violet
 const COLORS = [
-  "hsl(221, 83%, 53%)", // blue-600
-  "hsl(250, 56%, 57%)", // violet
-  "hsl(173, 58%, 39%)", // teal
-  "hsl(43, 96%, 56%)",  // amber
-  "hsl(349, 89%, 60%)", // rose
-  "hsl(199, 89%, 48%)", // sky
-  "hsl(142, 71%, 45%)", // green
-  "hsl(280, 67%, 50%)", // purple
+  "#1e3a5f", // navy (primary)
+  "#c9a96e", // gold (accent)
+  "#2d6a4f", // emerald (success)
+  "#7c3aed", // violet
+  "#ca6702", // amber (warning)
+  "#5b8ec9", // light navy
+  "#9b2226", // bordeaux
+  "#4ead82", // light emerald
 ];
 
-const GAUGE_COLOR = "hsl(221, 83%, 53%)";
-const GAUGE_BG = "hsl(220, 14%, 90%)";
+const GAUGE_COLOR = "#1e3a5f";
+const GAUGE_BG = "#e5e2db";
 
 interface DashboardProps {
   data: ParsedAnalysis;

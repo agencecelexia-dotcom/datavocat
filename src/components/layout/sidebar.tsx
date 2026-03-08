@@ -22,10 +22,12 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-64 shrink-0 border-r bg-sidebar lg:block">
-      <div className="flex h-16 items-center gap-2 border-b px-6">
-        <Scale className="h-6 w-6 text-primary" />
-        <span className="text-lg font-bold">Datavocat</span>
+    <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:block">
+      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
+        <Scale className="h-6 w-6 text-gold" />
+        <span className="font-serif text-xl text-sidebar-foreground">
+          Datavocat
+        </span>
       </div>
       <nav className="space-y-1 p-4">
         {navItems.map((item) => {
@@ -37,10 +39,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  ? "bg-sidebar-accent text-gold"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
               )}
             >
               <item.icon className="h-4 w-4" />

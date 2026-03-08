@@ -23,7 +23,7 @@ export function Header({ userName }: HeaderProps) {
     : "DM";
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-background px-4 lg:px-6">
+    <header className="flex h-16 items-center justify-between border-b border-border/60 bg-background px-4 lg:px-6">
       <div className="flex items-center gap-3">
         <Sheet>
           <SheetTrigger>
@@ -32,21 +32,28 @@ export function Header({ userName }: HeaderProps) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
-            <div className="flex h-16 items-center gap-2 border-b px-6">
-              <Scale className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold">Datavocat</span>
+            <div className="flex h-16 items-center gap-3 border-b border-border/60 px-6">
+              <Scale className="h-6 w-6 text-gold" />
+              <span className="font-serif text-xl">Datavocat</span>
             </div>
             <MobileNav />
           </SheetContent>
         </Sheet>
-        <h1 className="text-lg font-semibold lg:hidden">Datavocat</h1>
+        <h1 className="font-serif text-lg lg:hidden">Datavocat</h1>
       </div>
 
       <div className="flex items-center gap-3">
-        <Badge variant="secondary">Mode Démo</Badge>
+        <Badge
+          variant="secondary"
+          className="border-gold/30 bg-gold/10 text-gold"
+        >
+          Mode Demo
+        </Badge>
         <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+          <Avatar className="h-8 w-8 border border-border/60">
+            <AvatarFallback className="bg-primary/10 text-xs text-primary">
+              {initials}
+            </AvatarFallback>
           </Avatar>
           <span className="hidden text-sm md:inline">{userName}</span>
         </div>
