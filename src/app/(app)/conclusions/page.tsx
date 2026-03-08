@@ -305,7 +305,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
               {templates.map((t) => (
                 <div
                   key={t.id}
-                  className="group relative cursor-pointer rounded-lg border border-border/60 p-3 transition-all hover:border-[#c9a96e]/40 hover:shadow-sm"
+                  className="group relative cursor-pointer rounded-lg border border-[#c9a96e]/30 bg-card p-3 shadow-sm transition-all duration-200 hover:border-[#c9a96e]/60 hover:shadow-md"
                   onClick={() => handleLoadTemplate(t)}
                 >
                   <button
@@ -314,7 +314,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
                       e.stopPropagation();
                       handleDeleteTemplate(t.id);
                     }}
-                    className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-[#9b2226]/10 hover:text-[#9b2226] group-hover:opacity-100"
+                    className="absolute right-2 top-2 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full text-muted-foreground opacity-0 transition-all duration-200 hover:bg-[#9b2226]/10 hover:text-[#9b2226] group-hover:opacity-100"
                     aria-label="Supprimer le template"
                   >
                     &times;
@@ -335,7 +335,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
       )}
 
       {/* Form Card */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="font-serif text-[#1e3a5f]">
             Elements de l&apos;affaire
@@ -450,7 +450,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
             <Button
               onClick={handleGenerate}
               disabled={loading || !canSubmit}
-              className="bg-[#1e3a5f] px-8 py-3 font-serif text-base font-semibold text-white hover:bg-[#2a4d7a]"
+              className="cursor-pointer bg-[#c9a96e] px-8 py-3 font-serif text-base font-semibold text-white transition-all duration-200 hover:bg-[#b8944f]"
               size="lg"
             >
               {loading ? (
@@ -485,7 +485,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
               variant="outline"
               onClick={handleSaveTemplate}
               disabled={!juridiction && !qualite && !demandes}
-              className="border-[#c9a96e] text-[#c9a96e] hover:bg-[#c9a96e]/10"
+              className="cursor-pointer border-[#c9a96e] text-[#c9a96e] transition-all duration-200 hover:bg-[#c9a96e]/10"
             >
               Sauvegarder comme template
             </Button>
@@ -523,7 +523,7 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
 
       {/* Results */}
       {result && (
-        <Card className="border-t-4 border-t-[#c9a96e]">
+        <Card className="border-t-4 border-t-[#1e3a5f] shadow-sm">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="font-serif text-xl text-[#1e3a5f]">
               Projet de conclusions
@@ -531,13 +531,13 @@ h3{font-size:12pt;font-weight:bold;margin-top:0.8em;}</style>
             <div className="flex gap-2">
               <CopyMarkdown
                 content={result}
-                className="border-[#c9a96e] text-[#c9a96e] hover:bg-[#c9a96e]/10"
+                className="cursor-pointer border-[#c9a96e] text-[#c9a96e] transition-all duration-200 hover:bg-[#c9a96e]/10"
               />
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportDocx}
-                className="border-[#c9a96e] text-[#c9a96e] hover:bg-[#c9a96e]/10"
+                className="cursor-pointer border-[#c9a96e] text-[#c9a96e] transition-all duration-200 hover:bg-[#c9a96e]/10"
               >
                 Telecharger DOCX
               </Button>

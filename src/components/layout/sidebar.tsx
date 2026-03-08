@@ -70,8 +70,8 @@ export function Sidebar() {
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-        <Scale className="h-6 w-6 text-gold" />
-        <span className="font-serif text-xl text-sidebar-foreground">
+        <Scale className="h-6 w-6 text-[#1e3a5f]" />
+        <span className="font-serif text-xl text-[#c9a96e]">
           Datavocat
         </span>
       </div>
@@ -86,10 +86,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium cursor-pointer transition-all duration-200",
                 isActive
-                  ? "bg-sidebar-accent text-gold"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  ? "bg-[#1e3a5f]/10 text-[#c9a96e]"
+                  : "text-sidebar-foreground/70 hover:bg-[#1e3a5f]/5 hover:text-sidebar-foreground"
               )}
             >
               <span className="relative">

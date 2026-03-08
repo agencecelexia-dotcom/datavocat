@@ -44,18 +44,24 @@ export default function LoginPage() {
   };
 
   return (
-    <Card>
-      <CardHeader className="text-center">
-        <Scale className="mx-auto h-10 w-10 text-primary" />
-        <CardTitle className="text-2xl">Connexion</CardTitle>
-        <CardDescription>
-          Accédez à votre espace Datavocat
-        </CardDescription>
+    <Card className="shadow-lg border-0">
+      <CardHeader className="text-center space-y-4 pb-6">
+        <Scale className="mx-auto h-10 w-10 text-[#1e3a5f]" />
+        <div className="space-y-1.5">
+          <CardTitle className="font-serif text-2xl text-[#0f172a]">
+            Connexion
+          </CardTitle>
+          <CardDescription className="text-sm text-[#0f172a]/60">
+            Accedez a votre espace Datavocat
+          </CardDescription>
+        </div>
       </CardHeader>
       <form onSubmit={handleLogin}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5 px-6">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-sm font-medium text-[#0f172a]">
+              Email
+            </Label>
             <Input
               id="email"
               type="email"
@@ -63,29 +69,40 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/20"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Mot de passe</Label>
+            <Label htmlFor="password" className="text-sm font-medium text-[#0f172a]">
+              Mot de passe
+            </Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              className="transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/20"
             />
           </div>
           {error && (
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-[#9b2226] font-medium">{error}</p>
           )}
         </CardContent>
-        <CardFooter className="flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={loading}>
+        <CardFooter className="flex-col gap-4 px-6 pt-2 pb-6">
+          <Button
+            type="submit"
+            className="w-full cursor-pointer bg-[#c9a96e] text-white hover:bg-[#b8944f] transition-all duration-200 font-medium"
+            disabled={loading}
+          >
             {loading ? "Connexion..." : "Se connecter"}
           </Button>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[#0f172a]/60">
             Pas encore de compte ?{" "}
-            <Link href="/register" className="text-primary underline">
+            <Link
+              href="/register"
+              className="text-[#c9a96e] hover:text-[#b8944f] underline underline-offset-2 cursor-pointer transition-colors duration-200 font-medium"
+            >
               S&apos;inscrire
             </Link>
           </p>

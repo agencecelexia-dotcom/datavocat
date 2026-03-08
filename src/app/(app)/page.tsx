@@ -232,12 +232,12 @@ export default function AnalyzePage() {
   return (
     <div className="mx-auto flex h-full max-w-5xl flex-col">
       {phase === "input" ? (
-        /* ═══ INPUT STATE ═══ */
+        /* INPUT STATE */
         <div className="flex flex-1 flex-col items-center justify-center gap-10 px-4">
           <div className="text-center">
             <div className="mb-3 flex items-center justify-center gap-3">
-              <Scale className="h-10 w-10 text-gold" />
-              <h1 className="font-serif text-5xl tracking-tight text-foreground">
+              <Scale className="h-10 w-10 text-[#c9a96e]" />
+              <h1 className="font-serif text-5xl tracking-tight text-[#1e3a5f]">
                 Datavocat
               </h1>
             </div>
@@ -249,40 +249,46 @@ export default function AnalyzePage() {
           </div>
 
           <form onSubmit={handleSubmit} className="w-full max-w-3xl space-y-4">
-            <div className="relative">
-              <Textarea
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Decrivez la situation juridique de votre client, le type de contentieux, les arguments envisages..."
-                className="min-h-[150px] resize-none border-border/60 bg-card pr-14 text-base shadow-sm transition-shadow focus:shadow-md"
-                disabled={loading}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                    handleSubmit(e);
-                  }
-                }}
-              />
-              <Button
-                type="submit"
-                size="icon"
-                className="absolute bottom-3 right-3 bg-primary hover:bg-primary/90"
-                disabled={!query.trim() || loading}
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            <p className="text-center text-xs text-muted-foreground">
-              Ctrl+Entree pour envoyer — Toute matiere juridique francaise
-            </p>
+            <Card className="overflow-hidden border-border/40 bg-white shadow-md transition-shadow duration-200 focus-within:shadow-lg">
+              <div className="relative">
+                <Textarea
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Decrivez la situation juridique de votre client, le type de contentieux, les arguments envisages..."
+                  className="min-h-[150px] resize-none border-0 bg-transparent pr-14 text-base shadow-none ring-0 transition-all duration-200 placeholder:text-muted-foreground/50 focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:border-0"
+                  disabled={loading}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      handleSubmit(e);
+                    }
+                  }}
+                />
+                <div className="flex items-center justify-between border-t border-border/30 px-4 py-2.5">
+                  <p className="text-xs text-muted-foreground">
+                    Ctrl+Entree pour envoyer
+                  </p>
+                  <Button
+                    type="submit"
+                    className="cursor-pointer gap-2 bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f] hover:shadow-md"
+                    disabled={!query.trim() || loading}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Analyser
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </Card>
           </form>
 
           <div className="w-full max-w-3xl space-y-3">
             <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Sparkles className="h-4 w-4 text-gold" />
+              <Sparkles className="h-4 w-4 text-[#c9a96e]" />
               Exemples de demandes
             </p>
             <div className="grid gap-2">
@@ -290,7 +296,7 @@ export default function AnalyzePage() {
                 <button
                   key={i}
                   onClick={() => setQuery(example)}
-                  className="rounded-lg border border-border/60 bg-card p-4 text-left text-sm leading-relaxed text-muted-foreground shadow-sm transition-all hover:border-gold/40 hover:shadow-md"
+                  className="cursor-pointer rounded-lg border border-border/40 bg-white p-4 text-left text-sm leading-relaxed text-muted-foreground shadow-sm transition-all duration-200 hover:border-[#c9a96e]/50 hover:shadow-md hover:-translate-y-0.5"
                 >
                   {example}
                 </button>
@@ -305,7 +311,7 @@ export default function AnalyzePage() {
                 <Star className="h-4 w-4 fill-[#c9a96e] text-[#c9a96e]" />
                 Mes favoris
               </p>
-              <div className="grid gap-2">
+              <Card className="divide-y divide-border/30 border-border/40 bg-white shadow-sm">
                 {favorites.slice(0, 5).map((fav) => (
                   <Link
                     key={fav.id}
@@ -314,15 +320,15 @@ export default function AnalyzePage() {
                         ? `/decisions/${fav.id}`
                         : `/veille`
                     }
-                    className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-4 py-3 text-sm shadow-sm transition-all hover:border-[#c9a96e]/40 hover:shadow-md"
+                    className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm transition-all duration-200 first:rounded-t-lg last:rounded-b-lg hover:bg-[#f8fafc]"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex min-w-0 items-center gap-3">
                       <Star className="h-3.5 w-3.5 shrink-0 fill-[#c9a96e] text-[#c9a96e]" />
                       <span className="truncate font-medium text-[#1e3a5f]">
                         {fav.title}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
+                    <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
                       <span className="font-mono">{fav.reference}</span>
                       {fav.date && (
                         <span>
@@ -332,7 +338,7 @@ export default function AnalyzePage() {
                     </div>
                   </Link>
                 ))}
-              </div>
+              </Card>
             </div>
           )}
         </div>
@@ -358,9 +364,9 @@ export default function AnalyzePage() {
 
           <div className="space-y-4">
             {questions.map((q, idx) => (
-              <Card key={q.id} className="border-border/60 p-5 shadow-sm">
+              <Card key={q.id} className="border-border/40 bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md">
                 <label className="mb-3 block text-sm font-medium leading-relaxed">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1e3a5f] text-xs font-bold text-white">
                     {idx + 1}
                   </span>
                   {q.question}
@@ -371,10 +377,10 @@ export default function AnalyzePage() {
                       <button
                         key={choice}
                         onClick={() => setAnswer(q.id, choice)}
-                        className={`rounded-full border px-4 py-1.5 text-sm transition-all ${
+                        className={`cursor-pointer rounded-full border px-4 py-1.5 text-sm transition-all duration-200 ${
                           answers[q.id] === choice
-                            ? "border-primary bg-primary/10 font-medium text-primary shadow-sm"
-                            : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                            ? "border-[#1e3a5f] bg-[#1e3a5f]/10 font-medium text-[#1e3a5f] shadow-sm"
+                            : "border-border text-muted-foreground hover:border-[#1e3a5f]/40 hover:text-foreground"
                         }`}
                       >
                         {choice}
@@ -382,13 +388,13 @@ export default function AnalyzePage() {
                     ))}
                     {answers[q.id] &&
                       !q.choices.includes(answers[q.id]) && (
-                        <span className="rounded-full border border-primary bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
+                        <span className="rounded-full border border-[#1e3a5f] bg-[#1e3a5f]/10 px-4 py-1.5 text-sm font-medium text-[#1e3a5f]">
                           {answers[q.id]}
                         </span>
                       )}
                     <Input
                       placeholder="Autre..."
-                      className="mt-2 max-w-xs"
+                      className="mt-2 max-w-xs transition-all duration-200 focus:border-[#1e3a5f]"
                       value={
                         q.choices.includes(answers[q.id] || "")
                           ? ""
@@ -400,7 +406,7 @@ export default function AnalyzePage() {
                 ) : (
                   <Input
                     placeholder="Votre reponse..."
-                    className="mt-2"
+                    className="mt-2 transition-all duration-200 focus:border-[#1e3a5f]"
                     value={answers[q.id] || ""}
                     onChange={(e) => setAnswer(q.id, e.target.value)}
                   />
@@ -409,17 +415,17 @@ export default function AnalyzePage() {
             ))}
           </div>
 
-          <div className="flex shrink-0 items-center justify-between border-t border-border/60 pt-4">
+          <div className="flex shrink-0 items-center justify-between border-t border-border/40 pt-4">
             <Button
               variant="ghost"
-              className="gap-2 text-muted-foreground"
+              className="cursor-pointer gap-2 text-muted-foreground transition-all duration-200"
               onClick={handleSkipClarification}
             >
               <SkipForward className="h-4 w-4" />
               Passer et analyser
             </Button>
             <Button
-              className="gap-2 bg-primary"
+              className="cursor-pointer gap-2 bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f] hover:shadow-md"
               onClick={handleSubmitAnswers}
               disabled={answeredCount === 0}
             >
@@ -434,14 +440,52 @@ export default function AnalyzePage() {
           </div>
         </div>
       ) : (
-        /* ═══ ANALYZING + DONE STATE ═══ */
+        /* ANALYZING + DONE STATE */
         <div className="flex flex-1 flex-col gap-4 overflow-hidden py-4">
+          {/* Phase step indicators */}
+          <div className="shrink-0">
+            <div className="flex items-center justify-center gap-0">
+              {[
+                { label: "Saisie", done: true },
+                { label: "Clarification", done: phase === "analyzing" || phase === "done" },
+                { label: "Analyse", done: phase === "done", active: phase === "analyzing" },
+                { label: "Resultats", done: false, active: phase === "done" },
+              ].map((step, i, arr) => (
+                <div key={step.label} className="flex items-center">
+                  <div className="flex flex-col items-center gap-1">
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all duration-200 ${
+                        step.done
+                          ? "bg-[#2d6a4f] text-white"
+                          : step.active
+                            ? "bg-[#1e3a5f] text-white shadow-md ring-4 ring-[#1e3a5f]/20"
+                            : "bg-gray-200 text-gray-500"
+                      }`}
+                    >
+                      {step.done ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        i + 1
+                      )}
+                    </div>
+                    <span className={`text-xs font-medium ${step.done || step.active ? "text-[#1e3a5f]" : "text-muted-foreground"}`}>
+                      {step.label}
+                    </span>
+                  </div>
+                  {i < arr.length - 1 && (
+                    <div className={`mx-2 mb-5 h-0.5 w-12 transition-all duration-200 ${step.done ? "bg-[#2d6a4f]" : "bg-gray-200"}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* User query card */}
-          <Card className="shrink-0 border-border/60 bg-card p-4 shadow-sm">
+          <Card className="shrink-0 border-border/40 border-l-4 border-l-[#1e3a5f] bg-white p-4 shadow-sm">
             <p className="text-sm leading-relaxed">{query}</p>
             {questions.length > 0 &&
               Object.keys(answers).some((k) => answers[k]?.trim()) && (
-                <div className="mt-2 border-t border-border/40 pt-2">
+                <div className="mt-2 border-t border-border/30 pt-2">
                   {questions
                     .filter((q) => answers[q.id]?.trim())
                     .map((q) => (
@@ -466,8 +510,8 @@ export default function AnalyzePage() {
 
               <div className="flex-1" />
 
-              {/* View tabs */}
-              <div className="flex gap-1 rounded-lg bg-muted/60 p-1">
+              {/* View tabs - pill style */}
+              <div className="flex gap-0.5 rounded-full bg-[#f0f2f5] p-1">
                 {[
                   {
                     key: "text" as const,
@@ -488,10 +532,10 @@ export default function AnalyzePage() {
                   <button
                     key={tab.key}
                     onClick={() => setActiveView(tab.key)}
-                    className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                    className={`flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                       activeView === tab.key
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "bg-[#1e3a5f] text-white shadow-sm"
+                        : "text-muted-foreground hover:bg-white hover:text-foreground hover:shadow-sm"
                     }`}
                   >
                     <tab.icon className="h-4 w-4" />
@@ -510,7 +554,7 @@ export default function AnalyzePage() {
           {/* Content area */}
           <div
             ref={responseRef}
-            className="flex-1 overflow-y-auto rounded-lg border border-border/60 bg-card p-6 shadow-sm"
+            className="flex-1 overflow-y-auto rounded-lg border border-border/40 border-t-4 border-t-[#1e3a5f] bg-white p-6 shadow-sm"
           >
             {/* Loading animation */}
             {loading && !response && (
@@ -604,7 +648,7 @@ export default function AnalyzePage() {
                       const enriched = query.trim() + "\n\nQUESTION COMPLEMENTAIRE : " + suggestion;
                       launchAnalysis(enriched);
                     }}
-                    className="rounded-full border border-[#c9a96e]/40 bg-[#c9a96e]/5 px-4 py-1.5 text-sm text-[#1e3a5f] transition-all hover:border-[#c9a96e] hover:bg-[#c9a96e]/15 hover:shadow-sm"
+                    className="cursor-pointer rounded-full border-2 border-[#c9a96e]/40 bg-[#c9a96e]/5 px-4 py-2 text-sm font-medium text-[#1e3a5f] transition-all duration-200 hover:border-[#c9a96e] hover:bg-[#c9a96e]/15 hover:shadow-md hover:-translate-y-0.5"
                   >
                     {suggestion}
                   </button>
@@ -615,29 +659,27 @@ export default function AnalyzePage() {
 
           {/* Actions bar */}
           {phase === "done" && (
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="flex shrink-0 items-center gap-3 rounded-lg border border-border/30 bg-white p-3 shadow-sm">
               <Button
                 onClick={handleNewAnalysis}
                 variant="outline"
-                className="gap-2"
+                className="cursor-pointer gap-2 border-[#1e3a5f]/30 text-[#1e3a5f] transition-all duration-200 hover:bg-[#1e3a5f]/5"
               >
                 Nouvelle analyse
               </Button>
               <div className="flex-1" />
               <CopyMarkdown content={response} />
               <Button
-                variant="outline"
                 size="sm"
-                className="gap-2 text-muted-foreground"
+                className="cursor-pointer gap-2 bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f] hover:shadow-md"
                 onClick={() => handleExport("pdf")}
               >
                 <FileDown className="h-3.5 w-3.5" />
                 PDF
               </Button>
               <Button
-                variant="outline"
                 size="sm"
-                className="gap-2 text-muted-foreground"
+                className="cursor-pointer gap-2 bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f] hover:shadow-md"
                 onClick={() => handleExport("docx")}
               >
                 <FileDown className="h-3.5 w-3.5" />
@@ -663,7 +705,7 @@ function SourcesBadge({
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-sm font-medium text-primary transition-all hover:bg-primary/10 hover:shadow-sm"
+      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 px-3.5 py-1.5 text-sm font-medium text-[#1e3a5f] transition-all duration-200 hover:bg-[#1e3a5f]/10 hover:shadow-sm"
     >
       <BookOpen className="h-4 w-4" />
       <span>
@@ -754,7 +796,7 @@ function SourcesPanel({
   sources: ParsedAnalysis["sources"];
 }) {
   return (
-    <Card className="shrink-0 border-primary/20 bg-primary/[0.02] p-4">
+    <Card className="shrink-0 border-[#1e3a5f]/20 bg-[#1e3a5f]/[0.02] p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
         <BookOpen className="h-4 w-4 text-primary" />
         <h3 className="font-serif text-sm font-semibold text-primary">
@@ -768,7 +810,7 @@ function SourcesPanel({
             href={source.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3 transition-all hover:border-primary/40 hover:shadow-sm"
+            className="group flex cursor-pointer items-start gap-3 rounded-lg border border-border/40 bg-white p-3 transition-all duration-200 hover:border-[#1e3a5f]/40 hover:shadow-md hover:-translate-y-0.5"
           >
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
               {i + 1}
