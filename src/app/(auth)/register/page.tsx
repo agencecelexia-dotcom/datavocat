@@ -1,24 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Scale } from "lucide-react";
+import { Scale, Loader2, User, Building2, Mail, Lock, ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -55,75 +45,89 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <Card className="shadow-lg border-0">
-        <CardHeader className="text-center space-y-4 pb-6">
-          <Scale className="mx-auto h-10 w-10 text-[#1e3a5f]" />
-          <CardTitle className="font-serif text-2xl text-[#0f172a]">
-            Inscription envoyee
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-center space-y-4 px-6 pb-6">
-          <p className="text-sm text-[#0f172a]/60">
-            Verifiez votre email pour confirmer votre inscription.
-          </p>
-          <Link
-            href="/login"
-            className="inline-block text-[#c9a96e] hover:text-[#b8944f] underline underline-offset-2 text-sm font-medium cursor-pointer transition-colors duration-200"
-          >
-            Retour a la connexion
-          </Link>
-        </CardContent>
-      </Card>
+      <div className="animate-fade-in-up text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
+          <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+        </div>
+        <h1 className="font-serif text-3xl tracking-tight text-foreground">
+          Inscription envoyee
+        </h1>
+        <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+          Un email de confirmation a ete envoye a <strong className="text-foreground">{email}</strong>. Verifiez votre boite de reception pour activer votre compte.
+        </p>
+        <Link
+          href="/login"
+          className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#1e3a5f] transition-colors hover:text-[#c9a96e] cursor-pointer"
+        >
+          <ArrowRight className="h-4 w-4 rotate-180" />
+          Retour a la connexion
+        </Link>
+      </div>
     );
   }
 
   return (
-    <Card className="shadow-lg border-0">
-      <CardHeader className="text-center space-y-4 pb-6">
-        <Scale className="mx-auto h-10 w-10 text-[#1e3a5f]" />
-        <div className="space-y-1.5">
-          <CardTitle className="font-serif text-2xl text-[#0f172a]">
-            Creer un compte
-          </CardTitle>
-          <CardDescription className="text-sm text-[#0f172a]/60">
-            Inscrivez-vous pour acceder a Datavocat
-          </CardDescription>
+    <div className="animate-fade-in-up">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="mb-6 hidden items-center gap-2.5 lg:flex">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]/5">
+            <Scale className="h-4.5 w-4.5 text-[#1e3a5f]" />
+          </div>
         </div>
-      </CardHeader>
-      <form onSubmit={handleRegister}>
-        <CardContent className="space-y-5 px-6">
-          <div className="space-y-2">
-            <Label htmlFor="fullName" className="text-sm font-medium text-[#0f172a]">
+        <h1 className="font-serif text-3xl tracking-tight text-foreground">
+          Creer un compte
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Commencez a analyser la jurisprudence en quelques minutes
+        </p>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleRegister} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="fullName" className="text-sm font-medium">
               Nom complet
             </Label>
-            <Input
-              id="fullName"
-              type="text"
-              placeholder="Me Jean Dupont"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              className="transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/20"
-            />
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+              <Input
+                id="fullName"
+                type="text"
+                placeholder="Me Jean Dupont"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="h-11 pl-10 transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/15"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="cabinetName" className="text-sm font-medium text-[#0f172a]">
-              Nom du cabinet
+          <div className="space-y-1.5">
+            <Label htmlFor="cabinetName" className="text-sm font-medium">
+              Cabinet
             </Label>
-            <Input
-              id="cabinetName"
-              type="text"
-              placeholder="Cabinet Dupont & Associes"
-              value={cabinetName}
-              onChange={(e) => setCabinetName(e.target.value)}
-              required
-              className="transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/20"
-            />
+            <div className="relative">
+              <Building2 className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+              <Input
+                id="cabinetName"
+                type="text"
+                placeholder="Dupont & Associes"
+                value={cabinetName}
+                onChange={(e) => setCabinetName(e.target.value)}
+                required
+                className="h-11 pl-10 transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/15"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium text-[#0f172a]">
-              Email professionnel
-            </Label>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="text-sm font-medium">
+            Email professionnel
+          </Label>
+          <div className="relative">
+            <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
             <Input
               id="email"
               type="email"
@@ -131,13 +135,17 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/20"
+              className="h-11 pl-10 transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/15"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium text-[#0f172a]">
-              Mot de passe
-            </Label>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password" className="text-sm font-medium">
+            Mot de passe
+          </Label>
+          <div className="relative">
+            <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
             <Input
               id="password"
               type="password"
@@ -146,32 +154,57 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               minLength={6}
               required
-              className="transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/20"
+              className="h-11 pl-10 transition-all duration-200 focus:ring-2 focus:ring-[#1e3a5f]/15"
             />
           </div>
-          {error && (
-            <p className="text-sm text-[#9b2226] font-medium">{error}</p>
+        </div>
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#9b2226]">
+            {error}
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          className="h-11 w-full cursor-pointer gap-2 bg-[#1e3a5f] text-sm font-semibold text-white shadow-lg shadow-[#1e3a5f]/20 transition-all duration-300 hover:bg-[#162d4a] hover:shadow-xl hover:shadow-[#1e3a5f]/25 hover:-translate-y-px"
+          disabled={loading}
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              Creer mon compte
+              <ArrowRight className="h-4 w-4" />
+            </>
           )}
-        </CardContent>
-        <CardFooter className="flex-col gap-4 px-6 pt-2 pb-6">
-          <Button
-            type="submit"
-            className="w-full cursor-pointer bg-[#c9a96e] text-white hover:bg-[#b8944f] transition-all duration-200 font-medium"
-            disabled={loading}
-          >
-            {loading ? "Inscription en cours..." : "S'inscrire"}
-          </Button>
-          <p className="text-sm text-[#0f172a]/60">
-            Deja un compte ?{" "}
-            <Link
-              href="/login"
-              className="text-[#c9a96e] hover:text-[#b8944f] underline underline-offset-2 cursor-pointer transition-colors duration-200 font-medium"
-            >
-              Se connecter
-            </Link>
-          </p>
-        </CardFooter>
+        </Button>
+
+        <p className="text-center text-xs text-muted-foreground">
+          En creant un compte, vous acceptez nos{" "}
+          <span className="underline underline-offset-2 cursor-pointer">conditions d&apos;utilisation</span>{" "}
+          et notre{" "}
+          <span className="underline underline-offset-2 cursor-pointer">politique de confidentialite</span>.
+        </p>
       </form>
-    </Card>
+
+      {/* Divider */}
+      <div className="my-6 flex items-center gap-4">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">ou</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
+      {/* Login link */}
+      <p className="text-center text-sm text-muted-foreground">
+        Deja un compte ?{" "}
+        <Link
+          href="/login"
+          className="font-semibold text-[#1e3a5f] underline-offset-4 transition-colors hover:text-[#c9a96e] hover:underline cursor-pointer"
+        >
+          Se connecter
+        </Link>
+      </p>
+    </div>
   );
 }

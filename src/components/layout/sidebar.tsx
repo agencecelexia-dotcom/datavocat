@@ -4,13 +4,25 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Scale, History, FileText, Briefcase, BarChart3, GitCompareArrows, ScrollText, Eye } from "lucide-react";
+import {
+  Scale,
+  History,
+  FileText,
+  Briefcase,
+  BarChart3,
+  GitCompareArrows,
+  ScrollText,
+  Eye,
+  Sparkles,
+  Command,
+} from "lucide-react";
 
 const navItems = [
   {
     label: "Nouvelle analyse",
     href: "/",
     icon: Scale,
+    accent: true,
   },
   {
     label: "Historique",
@@ -59,7 +71,6 @@ export function Sidebar() {
     setVeilleUnseen(isNaN(count) ? 0 : count);
   }, []);
 
-  // Reset counter when navigating to veille page
   useEffect(() => {
     if (pathname === "/veille" || pathname.startsWith("/veille/")) {
       setVeilleUnseen(0);
@@ -68,50 +79,95 @@ export function Sidebar() {
   }, [pathname]);
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-        <Scale className="h-6 w-6 text-[#1e3a5f]" />
-        <span className="font-serif text-xl text-[#c9a96e]">
+    <aside className="hidden w-[260px] shrink-0 flex-col bg-[#0c1929] lg:flex">
+      {/* Logo */}
+      <div className="flex h-16 items-center gap-3 px-6">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#c9a96e]/10">
+          <Scale className="h-4 w-4 text-[#c9a96e]" />
+        </div>
+        <span className="font-serif text-lg tracking-tight text-white">
           Datavocat
         </span>
+        <span className="ml-auto rounded-md bg-[#c9a96e]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#c9a96e]">
+          Pro
+        </span>
       </div>
-      <nav className="space-y-1 p-4">
-        {navItems.map((item) => {
+
+      {/* Divider */}
+      <div className="mx-4 h-px bg-white/[0.06]" />
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-0.5 px-3 py-4">
+        {navItems.map((item, i) => {
           const isActive =
             pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));
           const showBadge = item.href === "/veille" && veilleUnseen > 0;
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium cursor-pointer transition-all duration-200",
-                isActive
-                  ? "bg-[#1e3a5f]/10 text-[#c9a96e]"
-                  : "text-sidebar-foreground/70 hover:bg-[#1e3a5f]/5 hover:text-sidebar-foreground"
+            <div key={item.href}>
+              {/* Section divider before Statistiques */}
+              {i === 4 && (
+                <div className="mx-2 my-3 h-px bg-white/[0.04]" />
               )}
-            >
-              <span className="relative">
-                <item.icon className="h-4 w-4" />
+              <Link
+                href={item.href}
+                className={cn(
+                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium cursor-pointer transition-all duration-200",
+                  isActive
+                    ? "bg-white/[0.08] text-white"
+                    : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
+                )}
+              >
+                {/* Active indicator */}
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[#c9a96e]" />
+                )}
+
+                <span className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200",
+                  isActive
+                    ? "bg-[#c9a96e]/15 text-[#c9a96e]"
+                    : "text-slate-500 group-hover:text-slate-300",
+                  item.accent && !isActive && "text-[#c9a96e]/70"
+                )}>
+                  {item.accent && !isActive ? (
+                    <Sparkles className="h-4 w-4" />
+                  ) : (
+                    <item.icon className="h-4 w-4" />
+                  )}
+                </span>
+
+                <span>{item.label}</span>
+
                 {showBadge && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#9b2226] text-[8px] font-bold leading-none text-white">
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500/90 px-1.5 text-[10px] font-bold text-white">
                     {veilleUnseen > 9 ? "9+" : veilleUnseen}
                   </span>
                 )}
-              </span>
-              {item.label}
-            </Link>
+              </Link>
+            </div>
           );
         })}
       </nav>
-      <div className="mt-auto border-t border-sidebar-border px-6 py-3">
-        <p className="flex items-center gap-2 text-xs text-sidebar-foreground/40">
-          <kbd className="rounded border border-sidebar-foreground/20 bg-sidebar-accent/50 px-1.5 py-0.5 font-mono text-[10px]">
+
+      {/* Bottom section */}
+      <div className="space-y-3 px-4 pb-5">
+        {/* Shortcut hint */}
+        <div className="flex items-center gap-2 rounded-lg bg-white/[0.03] px-3 py-2.5">
+          <Command className="h-3.5 w-3.5 text-slate-500" />
+          <span className="text-xs text-slate-500">Palette de commandes</span>
+          <kbd className="ml-auto rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
             Ctrl K
           </kbd>
-          <span>Palette de commandes</span>
-        </p>
+        </div>
+
+        {/* Branding */}
+        <div className="flex items-center justify-center gap-2 text-[10px] text-slate-600">
+          <span>Analyse Jurimetrique</span>
+          <span className="h-2.5 w-px bg-slate-700/50" />
+          <span>v1.0</span>
+        </div>
       </div>
     </aside>
   );

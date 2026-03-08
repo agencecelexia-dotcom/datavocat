@@ -248,86 +248,115 @@ export default function AnalyzePage() {
   return (
     <div className="mx-auto flex h-full max-w-5xl flex-col">
       {phase === "input" ? (
-        /* INPUT STATE */
-        <div className="flex flex-1 flex-col items-center justify-center gap-10 px-4">
-          <div className="text-center">
-            <div className="mb-3 flex items-center justify-center gap-3">
-              <Scale className="h-10 w-10 text-[#c9a96e]" />
-              <h1 className="font-serif text-5xl tracking-tight text-[#1e3a5f]">
-                Datavocat
-              </h1>
+        /* INPUT STATE — Premium Hero */
+        <div className="gradient-hero flex flex-1 flex-col items-center justify-center gap-8 px-4">
+          {/* Hero */}
+          <div className="animate-fade-in-up text-center">
+            <div className="mx-auto mb-5 flex h-14 w-14 animate-float items-center justify-center rounded-2xl bg-[#1e3a5f]/5 shadow-sm">
+              <Scale className="h-7 w-7 text-[#1e3a5f]" />
             </div>
-            <p className="text-lg leading-relaxed text-muted-foreground">
-              Decrivez votre affaire. L&apos;IA analyse la jurisprudence
-              <br />
-              et produit statistiques et recommandations strategiques.
+            <h1 className="font-serif text-4xl tracking-tight text-foreground md:text-5xl">
+              Analysez votre affaire
+            </h1>
+            <p className="mx-auto mt-3 max-w-lg text-base leading-relaxed text-muted-foreground">
+              Decrivez la situation juridique. L&apos;IA croise{" "}
+              <span className="font-medium text-foreground">500 000+ decisions</span>{" "}
+              pour produire statistiques et recommandations.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="w-full max-w-3xl space-y-4">
-            <Card className="overflow-hidden border-border/40 bg-white shadow-md transition-shadow duration-200 focus-within:shadow-lg">
-              <div className="relative">
-                <Textarea
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Decrivez la situation juridique de votre client, le type de contentieux, les arguments envisages..."
-                  className="min-h-[150px] resize-none border-0 bg-transparent pr-14 text-base shadow-none ring-0 transition-all duration-200 placeholder:text-muted-foreground/50 focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:border-0"
-                  disabled={loading}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                      handleSubmit(e);
-                    }
-                  }}
-                />
-                <div className="flex items-center justify-between border-t border-border/30 px-4 py-2.5">
-                  <p className="text-xs text-muted-foreground">
-                    Ctrl+Entree pour envoyer
-                  </p>
-                  <Button
-                    type="submit"
-                    className="cursor-pointer gap-2 bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f] hover:shadow-md"
-                    disabled={!query.trim() || loading}
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Analyser
-                      </>
-                    )}
-                  </Button>
+          {/* Input card */}
+          <form onSubmit={handleSubmit} className="w-full max-w-3xl animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card shadow-lg shadow-black/[0.03] transition-all duration-300 focus-within:border-[#1e3a5f]/20 focus-within:shadow-xl focus-within:shadow-[#1e3a5f]/[0.04]">
+              {/* Shimmer effect on focus */}
+              <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-focus-within:opacity-100 animate-shimmer" />
+
+              <Textarea
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Decrivez la situation juridique de votre client, le type de contentieux, les arguments envisages..."
+                className="relative z-10 min-h-[140px] resize-none border-0 bg-transparent px-5 pt-5 pb-2 text-[15px] leading-relaxed shadow-none ring-0 transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:border-0"
+                disabled={loading}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    handleSubmit(e);
+                  }
+                }}
+              />
+              <div className="relative z-10 flex items-center justify-between border-t border-border/30 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
+                    <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Ctrl</kbd>
+                    <span>+</span>
+                    <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Entree</kbd>
+                  </span>
                 </div>
+                <Button
+                  type="submit"
+                  className="cursor-pointer gap-2 bg-[#1e3a5f] px-5 text-sm font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all duration-300 hover:bg-[#162d4a] hover:shadow-lg hover:shadow-[#1e3a5f]/25 hover:-translate-y-px disabled:opacity-40"
+                  disabled={!query.trim() || loading}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Analyser
+                    </>
+                  )}
+                </Button>
               </div>
-            </Card>
+            </div>
           </form>
 
-          <div className="w-full max-w-3xl space-y-3">
-            <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Sparkles className="h-4 w-4 text-[#c9a96e]" />
+          {/* Examples */}
+          <div className="w-full max-w-3xl space-y-3 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
               Exemples de demandes
             </p>
-            <div className="grid gap-2">
+            <div className="grid gap-2 md:grid-cols-3">
               {examples.map((example, i) => (
                 <button
                   key={i}
                   onClick={() => setQuery(example)}
-                  className="cursor-pointer rounded-lg border border-border/40 bg-white p-4 text-left text-sm leading-relaxed text-muted-foreground shadow-sm transition-all duration-200 hover:border-[#c9a96e]/50 hover:shadow-md hover:-translate-y-0.5"
+                  className="group/ex cursor-pointer rounded-xl border border-border/40 bg-card p-4 text-left text-[13px] leading-relaxed text-muted-foreground transition-all duration-300 hover:border-[#1e3a5f]/15 hover:bg-card hover:shadow-lg hover:shadow-black/[0.03] hover:-translate-y-1"
                 >
-                  {example}
+                  <span className="line-clamp-3">{example}</span>
+                  <span className="mt-2 flex items-center gap-1 text-xs font-medium text-[#c9a96e] opacity-0 transition-opacity duration-200 group-hover/ex:opacity-100">
+                    <ArrowRight className="h-3 w-3" />
+                    Utiliser
+                  </span>
                 </button>
               ))}
             </div>
           </div>
 
+          {/* Trust badges */}
+          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground/50 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
+            <span className="flex items-center gap-1.5">
+              <Database className="h-3.5 w-3.5" />
+              Judilibre + data.gouv.fr
+            </span>
+            <span className="h-3 w-px bg-border" />
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Donnees chiffrees
+            </span>
+            <span className="h-3 w-px bg-border" />
+            <span className="flex items-center gap-1.5">
+              <Brain className="h-3.5 w-3.5" />
+              IA Claude
+            </span>
+          </div>
+
           {/* Favorites widget */}
           {favorites.length > 0 && (
             <div className="w-full max-w-3xl space-y-3">
-              <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Star className="h-4 w-4 fill-[#c9a96e] text-[#c9a96e]" />
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                <Star className="h-3.5 w-3.5 fill-[#c9a96e] text-[#c9a96e]" />
                 Mes favoris
               </p>
-              <Card className="divide-y divide-border/30 border-border/40 bg-white shadow-sm">
+              <Card className="divide-y divide-border/30 overflow-hidden border-border/40 bg-card shadow-sm">
                 {favorites.slice(0, 5).map((fav) => (
                   <Link
                     key={fav.id}
@@ -336,11 +365,11 @@ export default function AnalyzePage() {
                         ? `/decisions/${fav.id}`
                         : `/veille`
                     }
-                    className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm transition-all duration-200 first:rounded-t-lg last:rounded-b-lg hover:bg-[#f8fafc]"
+                    className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm transition-all duration-200 hover:bg-accent"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <Star className="h-3.5 w-3.5 shrink-0 fill-[#c9a96e] text-[#c9a96e]" />
-                      <span className="truncate font-medium text-[#1e3a5f]">
+                      <span className="truncate font-medium text-foreground">
                         {fav.title}
                       </span>
                     </div>
@@ -458,9 +487,9 @@ export default function AnalyzePage() {
       ) : (
         /* ANALYZING + DONE STATE */
         <div className="flex flex-1 flex-col gap-4 overflow-hidden py-4">
-          {/* Phase step indicators */}
+          {/* Phase step indicators — minimal pill style */}
           <div className="shrink-0">
-            <div className="flex items-center justify-center gap-0">
+            <div className="flex items-center justify-center gap-1">
               {[
                 { label: "Saisie", done: true },
                 { label: "Clarification", done: phase === "analyzing" || phase === "done" },
@@ -468,28 +497,24 @@ export default function AnalyzePage() {
                 { label: "Resultats", done: false, active: phase === "done" },
               ].map((step, i, arr) => (
                 <div key={step.label} className="flex items-center">
-                  <div className="flex flex-col items-center gap-1">
-                    <div
-                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all duration-200 ${
-                        step.done
-                          ? "bg-[#2d6a4f] text-white"
-                          : step.active
-                            ? "bg-[#1e3a5f] text-white shadow-md ring-4 ring-[#1e3a5f]/20"
-                            : "bg-gray-200 text-gray-500"
-                      }`}
-                    >
-                      {step.done ? (
-                        <CheckCircle2 className="h-4 w-4" />
-                      ) : (
-                        i + 1
-                      )}
-                    </div>
-                    <span className={`text-xs font-medium ${step.done || step.active ? "text-[#1e3a5f]" : "text-muted-foreground"}`}>
-                      {step.label}
-                    </span>
+                  <div
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-300 ${
+                      step.done
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                        : step.active
+                          ? "bg-[#1e3a5f] text-white shadow-md shadow-[#1e3a5f]/20"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {step.done ? (
+                      <CheckCircle2 className="h-3 w-3" />
+                    ) : step.active ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : null}
+                    {step.label}
                   </div>
                   {i < arr.length - 1 && (
-                    <div className={`mx-2 mb-5 h-0.5 w-12 transition-all duration-200 ${step.done ? "bg-[#2d6a4f]" : "bg-gray-200"}`} />
+                    <div className={`mx-1 h-px w-6 transition-all duration-300 ${step.done ? "bg-emerald-300 dark:bg-emerald-700" : "bg-border"}`} />
                   )}
                 </div>
               ))}
@@ -497,7 +522,7 @@ export default function AnalyzePage() {
           </div>
 
           {/* User query card */}
-          <Card className="shrink-0 border-border/40 border-l-4 border-l-[#1e3a5f] bg-white p-4 shadow-sm">
+          <Card className="shrink-0 border-border/40 border-l-4 border-l-[#1e3a5f] bg-card p-4 shadow-sm">
             <p className="text-sm leading-relaxed">{query}</p>
             {questions.length > 0 &&
               Object.keys(answers).some((k) => answers[k]?.trim()) && (
