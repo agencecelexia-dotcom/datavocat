@@ -50,14 +50,14 @@ export default function DecisionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Décisions</h1>
+          <h1 className="font-serif text-3xl tracking-tight text-[#1e3a5f]">Decisions</h1>
           <p className="text-muted-foreground">
-            {total} décision{total !== 1 ? "s" : ""} dans la base
+            {total} decision{total !== 1 ? "s" : ""} dans la base
           </p>
         </div>
         <Link href="/decisions/upload">
-          <Button>
-            <Upload className="mr-2 h-4 w-4" />
+          <Button className="cursor-pointer gap-2 bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f] hover:shadow-md">
+            <Upload className="h-4 w-4" />
             Upload PDF
           </Button>
         </Link>
@@ -75,7 +75,7 @@ export default function DecisionsPage() {
           <Button
             size="sm"
             variant="outline"
-            className="border-[#2d6a4f]/30 text-[#2d6a4f] hover:bg-[#2d6a4f]/10"
+            className="cursor-pointer border-[#2d6a4f]/30 text-[#2d6a4f] transition-all duration-200 hover:bg-[#2d6a4f]/10"
             onClick={() => {
               setPendingValidation(0);
               localStorage.setItem("datavocat_pending_validation", "0");
@@ -88,16 +88,16 @@ export default function DecisionsPage() {
 
       <div className="flex gap-4">
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "all")}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-48 cursor-pointer border-border/40 bg-white transition-all duration-200 focus:border-[#1e3a5f]">
             <SelectValue placeholder="Filtrer par statut" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
-            <SelectItem value="pending">En attente</SelectItem>
-            <SelectItem value="extracting">Extraction...</SelectItem>
-            <SelectItem value="review">À valider</SelectItem>
-            <SelectItem value="validated">Validées</SelectItem>
-            <SelectItem value="error">Erreur</SelectItem>
+            <SelectItem value="all" className="cursor-pointer">Tous les statuts</SelectItem>
+            <SelectItem value="pending" className="cursor-pointer">En attente</SelectItem>
+            <SelectItem value="extracting" className="cursor-pointer">Extraction...</SelectItem>
+            <SelectItem value="review" className="cursor-pointer">A valider</SelectItem>
+            <SelectItem value="validated" className="cursor-pointer">Validees</SelectItem>
+            <SelectItem value="error" className="cursor-pointer">Erreur</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -114,16 +114,18 @@ export default function DecisionsPage() {
         <div className="flex justify-center gap-2">
           <Button
             variant="outline"
+            className="cursor-pointer transition-all duration-200"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
           >
-            Précédent
+            Precedent
           </Button>
           <span className="flex items-center px-4 text-sm text-muted-foreground">
             Page {page} / {Math.ceil(total / 20)}
           </span>
           <Button
             variant="outline"
+            className="cursor-pointer transition-all duration-200"
             onClick={() => setPage((p) => p + 1)}
             disabled={page >= Math.ceil(total / 20)}
           >

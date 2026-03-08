@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Scale,
-  Send,
   Loader2,
   Sparkles,
   BarChart3,
@@ -17,7 +16,6 @@ import {
   SkipForward,
   FileText,
   FileDown,
-  Copy,
   Search,
   Database,
   Brain,

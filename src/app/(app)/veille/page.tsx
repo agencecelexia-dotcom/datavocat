@@ -257,8 +257,8 @@ export default function VeillePage() {
 
   function solutionColor(sol: string) {
     const lower = sol.toLowerCase();
-    if (lower.includes("rejet")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
-    if (lower.includes("cassation")) return "bg-red-100 text-red-800 border-red-200";
+    if (lower.includes("rejet")) return "bg-[#2d6a4f]/10 text-[#2d6a4f] border-[#2d6a4f]/20";
+    if (lower.includes("cassation")) return "bg-[#9b2226]/10 text-[#9b2226] border-[#9b2226]/20";
     return "bg-gray-100 text-gray-800 border-gray-200";
   }
 
@@ -270,7 +270,7 @@ export default function VeillePage() {
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-8">
       {/* Page title */}
       <div>
-        <h1 className="font-serif text-3xl font-bold text-[#1e3a5f]">
+        <h1 className="font-serif text-2xl font-bold text-[#1e3a5f]">
           Veille Jurisprudentielle
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -287,13 +287,13 @@ export default function VeillePage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher des decisions (ex: licenciement economique, prise d'acte...)"
-              className="h-11 pl-10 text-base"
+              className="h-11 pl-10 text-base focus:border-[#1e3a5f] focus:ring-[#1e3a5f]/30"
             />
           </div>
           <Button
             type="submit"
             disabled={loading || !query.trim()}
-            className="h-11 bg-[#1e3a5f] px-6 text-white hover:bg-[#1e3a5f]/90"
+            className="h-11 cursor-pointer bg-[#c9a96e] px-6 text-white transition-all duration-200 hover:bg-[#b8944f]"
           >
             {loading ? (
               <Loader2 className="size-4 animate-spin" />
@@ -311,7 +311,7 @@ export default function VeillePage() {
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-1.5 text-sm text-[#1e3a5f] hover:text-[#1e3a5f]/70 transition-colors"
+            className="flex cursor-pointer items-center gap-1.5 text-sm text-[#1e3a5f] transition-colors duration-200 hover:text-[#1e3a5f]/70"
           >
             <Filter className="size-3.5" />
             <span>Filtres avances</span>
@@ -388,7 +388,7 @@ export default function VeillePage() {
             variant="outline"
             size="sm"
             onClick={handleSaveWatch}
-            className="border-[#c9a96e]/40 text-[#c9a96e] hover:bg-[#c9a96e]/10 hover:text-[#c9a96e]"
+            className="cursor-pointer border-[#c9a96e]/40 text-[#c9a96e] transition-all duration-200 hover:bg-[#c9a96e]/10 hover:text-[#c9a96e]"
           >
             <BookmarkPlus className="size-3.5" />
             <span className="ml-1">Sauvegarder cette recherche</span>
@@ -398,7 +398,7 @@ export default function VeillePage() {
 
       {/* Error */}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-[#9b2226]/20 bg-[#9b2226]/5 px-4 py-3 text-sm text-[#9b2226]">
           {error}
         </div>
       )}
@@ -406,7 +406,7 @@ export default function VeillePage() {
       {/* Results */}
       {hasSearched && !loading && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-[#1e3a5f]">
+          <h2 className="font-serif text-lg font-semibold text-[#1e3a5f]">
             {total} decision{total !== 1 ? "s" : ""} trouvee{total !== 1 ? "s" : ""}
           </h2>
 
@@ -414,7 +414,7 @@ export default function VeillePage() {
             {results.map((dec) => (
               <Card
                 key={dec.id}
-                className="transition-shadow hover:shadow-md hover:ring-[#1e3a5f]/20"
+                className="shadow-sm transition-shadow duration-200 hover:shadow-md"
               >
                 <CardHeader>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -433,7 +433,7 @@ export default function VeillePage() {
                             reference: dec.ecli || dec.number?.[0] || dec.id,
                           });
                         }}
-                        className="rounded-full p-1 transition-colors hover:bg-[#c9a96e]/10"
+                        className="cursor-pointer rounded-full p-1 transition-colors duration-200 hover:bg-[#c9a96e]/10"
                         title={isFavorite(dec.id) ? "Retirer des favoris" : "Ajouter aux favoris"}
                       >
                         <Star
@@ -461,7 +461,7 @@ export default function VeillePage() {
                       href={`https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(dec.ecli)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-[#1e3a5f] underline underline-offset-2 hover:text-[#c9a96e] transition-colors"
+                      className="inline-flex cursor-pointer items-center gap-1 text-sm text-[#1e3a5f] underline underline-offset-2 transition-colors duration-200 hover:text-[#c9a96e]"
                     >
                       {dec.ecli}
                       <ExternalLink className="size-3" />
@@ -548,7 +548,7 @@ export default function VeillePage() {
                 variant="outline"
                 onClick={() => doSearch(nextPage)}
                 disabled={loadingMore}
-                className="border-[#1e3a5f]/20 text-[#1e3a5f] hover:bg-[#1e3a5f]/5"
+                className="cursor-pointer border border-[#1e3a5f] text-[#1e3a5f] transition-all duration-200 hover:bg-[#1e3a5f]/5"
               >
                 {loadingMore ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -570,19 +570,22 @@ export default function VeillePage() {
 
       {/* Saved watches */}
       {watches.length > 0 && (
-        <div className="space-y-4 border-t pt-8">
+        <div className="space-y-4 border-t border-[#1e3a5f]/10 pt-8">
           <h2 className="font-serif text-xl font-semibold text-[#1e3a5f]">
             Recherches sauvegardees
           </h2>
 
           <div className="grid gap-3">
             {watches.map((watch) => (
-              <Card key={watch.id} size="sm">
+              <Card key={watch.id} className="shadow-sm transition-shadow duration-200 hover:shadow-md" size="sm">
                 <CardContent className="flex items-center justify-between gap-4">
                   <div className="min-w-0 flex-1 space-y-1">
-                    <p className="font-medium text-[#1e3a5f] truncate">
-                      {watch.query}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Star className="h-4 w-4 flex-shrink-0 fill-[#c9a96e] text-[#c9a96e]" />
+                      <p className="font-medium text-[#1e3a5f] truncate">
+                        {watch.query}
+                      </p>
+                    </div>
                     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                       {watch.chamber && (
                         <span>{CHAMBERS[watch.chamber] || watch.chamber}</span>

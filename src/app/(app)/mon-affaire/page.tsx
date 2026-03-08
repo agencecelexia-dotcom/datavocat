@@ -116,8 +116,8 @@ export default function MonAffairePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Mon Affaire</h1>
-        <p className="text-muted-foreground">
+        <h1 className="font-serif text-2xl font-bold tracking-tight text-[#1e3a5f]">Mon Affaire</h1>
+        <p className="mt-1 text-muted-foreground">
           Entrez les paramètres de votre affaire pour obtenir une analyse
           probabiliste basée sur les décisions similaires.
         </p>
@@ -144,14 +144,14 @@ export default function MonAffairePage() {
             <Button
               variant="outline"
               onClick={handleModifyParams}
-              className="border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f]/10"
+              className="cursor-pointer border border-[#1e3a5f] text-[#1e3a5f] transition-all duration-200 hover:bg-[#1e3a5f]/5"
             >
               Modifier les parametres
             </Button>
             <Button
               onClick={handleReanalyze}
               disabled={loading}
-              className="bg-[#c9a96e] text-white hover:bg-[#b8944f]"
+              className="cursor-pointer bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f]"
             >
               {loading ? "Analyse en cours..." : "Relancer l'analyse"}
             </Button>
@@ -160,8 +160,8 @@ export default function MonAffairePage() {
       )}
 
       {report && (
-        <div className="rounded-lg border bg-card p-6">
-          <h2 className="mb-4 text-xl font-bold">Rapport stratégique</h2>
+        <div className="rounded-lg border border-[#1e3a5f]/20 bg-card p-6 shadow-sm">
+          <h2 className="mb-4 font-serif text-xl font-bold text-[#1e3a5f]">Rapport stratégique</h2>
           <div
             className="prose prose-sm max-w-none dark:prose-invert"
             dangerouslySetInnerHTML={{ __html: formatMarkdownSafe(report) }}

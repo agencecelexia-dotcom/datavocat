@@ -41,7 +41,7 @@ export default function StatistiquesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Statistiques</h1>
+        <h1 className="font-serif text-3xl tracking-tight text-[#1e3a5f]">Statistiques</h1>
         <p className="text-muted-foreground">
           Vue d&apos;ensemble des tendances jurisprudentielles
         </p>
@@ -49,48 +49,52 @@ export default function StatistiquesPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Total décisions"
-          value={global?.total_decisions ?? "—"}
-          subtitle="Décisions validées"
+          title="Total decisions"
+          value={global?.total_decisions ?? "\u2014"}
+          subtitle="Decisions validees"
           icon={FileText}
+          accentColor="#1e3a5f"
           sparkline={global ? (() => { const d = mockTrend(global.total_decisions); return <Sparkline data={d} trend={detectTrend(d)} />; })() : undefined}
         />
         <StatCard
           title="Taux d'annulation"
-          value={global?.taux_annulation != null ? `${global.taux_annulation}%` : "—"}
+          value={global?.taux_annulation != null ? `${global.taux_annulation}%` : "\u2014"}
           subtitle="Sur l'ensemble"
           icon={Scale}
+          accentColor="#c9a96e"
           sparkline={global?.taux_annulation != null ? (() => { const d = mockTrend(global.taux_annulation); return <Sparkline data={d} trend={detectTrend(d)} />; })() : undefined}
         />
         <StatCard
-          title="Délai moyen"
-          value={global?.delai_moyen_mois != null ? `${global.delai_moyen_mois} mois` : "—"}
+          title="Delai moyen"
+          value={global?.delai_moyen_mois != null ? `${global.delai_moyen_mois} mois` : "\u2014"}
           subtitle="Pour statuer"
           icon={Clock}
+          accentColor="#2d6a4f"
           sparkline={global?.delai_moyen_mois != null ? (() => { const d = mockTrend(global.delai_moyen_mois); return <Sparkline data={d} trend={detectTrend(d)} />; })() : undefined}
         />
         <StatCard
           title="Montant moyen"
-          value={global?.montant_moyen != null ? `${global.montant_moyen.toLocaleString("fr-FR")} €` : "—"}
+          value={global?.montant_moyen != null ? `${global.montant_moyen.toLocaleString("fr-FR")} \u20AC` : "\u2014"}
           subtitle="Condamnations"
           icon={BarChart3}
+          accentColor="#1e3a5f"
           sparkline={global?.montant_moyen != null ? (() => { const d = mockTrend(global.montant_moyen); return <Sparkline data={d} trend={detectTrend(d)} />; })() : undefined}
         />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="border-border/40 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
-            <CardTitle>Taux d&apos;annulation par juridiction</CardTitle>
+            <CardTitle className="font-serif text-[#1e3a5f]">Taux d&apos;annulation par juridiction</CardTitle>
           </CardHeader>
           <CardContent>
             <JurisdictionChart data={juridictions} />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/40 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
-            <CardTitle>Taux de succès par motif</CardTitle>
+            <CardTitle className="font-serif text-[#1e3a5f]">Taux de succes par motif</CardTitle>
           </CardHeader>
           <CardContent>
             <MotifChart data={motifs} />
