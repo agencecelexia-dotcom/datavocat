@@ -128,6 +128,10 @@ export function Header({ userEmail, userName }: HeaderProps) {
                 )}
                 <div className="p-1.5">
                   <button
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      router.push("/parametres");
+                    }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground cursor-pointer transition-all duration-200 hover:bg-accent hover:text-foreground"
                   >
                     <Settings className="h-4 w-4" />

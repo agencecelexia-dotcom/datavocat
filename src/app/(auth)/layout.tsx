@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Scale, Shield, BarChart3, Brain, Gavel } from "lucide-react";
 
 export default function AuthLayout({
@@ -96,9 +97,9 @@ export default function AuthLayout({
         <div className="flex items-center justify-center gap-6 border-t border-border/40 px-6 py-4 text-xs text-muted-foreground">
           <span>Datavocat &copy; 2026</span>
           <span className="h-3 w-px bg-border" />
-          <span>Conditions d&apos;utilisation</span>
+          <Link href="/cgu" className="hover:text-foreground transition-colors">Conditions d&apos;utilisation</Link>
           <span className="h-3 w-px bg-border" />
-          <span>Politique de confidentialité</span>
+          <Link href="/confidentialite" className="hover:text-foreground transition-colors">Politique de confidentialité</Link>
         </div>
       </div>
     </div>

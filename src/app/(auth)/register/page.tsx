@@ -182,9 +182,9 @@ export default function RegisterPage() {
 
         <p className="text-center text-xs text-muted-foreground">
           En créant un compte, vous acceptez nos{" "}
-          <span className="underline underline-offset-2 cursor-pointer">conditions d&apos;utilisation</span>{" "}
+          <Link href="/cgu" className="underline underline-offset-2 hover:text-foreground transition-colors">conditions d&apos;utilisation</Link>{" "}
           et notre{" "}
-          <span className="underline underline-offset-2 cursor-pointer">politique de confidentialité</span>.
+          <Link href="/confidentialite" className="underline underline-offset-2 hover:text-foreground transition-colors">politique de confidentialité</Link>.
         </p>
       </form>
 
