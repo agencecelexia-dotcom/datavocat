@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { DATAVOCAT_SYSTEM_PROMPT } from "@/lib/claude/analyze-prompt";
 import { searchJudilibreForAnalysis } from "@/lib/judilibre/client";
+import { searchJusticeDatasets } from "@/lib/datagouv/mcp-client";
 
 export const maxDuration = 60;
 
@@ -34,23 +35,32 @@ export async function POST(request: NextRequest) {
       .eq("id", id);
   }
 
-  // Try Judilibre search with 8s timeout
-  const judilibreContext = await Promise.race([
-    searchJudilibreForAnalysis(query).catch(() => ""),
-    new Promise<string>((resolve) => setTimeout(() => resolve(""), 8000)),
+  // Search both sources in parallel with timeouts
+  const [judilibreContext, datagouvContext] = await Promise.all([
+    Promise.race([
+      searchJudilibreForAnalysis(query).catch(() => ""),
+      new Promise<string>((resolve) => setTimeout(() => resolve(""), 12000)),
+    ]),
+    Promise.race([
+      searchJusticeDatasets(query).catch(() => ""),
+      new Promise<string>((resolve) => setTimeout(() => resolve(""), 8000)),
+    ]),
   ]);
 
   const hasJudilibre =
     judilibreContext.includes("JUDILIBRE") &&
     judilibreContext.includes("decisions trouvees");
+  const hasDatagouv = datagouvContext.length > 50;
 
   // Stream Claude analysis
   const anthropic = getAnthropicClient();
 
-  const sourceBlock = hasJudilibre ? `\n${judilibreContext}\n` : "";
+  let sourceBlock = "";
+  if (hasJudilibre) sourceBlock += `\n${judilibreContext}\n`;
+  if (hasDatagouv) sourceBlock += `\n${datagouvContext}\n`;
 
   const sourceInstruction = hasJudilibre
-    ? "Des decisions Judilibre sont fournies ci-dessous — analyse-les en priorite (ce sont des decisions reelles verifiables). Complete avec tes connaissances."
+    ? `Des decisions Judilibre sont fournies ci-dessous (${judilibreContext.split("---").length - 1} decisions reelles verifiables). Analyse-les en priorite. Complete avec tes connaissances.`
     : "IMPORTANT : L'API Judilibre n'a pas retourne de resultats pour cette recherche. Tu DOIS quand meme fournir une analyse COMPLETE et DETAILLEE basee sur tes connaissances approfondies de la jurisprudence francaise. Tu connais des milliers d'arrets — mobilise-les. Cite les arrets de principe, les tendances, les statistiques documentees. Ne dis PAS que tu n'as pas de donnees — tu en as dans tes connaissances.";
 
   const userMessage = `DEMANDE DE L'AVOCAT :

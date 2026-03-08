@@ -1,74 +1,26 @@
 /**
  * Judilibre API Client — Cour de cassation
  *
- * Uses the PISTE portal (https://piste.gouv.fr) for authentication.
+ * Auth: KeyId header only (no OAuth needed — the OAuth server
+ * at oauth.aife.economie.gouv.fr is unreachable from Vercel).
+ *
  * Endpoint: https://api.piste.gouv.fr/cassation/judilibre/v1.0
  *
  * Env vars needed:
- *   PISTE_CLIENT_ID — OAuth2 client ID from PISTE
- *   PISTE_CLIENT_SECRET — OAuth2 client secret from PISTE
- *   PISTE_KEY_ID — API key from PISTE portal (optional but recommended)
- *   PISTE_SANDBOX — set to "true" for sandbox mode
+ *   PISTE_KEY_ID — API key from PISTE portal (required)
  */
 
-const isSandbox = process.env.PISTE_SANDBOX === "true";
+const JUDILIBRE_BASE = "https://api.piste.gouv.fr/cassation/judilibre/v1.0";
 
-const PISTE_TOKEN_URL = isSandbox
-  ? "https://sandbox-oauth.aife.economie.gouv.fr/api/oauth/token"
-  : "https://oauth.aife.economie.gouv.fr/api/oauth/token";
-
-const JUDILIBRE_BASE = isSandbox
-  ? "https://sandbox-api.piste.gouv.fr/cassation/judilibre/v1.0"
-  : "https://api.piste.gouv.fr/cassation/judilibre/v1.0";
-
-let cachedToken: { token: string; expiresAt: number } | null = null;
-
-async function getAccessToken(): Promise<string> {
-  const clientId = process.env.PISTE_CLIENT_ID;
-  const clientSecret = process.env.PISTE_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    throw new Error("PISTE_CLIENT_ID and PISTE_CLIENT_SECRET are required");
+function getHeaders(): Record<string, string> {
+  const keyId = process.env.PISTE_KEY_ID;
+  if (!keyId) {
+    throw new Error("PISTE_KEY_ID is required for Judilibre API access");
   }
-
-  // Return cached token if still valid (with 60s buffer)
-  if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
-    return cachedToken.token;
-  }
-
-  const res = await fetch(PISTE_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: clientId,
-      client_secret: clientSecret,
-      scope: "openid",
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`PISTE auth failed: ${res.status} ${await res.text()}`);
-  }
-
-  const data = await res.json();
-  cachedToken = {
-    token: data.access_token,
-    expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
-  };
-  return cachedToken.token;
-}
-
-function getHeaders(token: string): Record<string, string> {
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
+  return {
+    KeyId: keyId,
     Accept: "application/json",
   };
-  const keyId = process.env.PISTE_KEY_ID;
-  if (keyId) {
-    headers["KeyId"] = keyId;
-  }
-  return headers;
 }
 
 export interface JudilibreDecision {
@@ -143,8 +95,6 @@ export interface JudilibreSearchParams {
 export async function searchJudilibre(
   params: JudilibreSearchParams
 ): Promise<JudilibreSearchResult> {
-  const token = await getAccessToken();
-
   const searchParams = new URLSearchParams();
   searchParams.set("query", params.query);
 
@@ -170,7 +120,7 @@ export async function searchJudilibre(
   const url = `${JUDILIBRE_BASE}/search?${searchParams.toString()}`;
 
   const res = await fetch(url, {
-    headers: getHeaders(token),
+    headers: getHeaders(),
   });
 
   if (!res.ok) {
@@ -192,10 +142,8 @@ export async function searchJudilibre(
  * Get a single decision by ID (includes full text)
  */
 export async function getDecision(id: string): Promise<JudilibreDecision> {
-  const token = await getAccessToken();
-
   const res = await fetch(`${JUDILIBRE_BASE}/decision?id=${id}`, {
-    headers: getHeaders(token),
+    headers: getHeaders(),
   });
 
   if (!res.ok) {
@@ -211,10 +159,8 @@ export async function getDecision(id: string): Promise<JudilibreDecision> {
 export async function getTaxonomy(
   id: "chamber" | "solution" | "type" | "field" | "publication" | "formation" | "jurisdiction" | "location" | "theme"
 ): Promise<{ id: string; label: string }[]> {
-  const token = await getAccessToken();
-
   const res = await fetch(`${JUDILIBRE_BASE}/taxonomy?id=${id}`, {
-    headers: getHeaders(token),
+    headers: getHeaders(),
   });
 
   if (!res.ok) {
@@ -330,9 +276,9 @@ function detectChamber(query: string): string[] | undefined {
 export async function searchJudilibreForAnalysis(
   userQuery: string
 ): Promise<string> {
-  const clientId = process.env.PISTE_CLIENT_ID;
-  if (!clientId) {
-    return "API Judilibre non configuree (PISTE_CLIENT_ID manquant). Pour activer : inscription gratuite sur https://piste.gouv.fr puis ajouter PISTE_CLIENT_ID et PISTE_CLIENT_SECRET.";
+  const keyId = process.env.PISTE_KEY_ID;
+  if (!keyId) {
+    return "API Judilibre non configuree (PISTE_KEY_ID manquant). Pour activer : inscription gratuite sur https://piste.gouv.fr puis ajouter PISTE_KEY_ID.";
   }
 
   try {
