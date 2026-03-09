@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { ParsedAnalysis } from "@/lib/parse-analysis";
+import { ParsedAnalysis, EvidenceTable as EvidenceTableData } from "@/lib/parse-analysis";
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,6 +25,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
+  Table,
 } from "lucide-react";
 import {
   BarChart,
@@ -1536,6 +1537,142 @@ function SlideFiabilite({ data }: { data: ParsedAnalysis }) {
 }
 
 // ════════════════════════════════════════════
+// ════════════════════════════════════════════
+// SLIDE — TABLEAU DE PREUVE
+// ════════════════════════════════════════════
+
+function SlideEvidenceTable({ table }: { table: EvidenceTableData }) {
+  // Show max 8 rows in the slide for readability
+  const displayRows = table.rows.slice(0, 8);
+  const hasMore = table.rows.length > 8;
+
+  // Show max 7 columns for space
+  const displayHeaders = table.headers.slice(0, 7);
+
+  // Compute pertinence stats
+  const pertCol = table.headers.find((h) => h.toLowerCase().includes("pertinence"));
+  let favorable = 0;
+  let defavorable = 0;
+  if (pertCol) {
+    for (const row of table.rows) {
+      const v = (row[pertCol] || "").toLowerCase();
+      if (v.includes("favorable") && !v.includes("defavorable") && !v.includes("défavorable")) favorable++;
+      else if (v.includes("defavorable") || v.includes("défavorable")) defavorable++;
+    }
+  }
+
+  return (
+    <Slide>
+      <div className="flex flex-1 flex-col px-8 py-8" style={{ backgroundColor: "#fafaf9" }}>
+        {/* Header */}
+        <div className="mb-4" style={{ animation: "slideUp 0.5s ease-out" }}>
+          <p
+            className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em]"
+            style={{ color: GOLD }}
+          >
+            Preuve statistique
+          </p>
+          <h2 className="font-serif text-2xl font-bold tracking-tight" style={{ color: NAVY }}>
+            Tableau des decisions analysees
+          </h2>
+          <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
+            <span><span className="font-bold" style={{ color: NAVY }}>{table.rows.length}</span> decisions</span>
+            {pertCol && (
+              <>
+                <span><span className="font-bold" style={{ color: EMERALD }}>{favorable}</span> favorables</span>
+                <span><span className="font-bold" style={{ color: BORDEAUX }}>{defavorable}</span> defavorables</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Mini table */}
+        <div
+          className="flex-1 overflow-hidden rounded-xl border"
+          style={{ borderColor: `${NAVY}15`, animation: "fadeIn 0.6s ease-out 0.2s both" }}
+        >
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr style={{ backgroundColor: `${NAVY}06` }}>
+                {displayHeaders.map((h) => (
+                  <th
+                    key={h}
+                    className="whitespace-nowrap px-3 py-2 text-left text-[9px] font-bold uppercase tracking-wider"
+                    style={{ color: `${NAVY}80` }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {displayRows.map((row, i) => (
+                <tr
+                  key={i}
+                  className="border-t"
+                  style={{ borderColor: `${NAVY}08` }}
+                >
+                  {displayHeaders.map((h) => {
+                    const val = row[h] || "";
+                    const isPert = h.toLowerCase().includes("pertinence");
+                    const pertColor = isPert
+                      ? val.toLowerCase().includes("favorable") && !val.toLowerCase().includes("defavorable")
+                        ? EMERALD
+                        : val.toLowerCase().includes("defavorable") || val.toLowerCase().includes("défavorable")
+                          ? BORDEAUX
+                          : AMBER
+                      : undefined;
+
+                    return (
+                      <td key={h} className="whitespace-nowrap px-3 py-1.5 text-gray-600">
+                        {isPert ? (
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                            style={{ color: pertColor, backgroundColor: `${pertColor}10` }}
+                          >
+                            {val}
+                          </span>
+                        ) : (
+                          <span className="truncate max-w-[150px] inline-block">{val}</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {hasMore && (
+          <p className="mt-2 text-center text-[10px] text-gray-400">
+            ... et {table.rows.length - 8} decisions supplementaires (voir onglet Tableau pour le detail complet)
+          </p>
+        )}
+
+        {/* Synthesis */}
+        {table.synthese && (
+          <div
+            className="mt-3 rounded-xl p-3"
+            style={{
+              backgroundColor: `${GOLD}06`,
+              border: `1px solid ${GOLD}20`,
+              animation: "slideUp 0.4s ease-out 0.5s both",
+            }}
+          >
+            <p className="text-[10px] font-semibold" style={{ color: GOLD }}>
+              Ce que cela signifie pour votre dossier
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              {table.interpretation || table.synthese}
+            </p>
+          </div>
+        )}
+      </div>
+    </Slide>
+  );
+}
+
 // SLIDE 12 — SYNTHESE & CTA
 // ════════════════════════════════════════════
 
@@ -1775,17 +1912,22 @@ function useSlides(data: ParsedAnalysis, query: string): React.ReactNode[] {
       slides.push(<SlideDecisionsCles key="decisions" data={data} />);
     }
 
-    // 10. Recommandation — if we have one
+    // 10. Evidence table — if available
+    if (data.evidenceTable && data.evidenceTable.rows.length > 0) {
+      slides.push(<SlideEvidenceTable key="evidence" table={data.evidenceTable} />);
+    }
+
+    // 11. Recommandation — if we have one
     if (data.recommandation) {
       slides.push(<SlideRecommandation key="recommandation" data={data} />);
     }
 
-    // 11. Fiabilite & Limites
+    // 12. Fiabilite & Limites
     if (data.fiabilite.score > 0) {
       slides.push(<SlideFiabilite key="fiabilite" data={data} />);
     }
 
-    // 12. Synthese — always present (closing slide)
+    // 13. Synthese — always present (closing slide)
     slides.push(<SlideSynthese key="synthese" data={data} />);
 
     return slides;

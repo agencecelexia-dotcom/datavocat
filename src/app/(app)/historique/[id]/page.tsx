@@ -13,6 +13,7 @@ import {
   Presentation,
   FileDown,
   BookOpen,
+  Table,
   ExternalLink,
   ShieldCheck,
   ShieldAlert,
@@ -29,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { AnalysisChat } from "@/components/analysis/chat";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisSlides } from "@/components/analysis/slides";
+import { EvidenceTable } from "@/components/analysis/evidence-table";
 import { formatMarkdownSafe } from "@/lib/format-markdown";
 import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
 import { CopyMarkdown } from "@/components/ui/copy-markdown";
@@ -48,7 +50,7 @@ export default function AnalysisDetailPage() {
   const { id } = useParams();
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState<"text" | "dashboard" | "slides">("text");
+  const [activeView, setActiveView] = useState<"text" | "dashboard" | "slides" | "tableau">("text");
   const [showSources, setShowSources] = useState(false);
   // Jugement final state
   const [jugementOpen, setJugementOpen] = useState(false);
@@ -184,6 +186,7 @@ export default function AnalysisDetailPage() {
               { key: "text" as const, label: "Rapport", icon: FileText },
               { key: "dashboard" as const, label: "Dashboard", icon: BarChart3 },
               { key: "slides" as const, label: "Slides", icon: Presentation },
+              { key: "tableau" as const, label: "Tableau", icon: Table },
             ]).map((tab) => (
               <button
                 key={tab.key}
@@ -218,6 +221,8 @@ export default function AnalysisDetailPage() {
                   <FileText className="h-3 w-3 text-[#1e3a5f]" />
                 ) : activeView === "dashboard" ? (
                   <BarChart3 className="h-3 w-3 text-[#1e3a5f]" />
+                ) : activeView === "tableau" ? (
+                  <Table className="h-3 w-3 text-[#1e3a5f]" />
                 ) : (
                   <Presentation className="h-3 w-3 text-[#1e3a5f]" />
                 )}
@@ -227,7 +232,9 @@ export default function AnalysisDetailPage() {
                   ? "Rapport d'analyse"
                   : activeView === "dashboard"
                     ? "Dashboard jurimétrique"
-                    : "Présentation"}
+                    : activeView === "tableau"
+                      ? "Tableau de preuve"
+                      : "Présentation"}
               </span>
               <span className="text-muted-foreground/50">|</span>
               <span>Datavocat</span>
@@ -269,6 +276,17 @@ export default function AnalysisDetailPage() {
         ) : activeView === "slides" && parsedData ? (
           <div className="animate-fade-in-up">
             <AnalysisSlides data={parsedData} query={analysis.query} />
+          </div>
+        ) : activeView === "tableau" && parsedData && parsedData.evidenceTable ? (
+          <div className="animate-fade-in-up p-3 sm:p-6">
+            <EvidenceTable data={parsedData.evidenceTable} />
+          </div>
+        ) : activeView === "tableau" && parsedData && !parsedData.evidenceTable ? (
+          <div className="flex items-center justify-center p-12 text-center">
+            <div>
+              <Table className="mx-auto h-10 w-10 text-slate-300 mb-3" />
+              <p className="text-sm text-slate-500">Aucun tableau de preuve disponible pour cette analyse.</p>
+            </div>
           </div>
         ) : !analysis.response ? (
           <div className="flex items-center justify-center p-12">

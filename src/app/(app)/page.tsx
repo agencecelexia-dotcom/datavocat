@@ -21,6 +21,7 @@ import {
   Brain,
   ExternalLink,
   BookOpen,
+  Table,
   ShieldCheck,
   ShieldAlert,
   ShieldX,
@@ -31,6 +32,7 @@ import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisSlides } from "@/components/analysis/slides";
 import { AnalysisChat } from "@/components/analysis/chat";
 import { SourcesAnnex } from "@/components/analysis/sources-annex";
+import { EvidenceTable } from "@/components/analysis/evidence-table";
 import { formatMarkdownSafe } from "@/lib/format-markdown";
 import { CopyMarkdown } from "@/components/ui/copy-markdown";
 
@@ -68,7 +70,7 @@ export default function AnalyzePage() {
   const [response, setResponse] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<
-    "text" | "dashboard" | "slides" | "sources"
+    "text" | "dashboard" | "slides" | "sources" | "tableau"
   >("text");
   const [showSources, setShowSources] = useState(false);
   const responseRef = useRef<HTMLDivElement>(null);
@@ -530,6 +532,11 @@ export default function AnalyzePage() {
                     icon: Presentation,
                   },
                   {
+                    key: "tableau" as const,
+                    label: "Tableau",
+                    icon: Table,
+                  },
+                  {
                     key: "sources" as const,
                     label: "Sources",
                     icon: BookOpen,
@@ -567,10 +574,10 @@ export default function AnalyzePage() {
               <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/30 bg-card/95 px-3 py-2 backdrop-blur-sm sm:px-5 sm:py-2.5">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <div className="flex h-5 w-5 items-center justify-center rounded bg-[#1e3a5f]/10">
-                    {activeView === "text" ? <FileText className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "dashboard" ? <BarChart3 className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "sources" ? <BookOpen className="h-3 w-3 text-[#1e3a5f]" /> : <Presentation className="h-3 w-3 text-[#1e3a5f]" />}
+                    {activeView === "text" ? <FileText className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "dashboard" ? <BarChart3 className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "sources" ? <BookOpen className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "tableau" ? <Table className="h-3 w-3 text-[#1e3a5f]" /> : <Presentation className="h-3 w-3 text-[#1e3a5f]" />}
                   </div>
                   <span className="hidden font-medium text-foreground sm:inline">
-                    {activeView === "text" ? "Rapport d'analyse" : activeView === "dashboard" ? "Dashboard jurimetrique" : activeView === "sources" ? "Annexe des sources" : "Presentation"}
+                    {activeView === "text" ? "Rapport d'analyse" : activeView === "dashboard" ? "Dashboard jurimetrique" : activeView === "sources" ? "Annexe des sources" : activeView === "tableau" ? "Tableau de preuve" : "Presentation"}
                   </span>
                   <span className="hidden text-muted-foreground/50 sm:inline">|</span>
                   <span className="hidden sm:inline">Datavocat</span>
@@ -623,6 +630,22 @@ export default function AnalyzePage() {
             {activeView === "slides" && phase === "done" && parsedData && (
               <div className="animate-fade-in-up">
                 <AnalysisSlides data={parsedData} query={query} />
+              </div>
+            )}
+
+            {/* Evidence table view */}
+            {activeView === "tableau" && phase === "done" && parsedData && parsedData.evidenceTable && (
+              <div className="animate-fade-in-up p-3 sm:p-6">
+                <EvidenceTable data={parsedData.evidenceTable} />
+              </div>
+            )}
+            {activeView === "tableau" && phase === "done" && parsedData && !parsedData.evidenceTable && (
+              <div className="flex flex-1 items-center justify-center p-12 text-center">
+                <div>
+                  <Table className="mx-auto h-10 w-10 text-slate-300 mb-3" />
+                  <p className="text-sm text-slate-500">Aucun tableau de preuve disponible pour cette analyse.</p>
+                  <p className="mt-1 text-xs text-slate-400">Le tableau est genere automatiquement lors de l&apos;analyse.</p>
+                </div>
               </div>
             )}
 
