@@ -99,11 +99,12 @@ ${sourceInstruction}
 Analyse cette demande en suivant la structure definie dans ton systeme prompt.
 Fournis une analyse RICHE avec des statistiques, des decisions cles, et des recommandations strategiques concretes (toujours au pluriel).
 Cite les references les plus precises possibles (ECLI, numeros de pourvoi, dates).
-IMPORTANT : cite un MAXIMUM de sources pertinentes. Analyse TOUTES les decisions Judilibre fournies ci-dessus et complete avec tes connaissances. Ne cite que des decisions reelles.`;
+IMPORTANT : cite un MAXIMUM de sources pertinentes. Analyse TOUTES les decisions Judilibre fournies ci-dessus et complete avec tes connaissances. Ne cite que des decisions reelles.
+TABLEAU DE PREUVE : le tableau de preuve statistique doit contenir un MINIMUM de 15 decisions (lignes) et 15 colonnes (facteurs decisifs). Privilegie les decisions RECENTES (moins de 5 ans). Ne fabrique JAMAIS de fausses decisions.`;
 
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 16000,
+    max_tokens: 24000,
     system: DATAVOCAT_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
