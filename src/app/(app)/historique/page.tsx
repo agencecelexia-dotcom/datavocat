@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Clock, FileText, Scale, ArrowRight, Gavel, ChevronRight } from "lucide-react";
+import { Clock, FileText, Scale, ArrowRight, Gavel, ChevronRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Analysis {
@@ -57,6 +57,7 @@ function SkeletonRow({ delay }: { delay: number }) {
 export default function HistoriquePage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/analyses?limit=50")
@@ -67,6 +68,21 @@ export default function HistoriquePage() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Supprimer cette analyse ? Cette action est irreversible.")) return;
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/analyses/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setAnalyses((prev) => prev.filter((a) => a.id !== id));
+      }
+    } catch {
+      // silent
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4">
@@ -120,69 +136,85 @@ export default function HistoriquePage() {
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {analyses.map((a, i) => (
-            <Link
+            <div
               key={a.id}
-              href={`/historique/${a.id}`}
               className={`group flex items-center gap-4 px-5 py-3.5 transition-colors duration-150 hover:bg-slate-50 ${
                 i > 0 ? "border-t border-slate-100" : ""
               }`}
             >
-              {/* Icon */}
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]/5 transition-colors group-hover:bg-[#1e3a5f]/10">
-                <FileText className="h-4 w-4 text-[#1e3a5f]/60" />
-              </div>
-
-              {/* Content */}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-800 group-hover:text-[#1e3a5f]">
-                  {cleanQuery(a.query)}
-                </p>
-                <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                  <Clock className="h-3 w-3" />
-                  <span>{formatDate(a.created_at)}</span>
-                  <span className="text-slate-300">·</span>
-                  <span>{formatTime(a.created_at)}</span>
+              {/* Link area (icon + content + badges + chevron) */}
+              <Link
+                href={`/historique/${a.id}`}
+                className="flex min-w-0 flex-1 items-center gap-4"
+              >
+                {/* Icon */}
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]/5 transition-colors group-hover:bg-[#1e3a5f]/10">
+                  <FileText className="h-4 w-4 text-[#1e3a5f]/60" />
                 </div>
-              </div>
 
-              {/* Badges */}
-              <div className="flex shrink-0 items-center gap-2">
-                {a.jugement_resultat && (
-                  <span
-                    className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                      a.jugement_resultat === "favorable"
-                        ? "bg-emerald-50 text-emerald-700"
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-800 group-hover:text-[#1e3a5f]">
+                    {cleanQuery(a.query)}
+                  </p>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                    <Clock className="h-3 w-3" />
+                    <span>{formatDate(a.created_at)}</span>
+                    <span className="text-slate-300">&middot;</span>
+                    <span>{formatTime(a.created_at)}</span>
+                  </div>
+                </div>
+
+                {/* Badges */}
+                <div className="hidden shrink-0 items-center gap-2 sm:flex">
+                  {a.jugement_resultat && (
+                    <span
+                      className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                        a.jugement_resultat === "favorable"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : a.jugement_resultat === "partiellement_favorable"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-rose-50 text-rose-700"
+                      }`}
+                    >
+                      <Gavel className="h-3 w-3" />
+                      {a.jugement_resultat === "favorable"
+                        ? "Favorable"
                         : a.jugement_resultat === "partiellement_favorable"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-rose-50 text-rose-700"
+                          ? "Partiel"
+                          : "Defavorable"}
+                    </span>
+                  )}
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                      a.status === "done"
+                        ? "bg-emerald-50 text-emerald-600"
+                        : a.status === "error"
+                          ? "bg-rose-50 text-rose-600"
+                          : "bg-slate-100 text-slate-500"
                     }`}
                   >
-                    <Gavel className="h-3 w-3" />
-                    {a.jugement_resultat === "favorable"
-                      ? "Favorable"
-                      : a.jugement_resultat === "partiellement_favorable"
-                        ? "Partiel"
-                        : "Defavorable"}
-                  </span>
-                )}
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                    a.status === "done"
-                      ? "bg-emerald-50 text-emerald-600"
+                    {a.status === "done"
+                      ? "Termine"
                       : a.status === "error"
-                        ? "bg-rose-50 text-rose-600"
-                        : "bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  {a.status === "done"
-                    ? "Termine"
-                    : a.status === "error"
-                      ? "Erreur"
-                      : "En cours"}
-                </span>
-                <ChevronRight className="h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-400" />
-              </div>
-            </Link>
+                        ? "Erreur"
+                        : "En cours"}
+                  </span>
+                </div>
+
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-400" />
+              </Link>
+
+              {/* Delete button */}
+              <button
+                onClick={() => handleDelete(a.id)}
+                disabled={deleting === a.id}
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-300 opacity-0 transition-all hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100 disabled:opacity-50"
+                title="Supprimer"
+              >
+                <Trash2 className={`h-3.5 w-3.5 ${deleting === a.id ? "animate-pulse" : ""}`} />
+              </button>
+            </div>
           ))}
         </div>
       )}
