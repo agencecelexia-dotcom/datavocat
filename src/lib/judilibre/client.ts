@@ -292,7 +292,7 @@ export async function searchJudilibreForAnalysis(
         operator: "or",
         sort: "score",
         order: "desc",
-        pageSize: 20,
+        pageSize: 30,
         chamber,
       }).catch(() => ({ results: [], total: 0, query: q } as JudilibreSearchResult))
     );
@@ -304,7 +304,7 @@ export async function searchJudilibreForAnalysis(
         operator: "or",
         sort: "score",
         order: "desc",
-        pageSize: 20,
+        pageSize: 30,
       }).catch(() => ({ results: [], total: 0, query: userQuery } as JudilibreSearchResult))
     );
 
@@ -361,8 +361,8 @@ export async function searchJudilibreForAnalysis(
       return `Judilibre : aucune decision trouvee. Recherches tentees : ${searchQueries.join(" | ")}`;
     }
 
-    // Take the top 40 unique decisions for richer statistical analysis
-    const topDecisions = uniqueDecisions.slice(0, 40);
+    // Take the top 60 unique decisions for richer statistical analysis
+    const topDecisions = uniqueDecisions.slice(0, 60);
 
     return formatJudilibreResults({
       results: topDecisions,

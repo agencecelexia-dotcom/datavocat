@@ -98,11 +98,12 @@ ${sourceBlock}
 ${sourceInstruction}
 Analyse cette demande en suivant la structure definie dans ton systeme prompt.
 Fournis une analyse RICHE avec des statistiques, des decisions cles, et des recommandations strategiques concretes.
-Cite les references les plus precises possibles (ECLI, numeros de pourvoi, dates).`;
+Cite les references les plus precises possibles (ECLI, numeros de pourvoi, dates).
+IMPORTANT : cite un MAXIMUM de sources (au moins 15-20 decisions dans l'annexe). Analyse TOUTES les decisions Judilibre fournies ci-dessus et complete avec tes connaissances.`;
 
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 12000,
+    max_tokens: 16000,
     system: DATAVOCAT_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
