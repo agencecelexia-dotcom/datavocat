@@ -48,6 +48,7 @@ export interface EvidenceTable {
   synthese: string;
   periode: string;
   interpretation: string;
+  facteursDeterminants: string;
 }
 
 export interface ParsedAnalysis {
@@ -560,6 +561,7 @@ function extractEvidenceTable(text: string): EvidenceTable | null {
   const syntheseMatch = afterTable.match(/synth[eè]se\s*(?:du\s+tableau)?\s*[:：]\s*(.+)/i);
   const periodeMatch = afterTable.match(/p[eé]riode\s*(?:couverte)?\s*[:：]\s*(.+)/i);
   const interpreMatch = afterTable.match(/(?:ce\s+que\s+cela\s+signifie|signification)\s*(?:pour\s+votre\s+dossier)?\s*[:：]\s*(.+)/i);
+  const facteursMatch = afterTable.match(/facteurs?\s*d[eé]terminants?\s*[:：]\s*(.+)/i);
 
   return {
     headers,
@@ -567,6 +569,7 @@ function extractEvidenceTable(text: string): EvidenceTable | null {
     synthese: syntheseMatch ? syntheseMatch[1].trim().replace(/\*{1,2}/g, "") : "",
     periode: periodeMatch ? periodeMatch[1].trim().replace(/\*{1,2}/g, "") : "",
     interpretation: interpreMatch ? interpreMatch[1].trim().replace(/\*{1,2}/g, "") : "",
+    facteursDeterminants: facteursMatch ? facteursMatch[1].trim().replace(/\*{1,2}/g, "") : "",
   };
 }
 
@@ -601,6 +604,7 @@ function buildEvidenceTableFromSources(sources: DetailedSource[]): EvidenceTable
     synthese: `Sur ${sources.length} decisions, ${favorable} favorables (${pctFav}%), ${defavorable} defavorables, ${nuance} nuancees.`,
     periode,
     interpretation: "",
+    facteursDeterminants: "",
   };
 }
 
@@ -623,6 +627,7 @@ function buildEvidenceTableFromBasicSources(sources: SourceReference[]): Evidenc
     synthese: `${sources.length} decisions de justice identifiees et referencees.`,
     periode: "",
     interpretation: "",
+    facteursDeterminants: "",
   };
 }
 

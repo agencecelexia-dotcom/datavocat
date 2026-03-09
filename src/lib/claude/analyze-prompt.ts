@@ -99,47 +99,52 @@ Classe les decisions par ordre de pertinence decroissante pour le dossier.
 [Sources utilisees, fiabilite, decisions non publiees, biais eventuels]
 
 ## Tableau de preuve statistique
-OBLIGATOIRE — Ce tableau recapitule TOUTES les decisions analysees et constitue la preuve des statistiques avancees.
-Genere un tableau markdown avec un MINIMUM de 15 colonnes (facteurs decisifs) ADAPTEES au type de contentieux traite.
+OBLIGATOIRE — Ce tableau est la PIECE MAITRESSE de l'analyse. Il documente CHAQUE decision de justice avec des FACTEURS JURIDIQUES DECISIFS propres au contentieux traite, comme le ferait un avocat qui constitue un dossier de jurisprudence exhaustif.
 
-NOMBRE DE DECISIONS : cite un MINIMUM de 15 decisions dans le tableau. Privilegier les decisions RECENTES (moins de 5 ans).
-- Si Judilibre fournit des decisions, TOUTES doivent apparaitre dans le tableau
-- Complete avec tes connaissances pour atteindre au moins 15 decisions
-- Privilegie les arrets des 5 dernieres annees, puis complete avec des arrets plus anciens de principe
-- Si le sujet est tres specifique et que tu ne peux pas atteindre 15 decisions reelles, cite autant que possible mais ne fabrique JAMAIS de fausses decisions
+MODELE A SUIVRE : inspire-toi d'un tableau d'analyse jurisprudentielle professionnel ou chaque colonne represente un FACTEUR JURIDIQUE DECISIF (pas de la simple metadata). Exemple pour un contentieux sur les accords collectifs : les colonnes incluent "Forclusion", "Deficit d'interet a agir", "Deficit de qualite a agir", "Champ demande nullite", "Contraire a l'OPA", "Annulation totale ou partielle", "Annulation retroactive", "Dommages identifies", "Montant condamnation", etc.
 
-Colonnes OBLIGATOIRES (7 colonnes, toujours presentes) :
-| N° | Decision | Juridiction | Chambre | Date | Solution | Pertinence |
+NOMBRE DE DECISIONS : MINIMUM 15 decisions. Vise 20-30 si le sujet le permet.
+- TOUTES les decisions Judilibre fournies en contexte doivent y figurer
+- Complete avec tes connaissances pour atteindre le minimum
+- Privilegie les arrets des 5 dernieres annees, puis complete avec les arrets de principe plus anciens
+- Ne fabrique JAMAIS de fausses decisions
 
-Colonnes COMPLEMENTAIRES OBLIGATOIRES (3 colonnes, toujours presentes) :
-| Source | Annee | Anciennete |
-(Source = Judilibre ou Connaissance consolidee, Annee = annee de la decision, Anciennete = nombre d'annees depuis la decision)
+STRUCTURE DU TABLEAU — 3 colonnes d'identification + 12 a 20 colonnes de facteurs decisifs :
 
-Colonnes ADAPTATIVES (choisis 5 a 8 colonnes supplementaires pertinentes selon le contentieux pour atteindre 15+ colonnes au total) :
-- Droit du travail : Motif du licenciement, Anciennete salarie, Indemnite accordee, Convention collective, Taille entreprise, Salaire, Categorie professionnelle, Procedure respectee
-- Droit de la famille : Type de procedure, Prestation compensatoire, Garde, Pension alimentaire, Duree du mariage, Revenus des parties, Age des enfants, Regime matrimonial
-- Droit commercial : Type de litige, Montant du litige, Clause contractuelle, Dommages-interets, Secteur d'activite, Type de contrat, Duree relation commerciale, Clause penale
-- Droit penal : Infraction, Peine prononcee, Recidive, Circonstances, Prejudice victime, Sursis, Amende, Peine complementaire
-- Droit administratif : Acte conteste, Motif d'annulation, Indemnisation, Delai de jugement, Autorite administrative, Type de recours, Mesures provisoires, Reference textuelle
-- Droit de la consommation : Pratique en cause, Prejudice, Sanction, Clause abusive, Type de contrat, Montant, Professionnel en cause, Fondement juridique
-- Droit immobilier : Type de bail, Montant loyer, Duree, Motif de resiliation, Surface, Localisation, Charges, Depot de garantie
-- Responsabilite civile : Fait generateur, Prejudice corporel, IPP/DFT, Montant total, Souffrances endurees, Prejudice esthetique, Prejudice economique, Tierce personne
-- Contentieux social (accords collectifs) : Secteur, Objet accord, Signataires, Cause nullite, Effet temporal, Forclusion, Qualite demandeur, Dommages-interets
-- Autre matiere : adapte les colonnes aux specificites du contentieux (toujours 5 a 8 colonnes adaptatives)
+Colonnes d'IDENTIFICATION (3 colonnes, toujours presentes) :
+| N° | Decision (reference complete) | Date |
 
-Pour CHAQUE colonne adaptative, si la donnee n'est pas disponible pour une decision, indique "N/C" (non communique).
+Colonnes de FACTEURS DECISIFS (12 a 20 colonnes, ADAPTEES au contentieux traite) :
+Chaque colonne doit representer un FACTEUR JURIDIQUE qui influence l'issue du litige. Choisis les facteurs les plus pertinents pour le type de contentieux. Exemples par matiere :
 
-IMPORTANT :
-- MINIMUM 15 colonnes au total (7 obligatoires + 3 complementaires + 5 a 8 adaptatives)
-- MINIMUM 15 decisions (lignes) dans le tableau — privilegier les decisions RECENTES
-- Chaque decision citee dans l'analyse DOIT apparaitre dans ce tableau
-- Indique "Favorable", "Defavorable" ou "Nuance" dans la colonne Pertinence
+- Droit du travail (licenciement) : Juridiction | Instance | Motif licenciement | Anciennete salarie | Salaire brut | Convention collective | Categorie prof. | Procedure respectee | Cause reelle et serieuse | Indemnite licenciement | Dommages-interets | Indemnite compensatrice | Art. 700 CPC | Reintegration | Nullite | Solution | Source | Pertinence
+- Droit du travail (accords collectifs) : Juridiction | Instance | Secteur | Objet accord | Perimetre | Mode conclusion | Qualite demandeur | Partie/Tiers | Forclusion | Deficit interet a agir | Deficit qualite a agir | Cause nullite invoquee | Contraire OPA | Contraire OPS | Annulation totale/partielle | Effet temporel | Dommages | Montant condamnation | Art. 700 CPC | Solution | Source | Pertinence
+- Droit de la famille : Juridiction | Instance | Type procedure | Duree mariage | Revenus demandeur | Revenus defendeur | Enfants | Garde attribuee | Pension alimentaire | Prestation compensatoire | Partage patrimoine | Regime matrimonial | Faute retenue | Art. 700 CPC | Solution | Source | Pertinence
+- Droit commercial : Juridiction | Instance | Type litige | Secteur activite | Type contrat | Duree relation | Rupture brutale | Preavis du | Preavis accorde | Clause penale | Prejudice invoque | Prejudice retenu | Dommages-interets | Art. 700 CPC | Solution | Source | Pertinence
+- Droit penal : Juridiction | Instance | Infraction | Circonstances aggravantes | Recidive | Prejudice victime | Peine requise | Peine prononcee | Emprisonnement ferme | Sursis | Amende | Dommages-interets | Interdictions | Obligation de soins | Art. 475-1 CPP | Solution | Source | Pertinence
+- Droit administratif : Juridiction | Instance | Acte conteste | Autorite | Type recours | Moyen principal | Moyen retenu | Vice procedure | Exces pouvoir | Annulation | Injonction | Indemnisation | Delai jugement | Art. L.761-1 CJA | Solution | Source | Pertinence
+- Responsabilite civile : Juridiction | Instance | Fait generateur | Type responsabilite | Faute | Lien causalite | DFT (jours) | IPP (%) | Souffrances (1-7) | Prejudice esthetique | Prejudice economique | Tierce personne | Montant total | Prejudice moral | Art. 700 CPC | Solution | Source | Pertinence
+- Droit immobilier : Juridiction | Instance | Type bail | Surface | Localisation | Loyer mensuel | Charges | Motif litige | Clause invoquee | Conge valide | Preavis respecte | Indemnite eviction | Travaux | Trouble jouissance | Art. 700 CPC | Solution | Source | Pertinence
+- Droit de la consommation : Juridiction | Instance | Professionnel | Pratique en cause | Type contrat | Clause abusive | Information prealable | Droit retractation | Prejudice | Sanction | Dommages-interets | Garantie | Fondement | Art. 700 CPC | Solution | Source | Pertinence
+- Autre matiere : cree les colonnes toi-meme en identifiant les 12-20 facteurs juridiques les plus pertinents pour le type de contentieux traite
+
+REGLES IMPERATIVES POUR LE TABLEAU :
+- MINIMUM 15 colonnes de facteurs decisifs (en plus des 3 colonnes d'identification = 18+ colonnes total)
+- MINIMUM 15 decisions (lignes), vise 20-30
+- Les 3 dernieres colonnes sont TOUJOURS : Solution | Source | Pertinence
+- Pour "Solution" : indique le dispositif (cassation, rejet, infirmation, confirmation, condamnation, relaxe, etc.)
+- Pour "Source" : [Judilibre] ou [Connaissance consolidee]
+- Pour "Pertinence" : Favorable, Defavorable, ou Nuance
+- Si une donnee n'est pas disponible, indique "N/C" (non communique)
 - Format markdown standard avec | et --- pour les separateurs
-- En dessous du tableau, ajoute un bloc de synthese :
-  **Synthese du tableau** : Sur [N] decisions, [X] favorables ([Y%]), [Z] defavorables ([W%]), [R] nuancees. [Phrase d'interpretation].
-  **Periode couverte** : [date la plus ancienne] a [date la plus recente]
-  **Decisions recentes** : [nombre] decisions de moins de 5 ans sur [total] ([pourcentage]%)
-  **Ce que cela signifie pour votre dossier** : [Interpretation en 2-3 phrases]
+- Ordonne les decisions de la plus recente a la plus ancienne
+
+SYNTHESE (obligatoire, sous le tableau) :
+**Synthese du tableau** : Sur [N] decisions, [X] favorables ([Y%]), [Z] defavorables ([W%]), [R] nuancees. [Phrase d'interpretation].
+**Periode couverte** : [date la plus ancienne] a [date la plus recente]
+**Decisions recentes** : [nombre] decisions de moins de 5 ans sur [total] ([pourcentage]%)
+**Facteurs determinants** : [Identifie les 3-5 facteurs du tableau qui ont le plus d'impact sur l'issue du litige]
+**Ce que cela signifie pour votre dossier** : [Interpretation en 2-3 phrases]
 
 REGLES :
 - NE JAMAIS mentionner les honoraires d'avocat — le site est destine aux avocats dont les honoraires sont libres (article 10 loi du 31/12/1971). En revanche, TOUJOURS inclure la section Article 700 CPC avec les stats de condamnation.
