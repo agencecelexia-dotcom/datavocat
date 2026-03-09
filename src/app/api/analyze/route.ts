@@ -6,7 +6,7 @@ import { DATAVOCAT_SYSTEM_PROMPT } from "@/lib/claude/analyze-prompt";
 import { searchJudilibreForAnalysis } from "@/lib/judilibre/client";
 import { searchJusticeDatasets } from "@/lib/datagouv/mcp-client";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   const { query, analysisId } = await request.json();
@@ -100,7 +100,17 @@ Analyse cette demande en suivant la structure definie dans ton systeme prompt.
 Fournis une analyse RICHE avec des statistiques, des decisions cles, et des recommandations strategiques concretes (toujours au pluriel).
 Cite les references les plus precises possibles (ECLI, numeros de pourvoi, dates).
 IMPORTANT : cite un MAXIMUM de sources pertinentes. Analyse TOUTES les decisions Judilibre fournies ci-dessus et complete avec tes connaissances. Ne cite que des decisions reelles.
-TABLEAU DE PREUVE STATISTIQUE : C'est la piece maitresse. Le tableau doit contenir un MINIMUM de 15 decisions (vise 20-30) et MINIMUM 18 colonnes dont 12+ colonnes de FACTEURS JURIDIQUES DECISIFS propres au contentieux (PAS de simple metadata). Chaque colonne = un facteur qui influence l'issue du litige. Privilegie les decisions RECENTES (moins de 5 ans). Ne fabrique JAMAIS de fausses decisions.`;
+
+PRIORITE ABSOLUE — TABLEAU DE PREUVE STATISTIQUE :
+Le tableau de preuve est la section LA PLUS IMPORTANTE. Il doit :
+1. Contenir MINIMUM 20 decisions (vise 25-30)
+2. Avoir MINIMUM 18 colonnes dont 12+ colonnes de FACTEURS JURIDIQUES DECISIFS
+3. Chaque colonne = un facteur qui influence l'issue du litige (ex: "Procedure respectee", "Cause reelle et serieuse", "Indemnite", "Forclusion", etc.)
+4. PAS de colonnes generiques inutiles — chaque colonne doit avoir une VALEUR JURIDIQUE DECISIVE
+5. Le tableau doit EXPLIQUER et JUSTIFIER les statistiques avancees (pourquoi X% de succes)
+6. Privilegier les decisions RECENTES (moins de 5 ans)
+7. Ne JAMAIS fabriquer de fausses decisions
+Sois EXHAUSTIF dans le tableau — c'est la preuve statistique pour l'avocat.`;
 
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",
