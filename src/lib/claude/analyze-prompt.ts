@@ -100,31 +100,45 @@ Classe les decisions par ordre de pertinence decroissante pour le dossier.
 
 ## Tableau de preuve statistique
 OBLIGATOIRE — Ce tableau recapitule TOUTES les decisions analysees et constitue la preuve des statistiques avancees.
-Genere un tableau markdown avec des colonnes ADAPTEES au type de contentieux traite.
+Genere un tableau markdown avec un MINIMUM de 15 colonnes (facteurs decisifs) ADAPTEES au type de contentieux traite.
 
-Colonnes OBLIGATOIRES (toujours presentes) :
-| N° | Decision | Juridiction | Date | Solution | Pertinence | Source |
+NOMBRE DE DECISIONS : cite un MINIMUM de 15 decisions dans le tableau. Privilegier les decisions RECENTES (moins de 5 ans).
+- Si Judilibre fournit des decisions, TOUTES doivent apparaitre dans le tableau
+- Complete avec tes connaissances pour atteindre au moins 15 decisions
+- Privilegie les arrets des 5 dernieres annees, puis complete avec des arrets plus anciens de principe
+- Si le sujet est tres specifique et que tu ne peux pas atteindre 15 decisions reelles, cite autant que possible mais ne fabrique JAMAIS de fausses decisions
 
-Colonnes ADAPTATIVES (choisis 3 a 6 colonnes supplementaires pertinentes selon le contentieux) :
-- Droit du travail : Motif du licenciement, Anciennete, Indemnite accordee, Convention collective, Taille entreprise
-- Droit de la famille : Type de procedure, Prestation compensatoire, Garde, Pension alimentaire
-- Droit commercial : Type de litige, Montant du litige, Clause contractuelle, Dommages-interets
-- Droit penal : Infraction, Peine prononcee, Recidive, Circonstances
-- Droit administratif : Acte conteste, Motif d'annulation, Indemnisation, Delai de jugement
-- Droit de la consommation : Pratique en cause, Prejudice, Sanction, Clause abusive
-- Droit immobilier : Type de bail, Montant, Duree, Motif de resiliation
-- Responsabilite civile : Fait generateur, Prejudice corporel, IPP/DFT, Montant total
-- Contentieux social (accords collectifs) : Secteur, Objet accord, Signataires, Cause nullite, Effet temporal
-- Autre matiere : adapte les colonnes aux specificites du contentieux
+Colonnes OBLIGATOIRES (7 colonnes, toujours presentes) :
+| N° | Decision | Juridiction | Chambre | Date | Solution | Pertinence |
+
+Colonnes COMPLEMENTAIRES OBLIGATOIRES (3 colonnes, toujours presentes) :
+| Source | Annee | Anciennete |
+(Source = Judilibre ou Connaissance consolidee, Annee = annee de la decision, Anciennete = nombre d'annees depuis la decision)
+
+Colonnes ADAPTATIVES (choisis 5 a 8 colonnes supplementaires pertinentes selon le contentieux pour atteindre 15+ colonnes au total) :
+- Droit du travail : Motif du licenciement, Anciennete salarie, Indemnite accordee, Convention collective, Taille entreprise, Salaire, Categorie professionnelle, Procedure respectee
+- Droit de la famille : Type de procedure, Prestation compensatoire, Garde, Pension alimentaire, Duree du mariage, Revenus des parties, Age des enfants, Regime matrimonial
+- Droit commercial : Type de litige, Montant du litige, Clause contractuelle, Dommages-interets, Secteur d'activite, Type de contrat, Duree relation commerciale, Clause penale
+- Droit penal : Infraction, Peine prononcee, Recidive, Circonstances, Prejudice victime, Sursis, Amende, Peine complementaire
+- Droit administratif : Acte conteste, Motif d'annulation, Indemnisation, Delai de jugement, Autorite administrative, Type de recours, Mesures provisoires, Reference textuelle
+- Droit de la consommation : Pratique en cause, Prejudice, Sanction, Clause abusive, Type de contrat, Montant, Professionnel en cause, Fondement juridique
+- Droit immobilier : Type de bail, Montant loyer, Duree, Motif de resiliation, Surface, Localisation, Charges, Depot de garantie
+- Responsabilite civile : Fait generateur, Prejudice corporel, IPP/DFT, Montant total, Souffrances endurees, Prejudice esthetique, Prejudice economique, Tierce personne
+- Contentieux social (accords collectifs) : Secteur, Objet accord, Signataires, Cause nullite, Effet temporal, Forclusion, Qualite demandeur, Dommages-interets
+- Autre matiere : adapte les colonnes aux specificites du contentieux (toujours 5 a 8 colonnes adaptatives)
+
+Pour CHAQUE colonne adaptative, si la donnee n'est pas disponible pour une decision, indique "N/C" (non communique).
 
 IMPORTANT :
+- MINIMUM 15 colonnes au total (7 obligatoires + 3 complementaires + 5 a 8 adaptatives)
+- MINIMUM 15 decisions (lignes) dans le tableau — privilegier les decisions RECENTES
 - Chaque decision citee dans l'analyse DOIT apparaitre dans ce tableau
 - Indique "Favorable", "Defavorable" ou "Nuance" dans la colonne Pertinence
-- Ajoute une LIGNE DE SYNTHESE en bas du tableau avec les totaux/moyennes
 - Format markdown standard avec | et --- pour les separateurs
 - En dessous du tableau, ajoute un bloc de synthese :
   **Synthese du tableau** : Sur [N] decisions, [X] favorables ([Y%]), [Z] defavorables ([W%]), [R] nuancees. [Phrase d'interpretation].
   **Periode couverte** : [date la plus ancienne] a [date la plus recente]
+  **Decisions recentes** : [nombre] decisions de moins de 5 ans sur [total] ([pourcentage]%)
   **Ce que cela signifie pour votre dossier** : [Interpretation en 2-3 phrases]
 
 REGLES :

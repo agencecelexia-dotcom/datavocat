@@ -194,16 +194,26 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
         )}
       </div>
 
+      {/* Column count indicator */}
+      {data.headers.length > 10 && (
+        <p className="text-xs text-slate-400 flex items-center gap-1.5">
+          <Table className="h-3.5 w-3.5" />
+          {data.headers.length} colonnes — faites defiler horizontalement pour voir l&apos;ensemble des facteurs decisifs
+        </p>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" style={{ minWidth: data.headers.length > 8 ? `${data.headers.length * 140}px` : undefined }}>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {data.headers.map((header) => (
+              {data.headers.map((header, colIdx) => (
                 <th
                   key={header}
                   onClick={() => handleSort(header)}
-                  className="cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-700"
+                  className={`cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-700 ${
+                    colIdx === 0 ? "sticky left-0 z-10 bg-slate-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]" : ""
+                  }`}
                 >
                   <div className="flex items-center gap-1.5">
                     {header}
@@ -229,12 +239,19 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
                   i % 2 === 0 ? "bg-white" : "bg-slate-25"
                 }`}
               >
-                {data.headers.map((header) => {
+                {data.headers.map((header, colIdx) => {
                   const value = row[header] || "";
                   const isPertinence = header.toLowerCase().includes("pertinence");
+                  const isFirstCol = colIdx === 0;
+                  const bgClass = i % 2 === 0 ? "bg-white" : "bg-slate-25";
 
                   return (
-                    <td key={header} className="whitespace-nowrap px-4 py-3 text-slate-700">
+                    <td
+                      key={header}
+                      className={`whitespace-nowrap px-4 py-3 text-slate-700 ${
+                        isFirstCol ? `sticky left-0 z-10 ${bgClass} shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]` : ""
+                      }`}
+                    >
                       {isPertinence ? (
                         <div className="flex items-center gap-1.5">
                           {pertinenceIcon(value)}
