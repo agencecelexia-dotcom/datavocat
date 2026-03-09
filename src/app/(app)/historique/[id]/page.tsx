@@ -50,7 +50,7 @@ export default function AnalysisDetailPage() {
   const { id } = useParams();
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState<"text" | "dashboard" | "slides" | "tableau">("text");
+  const [activeView, setActiveView] = useState<"text" | "dashboard" | "tableau">("text");
   const [showSources, setShowSources] = useState(false);
   // Jugement final state
   const [jugementOpen, setJugementOpen] = useState(false);
@@ -185,7 +185,6 @@ export default function AnalysisDetailPage() {
             {([
               { key: "text" as const, label: "Rapport", icon: FileText },
               { key: "dashboard" as const, label: "Dashboard", icon: BarChart3 },
-              { key: "slides" as const, label: "Slides", icon: Presentation },
               { key: "tableau" as const, label: "Tableau", icon: Table },
             ]).map((tab) => (
               <button
@@ -221,20 +220,16 @@ export default function AnalysisDetailPage() {
                   <FileText className="h-3 w-3 text-[#1e3a5f]" />
                 ) : activeView === "dashboard" ? (
                   <BarChart3 className="h-3 w-3 text-[#1e3a5f]" />
-                ) : activeView === "tableau" ? (
-                  <Table className="h-3 w-3 text-[#1e3a5f]" />
                 ) : (
-                  <Presentation className="h-3 w-3 text-[#1e3a5f]" />
+                  <Table className="h-3 w-3 text-[#1e3a5f]" />
                 )}
               </div>
               <span className="font-medium text-foreground">
                 {activeView === "text"
                   ? "Rapport d'analyse"
                   : activeView === "dashboard"
-                    ? "Dashboard jurimétrique"
-                    : activeView === "tableau"
-                      ? "Tableau de preuve"
-                      : "Présentation"}
+                    ? "Dashboard jurimetrique"
+                    : "Tableau de preuve"}
               </span>
               <span className="text-muted-foreground/50">|</span>
               <span>Datavocat</span>
@@ -272,10 +267,6 @@ export default function AnalysisDetailPage() {
         ) : activeView === "dashboard" && parsedData ? (
           <div className="animate-fade-in-up p-3 sm:p-6">
             <AnalysisDashboard data={parsedData} />
-          </div>
-        ) : activeView === "slides" && parsedData ? (
-          <div className="animate-fade-in-up">
-            <AnalysisSlides data={parsedData} query={analysis.query} />
           </div>
         ) : activeView === "tableau" && parsedData && parsedData.evidenceTable ? (
           <div className="animate-fade-in-up p-3 sm:p-6">

@@ -125,27 +125,28 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
           Tableau de preuve statistique
         </h2>
         <p className="mt-2 text-sm text-slate-500 font-sans leading-relaxed">
-          Ce tableau recapitule l&apos;ensemble des decisions analysees et constitue la preuve
-          des statistiques presentees. Chaque ligne correspond a une decision de justice reelle.
+          Ce tableau recapitule l&apos;integralite des decisions de justice mobilisees dans l&apos;analyse
+          et constitue la base probatoire des statistiques presentees. Chaque ligne correspond
+          a une decision reelle, identifiee par sa reference (ECLI, n° de pourvoi ou reference Cass.).
         </p>
       </div>
 
       {/* Stats cards */}
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm" title="Nombre total de decisions de justice analysees dans le cadre de cette recherche jurimetrique">
             <p className="text-2xl font-bold" style={{ color: NAVY }}>{stats.total}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Decisions</p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Decisions analysees</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm" title="Decisions dont l'issue soutient la position juridique de votre client (demande accueillie, cassation favorable, etc.)">
             <p className="text-2xl font-bold" style={{ color: EMERALD }}>{stats.favorable}</p>
             <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Favorables</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm" title="Decisions dont l'issue est contraire a la position de votre client — a analyser pour anticiper les moyens adverses">
             <p className="text-2xl font-bold" style={{ color: BORDEAUX }}>{stats.defavorable}</p>
             <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Defavorables</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm" title="Decisions a l'issue mitigee ou dont la pertinence depend du contexte precis du dossier (cassation partielle, gain partiel)">
             <p className="text-2xl font-bold" style={{ color: AMBER }}>{stats.nuance}</p>
             <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Nuancees</p>
           </div>
@@ -171,14 +172,15 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
           <div className="flex items-center gap-1.5">
             <Filter className="h-3.5 w-3.5 text-slate-400" />
             {[
-              { key: "all" as const, label: "Toutes", count: stats?.total },
-              { key: "favorable" as const, label: "Favorables", count: stats?.favorable },
-              { key: "defavorable" as const, label: "Defavorables", count: stats?.defavorable },
-              { key: "nuance" as const, label: "Nuancees", count: stats?.nuance },
+              { key: "all" as const, label: "Toutes", count: stats?.total, tooltip: "Afficher toutes les decisions analysees sans filtre" },
+              { key: "favorable" as const, label: "Favorables", count: stats?.favorable, tooltip: "Decisions dont l'issue est favorable a la partie demanderesse ou a une position juridique similaire a celle de votre client" },
+              { key: "defavorable" as const, label: "Defavorables", count: stats?.defavorable, tooltip: "Decisions dont l'issue est defavorable — utiles pour anticiper les arguments adverses et les risques" },
+              { key: "nuance" as const, label: "Nuancees", count: stats?.nuance, tooltip: "Decisions a l'issue mitigee (cassation partielle, gain partiel) ou dont la pertinence depend du contexte specifique du dossier" },
             ].map((f) => (
               <button
                 key={f.key}
                 onClick={() => setFilterPertinence(f.key)}
+                title={f.tooltip}
                 className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all ${
                   filterPertinence === f.key
                     ? "bg-[#1e3a5f] text-white shadow-sm"
@@ -313,9 +315,10 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
 
       {/* Disclaimer */}
       <p className="text-[10px] text-slate-400 leading-relaxed italic">
-        Ce tableau est genere automatiquement a partir des decisions de justice analysees.
-        Les donnees proviennent de Judilibre et/ou des connaissances consolidees du modele.
-        L&apos;analyse jurimetrique ne remplace pas le conseil juridique de l&apos;avocat.
+        Ce tableau est genere automatiquement a partir des decisions de justice identifiees lors de l&apos;analyse.
+        Les sources proviennent de la base Judilibre (Cour de cassation) et/ou des connaissances jurisprudentielles
+        consolidees du modele. Ces resultats constituent une aide a la decision strategique et ne sauraient
+        se substituer a l&apos;analyse juridique du conseil.
       </p>
     </div>
   );
