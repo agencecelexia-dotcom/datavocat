@@ -291,12 +291,14 @@ function KPICard({
 function SectionHeader({
   icon: Icon,
   title,
+  tooltip,
 }: {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   title: string;
+  tooltip?: string;
 }) {
   return (
-    <div className="flex items-center gap-2.5 mb-4">
+    <div className="flex items-center gap-2.5 mb-4" title={tooltip}>
       <div
         className="w-8 h-8 rounded-lg flex items-center justify-center"
         style={{ backgroundColor: NAVY + "10" }}
@@ -520,7 +522,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
                 juris.length > 0 ? "lg:col-span-3" : "lg:col-span-5"
               }`}
             >
-              <SectionHeader icon={Scale} title="Arguments — Taux de succes" />
+              <SectionHeader icon={Scale} title="Arguments — Taux de succes" tooltip="Taux de succes par moyen juridique invoque, base sur les decisions analysees. Un taux eleve indique que cet argument est regulierement retenu par les juridictions." />
               <div className="mt-2">
                 {args.map((arg, i) => (
                   <HorizontalBarRow
@@ -566,7 +568,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
           data.montants.median != null ||
           data.montants.max != null) && (
           <div className="dv-card dv-fade-up dv-d5 p-6">
-            <SectionHeader icon={Banknote} title="Montants accordes" />
+            <SectionHeader icon={Banknote} title="Montants accordes" tooltip="Fourchette des condamnations pecuniaires constatees dans les decisions similaires (minimum, mediane, maximum). A titre indicatif." />
             <div className="space-y-6 mt-4">
               {/* Range visualization */}
               <div className="px-2">
@@ -644,7 +646,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
         {/* Article 700 CPC */}
         {art700 && (
           <div className="dv-card dv-fade-up dv-d6 p-6">
-            <SectionHeader icon={Gavel} title="Article 700 CPC" />
+            <SectionHeader icon={Gavel} title="Article 700 CPC" tooltip="Statistiques relatives aux frais irrepetibles (article 700 du Code de procedure civile) : taux de condamnation et montants constates dans les affaires similaires." />
             <div className="space-y-5 mt-4">
               {art700.tauxCondamnation != null && (
                 <div>
@@ -705,7 +707,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
         {/* Instance Pipeline */}
         {data.instances.length > 0 && (
           <div className="dv-card dv-fade-up dv-d7 p-6">
-            <SectionHeader icon={TrendingUp} title="Par instance" />
+            <SectionHeader icon={TrendingUp} title="Par instance" tooltip="Taux de decisions favorables ventile par degre de juridiction. Permet d'evaluer les chances de succes selon le stade procedural." />
             <p className="text-xs text-stone-400 font-sans -mt-2 mb-4 italic leading-relaxed">
               Les pourcentages indiquent le taux de decisions favorables a la partie demanderesse sur l&apos;ensemble des decisions analysees pour cette instance.
             </p>
@@ -767,7 +769,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
       {/* ── ROW 4: Recommendations ──────────────────────────────── */}
       {recommendations.length > 0 && (
         <div className="dv-card dv-fade-up dv-d8 p-6">
-          <SectionHeader icon={Lightbulb} title="Recommandations strategiques" />
+          <SectionHeader icon={Lightbulb} title="Recommandations strategiques" tooltip="Preconisations fondees sur l'analyse jurimetrique. Ces recommandations constituent une aide a la reflexion strategique et ne sauraient se substituer au conseil de l'avocat." />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
             {recommendations.map((rec, i) => (
               <div

@@ -70,7 +70,7 @@ export default function AnalyzePage() {
   const [response, setResponse] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<
-    "text" | "dashboard" | "slides" | "sources" | "tableau"
+    "text" | "dashboard" | "sources" | "tableau"
   >("text");
   const [showSources, setShowSources] = useState(false);
   const responseRef = useRef<HTMLDivElement>(null);
@@ -527,11 +527,6 @@ export default function AnalyzePage() {
                     icon: BarChart3,
                   },
                   {
-                    key: "slides" as const,
-                    label: "Slides",
-                    icon: Presentation,
-                  },
-                  {
                     key: "tableau" as const,
                     label: "Tableau",
                     icon: Table,
@@ -574,10 +569,10 @@ export default function AnalyzePage() {
               <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/30 bg-card/95 px-3 py-2 backdrop-blur-sm sm:px-5 sm:py-2.5">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <div className="flex h-5 w-5 items-center justify-center rounded bg-[#1e3a5f]/10">
-                    {activeView === "text" ? <FileText className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "dashboard" ? <BarChart3 className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "sources" ? <BookOpen className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "tableau" ? <Table className="h-3 w-3 text-[#1e3a5f]" /> : <Presentation className="h-3 w-3 text-[#1e3a5f]" />}
+                    {activeView === "text" ? <FileText className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "dashboard" ? <BarChart3 className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "sources" ? <BookOpen className="h-3 w-3 text-[#1e3a5f]" /> : <Table className="h-3 w-3 text-[#1e3a5f]" />}
                   </div>
                   <span className="hidden font-medium text-foreground sm:inline">
-                    {activeView === "text" ? "Rapport d'analyse" : activeView === "dashboard" ? "Dashboard jurimetrique" : activeView === "sources" ? "Annexe des sources" : activeView === "tableau" ? "Tableau de preuve" : "Presentation"}
+                    {activeView === "text" ? "Rapport d'analyse" : activeView === "dashboard" ? "Dashboard jurimetrique" : activeView === "sources" ? "Annexe des sources" : "Tableau de preuve"}
                   </span>
                   <span className="hidden text-muted-foreground/50 sm:inline">|</span>
                   <span className="hidden sm:inline">Datavocat</span>
@@ -623,13 +618,6 @@ export default function AnalyzePage() {
             {activeView === "dashboard" && phase === "done" && parsedData && (
               <div className="animate-fade-in-up p-3 sm:p-6">
                 <AnalysisDashboard data={parsedData} />
-              </div>
-            )}
-
-            {/* Slides view */}
-            {activeView === "slides" && phase === "done" && parsedData && (
-              <div className="animate-fade-in-up">
-                <AnalysisSlides data={parsedData} query={query} />
               </div>
             )}
 
@@ -837,6 +825,7 @@ function SourcesBadge({
   return (
     <button
       onClick={onClick}
+      title={`${count} decision${count !== 1 ? "s" : ""} de justice identifiee${count !== 1 ? "s" : ""} avec reference verifiable (ECLI, n° de pourvoi ou reference Cass.). Cliquez pour afficher le detail.`}
       className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 px-3.5 py-1.5 text-sm font-medium text-[#1e3a5f] transition-all duration-200 hover:bg-[#1e3a5f]/10 hover:shadow-sm"
     >
       <BookOpen className="h-4 w-4" />
@@ -890,32 +879,58 @@ function FiabiliteBadge({
   const c = config[fiabilite.label] || config["Faible"];
   const Icon = c.icon;
 
+  const barColor = fiabilite.score >= 60 ? "#2d6a4f" : fiabilite.score >= 40 ? "#ca6702" : "#9b2226";
+
   return (
     <div
       className={`group relative inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium ${c.bg} ${c.text}`}
     >
       <Icon className="h-4 w-4" />
       <span>
-        Fiabilite : {fiabilite.label} ({fiabilite.score}/100)
+        Indice de fiabilite : {fiabilite.label} ({fiabilite.score}/100)
       </span>
-      {/* Tooltip on hover */}
-      <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 hidden w-72 rounded-lg border bg-card p-3 text-xs text-foreground shadow-lg group-hover:block">
-        <p className="font-medium">Details du score de fiabilite</p>
-        <p className="mt-1 text-muted-foreground">{fiabilite.details}</p>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+      {/* Detailed tooltip on hover */}
+      <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 hidden w-96 rounded-xl border bg-card p-4 text-xs text-foreground shadow-xl group-hover:block">
+        <p className="font-serif font-semibold text-sm mb-1">Indice de fiabilite de l&apos;analyse</p>
+        <p className="text-muted-foreground mb-3 leading-relaxed">
+          Cet indice mesure la qualite et la verificabilite des donnees utilisees.
+          Plus les sources sont nombreuses, recentes et verifiables, plus l&apos;indice est eleve.
+        </p>
+
+        {/* Global bar */}
+        <div className="mb-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full transition-all"
-            style={{
-              width: `${fiabilite.score}%`,
-              backgroundColor:
-                fiabilite.score >= 60
-                  ? "#2d6a4f"
-                  : fiabilite.score >= 40
-                    ? "#ca6702"
-                    : "#9b2226",
-            }}
+            style={{ width: `${fiabilite.score}%`, backgroundColor: barColor }}
           />
         </div>
+
+        {/* Factor breakdown */}
+        {fiabilite.factors && fiabilite.factors.length > 0 && (
+          <div className="space-y-2.5">
+            {fiabilite.factors.map((factor, i) => (
+              <div key={i}>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold flex items-center gap-1.5">
+                    <span className={factor.impact === "positive" ? "text-emerald-600" : factor.impact === "negative" ? "text-rose-600" : "text-amber-600"}>
+                      {factor.impact === "positive" ? "+" : factor.impact === "negative" ? "−" : "~"}
+                    </span>
+                    {factor.name}
+                  </span>
+                  {factor.maxScore > 0 && (
+                    <span className="text-muted-foreground">{factor.score}/{factor.maxScore}</span>
+                  )}
+                </div>
+                <p className="text-muted-foreground mt-0.5 leading-relaxed">{factor.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="mt-3 pt-2 border-t text-[10px] text-muted-foreground/60 italic leading-relaxed">
+          L&apos;indice de fiabilite est un indicateur automatise. Il ne garantit pas l&apos;exactitude
+          des resultats mais evalue la qualite des sources mobilisees.
+        </p>
       </div>
     </div>
   );
