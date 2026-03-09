@@ -79,7 +79,7 @@ function SourceRow({
       {/* Main row */}
       <button
         onClick={onToggle}
-        className="flex w-full cursor-pointer items-center gap-4 px-5 py-3.5 text-left"
+        className="flex w-full cursor-pointer items-center gap-2 px-3 py-3 text-left sm:gap-4 sm:px-5 sm:py-3.5"
       >
         {/* Index */}
         <div
@@ -126,7 +126,7 @@ function SourceRow({
 
       {/* Expanded detail */}
       {expanded && (
-        <div className="animate-fade-in-up border-t border-slate-100 px-5 pb-4 pt-3">
+        <div className="animate-fade-in-up border-t border-slate-100 px-3 pb-3 pt-2.5 sm:px-5 sm:pb-4 sm:pt-3">
           {/* Mobile badges */}
           <div className="mb-3 flex flex-wrap items-center gap-2 sm:hidden">
             <PertinenceBadge value={source.pertinence} />
@@ -337,7 +337,7 @@ export function SourcesAnnex({ data }: { data: ParsedAnalysis }) {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {/* Table header */}
-        <div className="flex items-center gap-4 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        <div className="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:flex">
           <div className="w-7" />
           <div className="flex-1">Reference / Details</div>
           <div className="hidden w-24 text-center sm:block">Pertinence</div>

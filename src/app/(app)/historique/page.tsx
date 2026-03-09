@@ -85,11 +85,11 @@ export default function HistoriquePage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4">
+    <div className="mx-auto max-w-4xl space-y-4 px-2 sm:space-y-6 sm:px-4">
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="font-serif text-3xl tracking-tight text-slate-900">
+          <h1 className="font-serif text-2xl tracking-tight text-slate-900 sm:text-3xl">
             Historique
           </h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -103,7 +103,8 @@ export default function HistoriquePage() {
             size="sm"
             className="cursor-pointer gap-1.5 bg-[#1e3a5f] text-white shadow-sm hover:bg-[#162d4a]"
           >
-            Nouvelle analyse
+            <span className="hidden sm:inline">Nouvelle analyse</span>
+            <span className="sm:hidden">Nouveau</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </Link>
@@ -138,17 +139,17 @@ export default function HistoriquePage() {
           {analyses.map((a, i) => (
             <div
               key={a.id}
-              className={`group flex items-center gap-4 px-5 py-3.5 transition-colors duration-150 hover:bg-slate-50 ${
+              className={`group flex items-center gap-2 px-3 py-3 transition-colors duration-150 hover:bg-slate-50 sm:gap-4 sm:px-5 sm:py-3.5 ${
                 i > 0 ? "border-t border-slate-100" : ""
               }`}
             >
               {/* Link area (icon + content + badges + chevron) */}
               <Link
                 href={`/historique/${a.id}`}
-                className="flex min-w-0 flex-1 items-center gap-4"
+                className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4"
               >
                 {/* Icon */}
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]/5 transition-colors group-hover:bg-[#1e3a5f]/10">
+                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]/5 transition-colors group-hover:bg-[#1e3a5f]/10 sm:flex">
                   <FileText className="h-4 w-4 text-[#1e3a5f]/60" />
                 </div>
 
@@ -209,7 +210,7 @@ export default function HistoriquePage() {
               <button
                 onClick={() => handleDelete(a.id)}
                 disabled={deleting === a.id}
-                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-300 opacity-0 transition-all hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100 disabled:opacity-50"
+                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-300 opacity-100 transition-all hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100"
                 title="Supprimer"
               >
                 <Trash2 className={`h-3.5 w-3.5 ${deleting === a.id ? "animate-pulse" : ""}`} />

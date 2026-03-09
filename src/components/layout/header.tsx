@@ -71,7 +71,7 @@ export function Header({ userEmail, userName }: HeaderProps) {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[280px] border-r border-border/40 bg-[#0c1929] p-0">
+          <SheetContent side="left" className="w-[260px] border-r border-border/40 bg-[#0c1929] p-0 sm:w-[280px]">
             <div className="flex h-16 items-center gap-3 px-6">
               <Scale className="h-5 w-5 text-[#c9a96e]" />
               <span className="font-serif text-lg text-white">Datavocat</span>
@@ -87,7 +87,7 @@ export function Header({ userEmail, userName }: HeaderProps) {
         <button
           onClick={toggleTheme}
           aria-label={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground cursor-pointer transition-all duration-200 hover:bg-accent hover:text-foreground"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground cursor-pointer transition-all duration-200 hover:bg-accent hover:text-foreground sm:h-8 sm:w-8"
         >
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
@@ -119,7 +119,7 @@ export function Header({ userEmail, userName }: HeaderProps) {
                 className="fixed inset-0 z-40"
                 onClick={() => setDropdownOpen(false)}
               />
-              <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl border border-border/60 bg-card shadow-xl shadow-black/5 animate-fade-in-up" style={{ animationDuration: "0.15s" }}>
+              <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-border/60 bg-card shadow-xl shadow-black/5 animate-fade-in-up sm:w-60" style={{ animationDuration: "0.15s" }}>
                 {userEmail && (
                   <div className="border-b border-border/40 px-4 py-3">
                     <p className="text-sm font-semibold text-foreground">{userName}</p>

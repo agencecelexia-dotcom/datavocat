@@ -24,7 +24,7 @@ export default async function AppLayout({
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header userEmail={userEmail} userName={userName} />
         <main className="flex-1 overflow-y-auto">
-          <div className="p-4 lg:p-6">{children}</div>
+          <div className="p-2 sm:p-4 lg:p-6">{children}</div>
         </main>
       </div>
     </div>

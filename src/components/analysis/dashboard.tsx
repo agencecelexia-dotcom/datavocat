@@ -267,7 +267,7 @@ function KPICard({
   delay: string;
 }) {
   return (
-    <div className={`dv-card dv-fade-up ${delay} p-5`}>
+    <div className={`dv-card dv-fade-up ${delay} p-3 sm:p-5`}>
       <div className="flex items-start justify-between mb-3">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -276,12 +276,12 @@ function KPICard({
           <span style={{ color }}><Icon size={20} /></span>
         </div>
       </div>
-      <p className="font-mono text-2xl font-bold tracking-tight" style={{ color }}>
+      <p className="font-mono text-lg font-bold tracking-tight sm:text-2xl" style={{ color }}>
         {value}
       </p>
-      <p className="text-sm text-stone-500 mt-1 font-sans">{label}</p>
+      <p className="text-xs text-stone-500 mt-1 font-sans sm:text-sm">{label}</p>
       {sublabel && (
-        <p className="text-xs text-stone-400 mt-0.5 font-sans">{sublabel}</p>
+        <p className="text-[10px] text-stone-400 mt-0.5 font-sans sm:text-xs">{sublabel}</p>
       )}
     </div>
   );
@@ -437,23 +437,23 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
   return (
     <div ref={containerRef} className="space-y-6 pb-8">
       {/* ── ROW 1: Hero Gauge + KPIs ────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
         {/* Hero Gauge */}
-        <div className="dv-card dv-scale-in dv-d1 p-8 flex flex-col items-center justify-center lg:col-span-1">
+        <div className="dv-card dv-scale-in dv-d1 p-4 flex flex-col items-center justify-center sm:p-8 lg:col-span-1">
           <p className="text-sm font-sans text-stone-400 uppercase tracking-widest mb-4">
             Taux de succes
           </p>
           <div className="relative">
-            <GaugeSVG value={taux} size={200} strokeWidth={12} color={heroColor} />
+            <GaugeSVG value={taux} size={160} strokeWidth={12} color={heroColor} />
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span
-                className="font-mono text-5xl font-extrabold tracking-tight"
+                className="font-mono text-3xl font-extrabold tracking-tight sm:text-5xl"
                 style={{ color: heroColor }}
               >
                 {animatedTaux}
               </span>
               <span
-                className="text-xl font-mono font-bold -mt-1"
+                className="text-base font-mono font-bold -mt-1 sm:text-xl"
                 style={{ color: heroColor + "99" }}
               >
                 %
@@ -472,7 +472,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
         </div>
 
         {/* KPI Grid */}
-        <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+        <div className="lg:col-span-2 grid grid-cols-2 gap-2 sm:gap-4">
           <KPICard
             icon={FileText}
             label="Sources citees"
@@ -512,7 +512,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
 
       {/* ── ROW 2: Charts ───────────────────────────────────────── */}
       {(args.length > 0 || juris.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-5">
           {/* Arguments Bar Chart */}
           {args.length > 0 && (
             <div
@@ -560,7 +560,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
       )}
 
       {/* ── ROW 3: Financial + Article 700 + Instances ──────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Montants Range */}
         {(data.montants.min != null ||
           data.montants.median != null ||
@@ -608,7 +608,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
                     Minimum
                   </p>
                   <p
-                    className="font-mono text-lg font-bold mt-1"
+                    className="font-mono text-sm font-bold mt-1 sm:text-lg"
                     style={{ color: BORDEAUX }}
                   >
                     {fmtEur(data.montants.min)}
@@ -619,7 +619,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
                     Median
                   </p>
                   <p
-                    className="font-mono text-lg font-bold mt-1"
+                    className="font-mono text-sm font-bold mt-1 sm:text-lg"
                     style={{ color: AMBER }}
                   >
                     {fmtEur(data.montants.median)}
@@ -630,7 +630,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
                     Maximum
                   </p>
                   <p
-                    className="font-mono text-lg font-bold mt-1"
+                    className="font-mono text-sm font-bold mt-1 sm:text-lg"
                     style={{ color: EMERALD }}
                   >
                     {fmtEur(data.montants.max)}
@@ -653,7 +653,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
                       Taux de condamnation
                     </span>
                     <span
-                      className="font-mono text-xl font-bold"
+                      className="font-mono text-base font-bold sm:text-xl"
                       style={{ color: pctColor(art700.tauxCondamnation) }}
                     >
                       {art700.tauxCondamnation}%
@@ -677,7 +677,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
                       Montant moyen
                     </p>
                     <p
-                      className="font-mono text-lg font-bold mt-1"
+                      className="font-mono text-sm font-bold mt-1 sm:text-lg"
                       style={{ color: NAVY }}
                     >
                       {fmtEur(art700.montantMoyen)}
@@ -690,7 +690,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
                       Montant median
                     </p>
                     <p
-                      className="font-mono text-lg font-bold mt-1"
+                      className="font-mono text-sm font-bold mt-1 sm:text-lg"
                       style={{ color: NAVY }}
                     >
                       {fmtEur(art700.montantMedian)}
@@ -719,7 +719,7 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
                       </p>
                     </div>
                     <span
-                      className="font-mono text-xl font-bold"
+                      className="font-mono text-base font-bold sm:text-xl"
                       style={{ color: pctColor(inst.taux ?? 0) }}
                     >
                       {inst.taux != null ? `${inst.taux}%` : "—"}

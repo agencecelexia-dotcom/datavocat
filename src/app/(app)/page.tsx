@@ -252,7 +252,7 @@ export default function AnalyzePage() {
             <div className="mx-auto mb-5 flex h-14 w-14 animate-float items-center justify-center rounded-2xl bg-[#1e3a5f]/5 shadow-sm">
               <Scale className="h-7 w-7 text-[#1e3a5f]" />
             </div>
-            <h1 className="font-serif text-4xl tracking-tight text-foreground md:text-5xl">
+            <h1 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl">
               Analysez votre affaire
             </h1>
             <p className="mx-auto mt-3 max-w-lg text-base leading-relaxed text-muted-foreground">
@@ -272,7 +272,7 @@ export default function AnalyzePage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Decrivez la situation juridique de votre client, le type de contentieux, les arguments envisages..."
-                className="relative z-10 min-h-[140px] resize-none border-0 bg-transparent px-5 pt-5 pb-2 text-[15px] leading-relaxed shadow-none ring-0 transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:border-0"
+                className="relative z-10 min-h-[100px] resize-none border-0 bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed shadow-none ring-0 transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:border-0 sm:min-h-[140px] sm:px-5 sm:pt-5 sm:text-[15px]"
                 disabled={loading}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -280,8 +280,8 @@ export default function AnalyzePage() {
                   }
                 }}
               />
-              <div className="relative z-10 flex items-center justify-between border-t border-border/30 px-4 py-3">
-                <div className="flex items-center gap-3">
+              <div className="relative z-10 flex items-center justify-end border-t border-border/30 px-3 py-2.5 sm:justify-between sm:px-4 sm:py-3">
+                <div className="hidden items-center gap-3 sm:flex">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
                     <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Ctrl</kbd>
                     <span>+</span>
@@ -316,7 +316,7 @@ export default function AnalyzePage() {
                 <button
                   key={i}
                   onClick={() => setQuery(example)}
-                  className="group/ex cursor-pointer rounded-xl border border-border/40 bg-card p-4 text-left text-[13px] leading-relaxed text-muted-foreground transition-all duration-300 hover:border-[#1e3a5f]/15 hover:bg-card hover:shadow-lg hover:shadow-black/[0.03] hover:-translate-y-1"
+                  className="group/ex cursor-pointer rounded-xl border border-border/40 bg-card p-3 text-left text-xs leading-relaxed text-muted-foreground transition-all duration-300 hover:border-[#1e3a5f]/15 hover:bg-card hover:shadow-lg hover:shadow-black/[0.03] hover:-translate-y-1 sm:p-4 sm:text-[13px]"
                 >
                   <span className="line-clamp-3">{example}</span>
                   <span className="mt-2 flex items-center gap-1 text-xs font-medium text-[#c9a96e] opacity-0 transition-opacity duration-200 group-hover/ex:opacity-100">
@@ -458,7 +458,7 @@ export default function AnalyzePage() {
               ].map((step, i, arr) => (
                 <div key={step.label} className="flex items-center">
                   <div
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-300 ${
+                    className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium transition-all duration-300 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs ${
                       step.done
                         ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
                         : step.active
@@ -474,7 +474,7 @@ export default function AnalyzePage() {
                     {step.label}
                   </div>
                   {i < arr.length - 1 && (
-                    <div className={`mx-1 h-px w-6 transition-all duration-300 ${step.done ? "bg-emerald-300 dark:bg-emerald-700" : "bg-border"}`} />
+                    <div className={`mx-0.5 h-px w-3 transition-all duration-300 sm:mx-1 sm:w-6 ${step.done ? "bg-emerald-300 dark:bg-emerald-700" : "bg-border"}`} />
                   )}
                 </div>
               ))}
@@ -538,14 +538,14 @@ export default function AnalyzePage() {
                   <button
                     key={tab.key}
                     onClick={() => setActiveView(tab.key)}
-                    className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all duration-200 sm:px-3.5 sm:py-1.5 ${
                       activeView === tab.key
                         ? "bg-card text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    <tab.icon className="h-3.5 w-3.5" />
-                    {tab.label}
+                    <tab.icon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 ))}
               </div>
@@ -564,16 +564,16 @@ export default function AnalyzePage() {
           >
             {/* Artifact header bar */}
             {phase === "done" && (
-              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/30 bg-card/95 px-5 py-2.5 backdrop-blur-sm">
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/30 bg-card/95 px-3 py-2 backdrop-blur-sm sm:px-5 sm:py-2.5">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <div className="flex h-5 w-5 items-center justify-center rounded bg-[#1e3a5f]/10">
                     {activeView === "text" ? <FileText className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "dashboard" ? <BarChart3 className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "sources" ? <BookOpen className="h-3 w-3 text-[#1e3a5f]" /> : <Presentation className="h-3 w-3 text-[#1e3a5f]" />}
                   </div>
-                  <span className="font-medium text-foreground">
+                  <span className="hidden font-medium text-foreground sm:inline">
                     {activeView === "text" ? "Rapport d'analyse" : activeView === "dashboard" ? "Dashboard jurimetrique" : activeView === "sources" ? "Annexe des sources" : "Presentation"}
                   </span>
-                  <span className="text-muted-foreground/50">|</span>
-                  <span>Datavocat</span>
+                  <span className="hidden text-muted-foreground/50 sm:inline">|</span>
+                  <span className="hidden sm:inline">Datavocat</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CopyMarkdown content={response} />
@@ -602,7 +602,7 @@ export default function AnalyzePage() {
 
             {/* Text view — premium document rendering */}
             {activeView === "text" && phase === "done" && response && (
-              <div className="animate-fade-in-up px-8 py-6 lg:px-12">
+              <div className="animate-fade-in-up px-4 py-4 sm:px-6 sm:py-6 lg:px-12">
                 <div
                   className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h2:text-xl prose-h2:text-[#1e3a5f] prose-h3:text-base prose-h3:text-foreground prose-strong:text-foreground prose-a:text-[#1e3a5f] prose-a:no-underline hover:prose-a:underline"
                   dangerouslySetInnerHTML={{
@@ -614,7 +614,7 @@ export default function AnalyzePage() {
 
             {/* Dashboard view */}
             {activeView === "dashboard" && phase === "done" && parsedData && (
-              <div className="animate-fade-in-up p-6">
+              <div className="animate-fade-in-up p-3 sm:p-6">
                 <AnalysisDashboard data={parsedData} />
               </div>
             )}
@@ -628,7 +628,7 @@ export default function AnalyzePage() {
 
             {/* Sources annex view */}
             {activeView === "sources" && phase === "done" && parsedData && (
-              <div className="animate-fade-in-up p-6">
+              <div className="animate-fade-in-up p-3 sm:p-6">
                 <SourcesAnnex data={parsedData} />
               </div>
             )}
@@ -730,15 +730,15 @@ function AnalyzingScreen() {
   }, []);
 
   return (
-    <div className="flex h-full min-h-[400px] flex-col items-center justify-center gap-8 py-8">
+    <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-5 px-4 py-6 sm:min-h-[400px] sm:gap-8 sm:py-8">
       {/* Animated scale icon */}
       <div className="relative">
-        <div className="h-20 w-20 animate-spin rounded-full border-4 border-[#1e3a5f]/10 border-t-[#c9a96e]" style={{ animationDuration: "3s" }} />
-        <Scale className="absolute inset-0 m-auto h-8 w-8 text-[#1e3a5f]" />
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-[#1e3a5f]/10 border-t-[#c9a96e] sm:h-20 sm:w-20" style={{ animationDuration: "3s" }} />
+        <Scale className="absolute inset-0 m-auto h-6 w-6 text-[#1e3a5f] sm:h-8 sm:w-8" />
       </div>
 
       <div className="text-center">
-        <h2 className="font-serif text-2xl text-[#1e3a5f]">
+        <h2 className="font-serif text-xl text-[#1e3a5f] sm:text-2xl">
           Analyse en cours
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -786,7 +786,7 @@ function AnalyzingScreen() {
       </div>
 
       {/* Lawyer joke */}
-      <div className="w-full max-w-lg rounded-xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 p-5">
+      <div className="w-full max-w-lg rounded-xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 p-3 sm:p-5">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#c9a96e]">
           Le saviez-vous ?
         </p>
