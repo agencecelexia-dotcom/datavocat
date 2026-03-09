@@ -67,11 +67,8 @@ export interface ParsedAnalysis {
  * Build a clickable URL for a French court decision reference
  */
 function buildSourceUrl(ref: string): string {
-  // ECLI → Cour de cassation direct decision page
-  if (ref.startsWith("ECLI:")) {
-    return `https://www.courdecassation.fr/decision/${encodeURIComponent(ref)}`;
-  }
-  // Pourvoi or other → Judilibre search
+  // Always use Judilibre search — tolerates approximate references
+  // and doesn't break on encoded ECLI colons
   return `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ref)}`;
 }
 
