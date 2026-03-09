@@ -42,10 +42,6 @@ export async function PATCH(
   const body = await request.json();
   const updates: Record<string, string | null> = {};
 
-  if ("client_id" in body) {
-    updates.client_id = body.client_id || null;
-  }
-
   if ("jugement_final" in body) {
     updates.jugement_final = body.jugement_final || null;
   }

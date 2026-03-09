@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("analyses")
-    .select("id, query, status, created_at, client_id")
+    .select("id, query, status, created_at, jugement_resultat")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(limit);
