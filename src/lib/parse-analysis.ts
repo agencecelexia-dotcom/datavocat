@@ -42,6 +42,11 @@ export interface ParsedAnalysis {
   sources: SourceReference[];
   sourceCount: number;
   fiabilite: FiabiliteScore;
+  article700: {
+    tauxCondamnation: number | null;
+    montantMoyen: number | null;
+    montantMedian: number | null;
+  } | null;
   sections: Array<{ title: string; content: string; emoji: string }>;
 }
 
@@ -245,6 +250,7 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     limites: "",
     sources: [],
     sourceCount: 0,
+    article700: null,
     fiabilite: { score: 0, label: "Tres faible", details: "" },
     sections: [],
   };
@@ -385,6 +391,27 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
       parsed.sort((a, b) => a - b);
       result.montants.median = parsed[Math.floor(parsed.length / 2)];
     }
+  }
+
+  // Extract Article 700 CPC stats
+  const art700Section = text.match(/###\s*Article\s*700.*?(?=###|## |$)/is);
+  if (art700Section) {
+    const art700Text = art700Section[0];
+    const tauxCond = art700Text.match(/taux\s+(?:de\s+)?condamnation\s*[:\-—]\s*(?:environ\s+)?(\d{1,3}(?:[.,]\d+)?)\s*%/i);
+    const moyenMatch = art700Text.match(/montant\s+moyen\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*€/i);
+    const medianMatch = art700Text.match(/montant\s+m[ée]dian\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*€/i);
+    result.article700 = {
+      tauxCondamnation: tauxCond ? parseFloat(tauxCond[1].replace(",", ".")) : null,
+      montantMoyen: moyenMatch ? parseFloat(moyenMatch[1].replace(/\s/g, "").replace(",", ".")) : null,
+      montantMedian: medianMatch ? parseFloat(medianMatch[1].replace(/\s/g, "").replace(",", ".")) : null,
+    };
+    // If we found at least one value but missed taux, try alternative pattern
+    if (result.article700.tauxCondamnation === null) {
+      const altTaux = art700Text.match(/(\d{1,3}(?:[.,]\d+)?)\s*%\s*(?:des?\s+)?(?:cas|d[ée]cisions|condamnation)/i);
+      if (altTaux) result.article700.tauxCondamnation = parseFloat(altTaux[1].replace(",", "."));
+    }
+  } else {
+    result.article700 = null;
   }
 
   // Extract sources

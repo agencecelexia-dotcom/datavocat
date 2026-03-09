@@ -7,46 +7,43 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell,
-  Legend,
 } from "recharts";
 import {
-  TrendingUp,
   Scale,
-  Users,
-  Landmark,
-  Banknote,
+  BookOpen,
   ShieldCheck,
-  AlertTriangle,
-  Clock,
-  BarChart3,
-  Target,
+  TrendingUp,
+  ArrowRight,
+  Banknote,
+  Gavel,
+  Lightbulb,
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
 
 // ── Palette ──────────────────────────────────────────────────────────
 const NAVY = "#1e3a5f";
 const GOLD = "#c9a96e";
 const EMERALD = "#2d6a4f";
-const VIOLET = "#7c3aed";
-const AMBER = "#ca6702";
 const BORDEAUX = "#9b2226";
-
-const PIE_COLORS = [NAVY, GOLD, EMERALD, VIOLET, AMBER, BORDEAUX, "#5b8ec9"];
+const AMBER = "#ca6702";
+const NAVY_LIGHT = "#2a4f7f";
+const GOLD_LIGHT = "#d4ba8a";
 
 // ── Helpers ──────────────────────────────────────────────────────────
-const fmt = (v: number | null) =>
+const fmtEur = (v: number | null) =>
   v !== null
     ? new Intl.NumberFormat("fr-FR", {
         style: "currency",
         currency: "EUR",
         maximumFractionDigits: 0,
       }).format(v)
-    : "\—";
+    : "—";
+
+const fmtPct = (v: number | null) => (v !== null ? `${v}%` : "—");
 
 function pctColor(pct: number): string {
   if (pct >= 60) return EMERALD;
@@ -54,8 +51,28 @@ function pctColor(pct: number): string {
   return BORDEAUX;
 }
 
-// ── CSS Keyframes (injected once) ────────────────────────────────────
-const STYLE_ID = "datavocat-dashboard-styles";
+function fiabiliteColor(score: number): string {
+  if (score >= 80) return EMERALD;
+  if (score >= 60) return NAVY;
+  if (score >= 40) return AMBER;
+  return BORDEAUX;
+}
+
+function confianceLabel(c: string | null): string {
+  if (c === "élevé") return "Elevee";
+  if (c === "moyen") return "Moyenne";
+  if (c === "faible") return "Faible";
+  return "—";
+}
+
+function confianceColor(c: string | null): string {
+  if (c === "élevé") return EMERALD;
+  if (c === "moyen") return AMBER;
+  return BORDEAUX;
+}
+
+// ── CSS Keyframes ────────────────────────────────────────────────────
+const STYLE_ID = "dv-dashboard-v2";
 
 function injectStyles() {
   if (typeof document === "undefined") return;
@@ -63,1413 +80,695 @@ function injectStyles() {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    @keyframes dv-fade-in-up {
-      from { opacity: 0; transform: translateY(24px); }
+    @keyframes dv-fade-up {
+      from { opacity: 0; transform: translateY(20px); }
       to   { opacity: 1; transform: translateY(0); }
     }
     @keyframes dv-scale-in {
-      from { opacity: 0; transform: scale(0.92); }
+      from { opacity: 0; transform: scale(0.95); }
       to   { opacity: 1; transform: scale(1); }
     }
-    @keyframes dv-bar-grow {
-      from { transform: scaleX(0); }
-      to   { transform: scaleX(1); }
+    @keyframes dv-gauge-fill {
+      from { stroke-dashoffset: var(--gauge-circumference); }
+      to   { stroke-dashoffset: var(--gauge-offset); }
     }
-    @keyframes dv-pulse-ring {
-      0%   { transform: scale(0.9); opacity: 0.6; }
-      50%  { transform: scale(1.1); opacity: 0.2; }
-      100% { transform: scale(0.9); opacity: 0.6; }
-    }
-    @keyframes dv-gradient-shift {
-      0%   { background-position: 0% 50%; }
-      50%  { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    @keyframes dv-count-up {
-      from { opacity: 0; transform: translateY(12px); }
+    @keyframes dv-counter {
+      from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    .dv-animate-section {
-      opacity: 0;
-      animation: dv-fade-in-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    @keyframes dv-shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
     }
-    .dv-animate-scale {
+    .dv-fade-up {
       opacity: 0;
-      animation: dv-scale-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: dv-fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
-    .dv-stagger-1 { animation-delay: 0.05s; }
-    .dv-stagger-2 { animation-delay: 0.1s; }
-    .dv-stagger-3 { animation-delay: 0.15s; }
-    .dv-stagger-4 { animation-delay: 0.2s; }
-    .dv-stagger-5 { animation-delay: 0.25s; }
-    .dv-stagger-6 { animation-delay: 0.3s; }
+    .dv-scale-in {
+      opacity: 0;
+      animation: dv-scale-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .dv-d1 { animation-delay: 0.05s; }
+    .dv-d2 { animation-delay: 0.1s; }
+    .dv-d3 { animation-delay: 0.15s; }
+    .dv-d4 { animation-delay: 0.2s; }
+    .dv-d5 { animation-delay: 0.25s; }
+    .dv-d6 { animation-delay: 0.3s; }
+    .dv-d7 { animation-delay: 0.35s; }
+    .dv-d8 { animation-delay: 0.4s; }
+    .dv-card {
+      background: white;
+      border-radius: 16px;
+      border: 1px solid #e8e5e0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.02);
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .dv-card:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+      transform: translateY(-1px);
+    }
+    .dv-gauge-track {
+      stroke: #f0ede8;
+      fill: none;
+    }
+    .dv-gauge-fill {
+      fill: none;
+      stroke-linecap: round;
+      animation: dv-gauge-fill 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .dv-tooltip-custom {
+      background: white !important;
+      border: 1px solid #e8e5e0 !important;
+      border-radius: 12px !important;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important;
+      padding: 10px 14px !important;
+    }
+    .dv-range-bar {
+      position: relative;
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, ${BORDEAUX}20, ${AMBER}30, ${EMERALD}20);
+    }
+    .dv-range-marker {
+      position: absolute;
+      top: -6px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      transform: translateX(-50%);
+    }
+    .dv-instance-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: ${GOLD};
+    }
   `;
   document.head.appendChild(style);
 }
 
-// ── Intersection Observer hook ───────────────────────────────────────
-function useInView(threshold = 0.15) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          obs.disconnect();
-        }
-      },
-      { threshold }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [threshold]);
-
-  return { ref, inView };
-}
-
-// ── Animated counter hook ────────────────────────────────────────────
-function useAnimatedCounter(target: number, duration = 1800, active = true) {
+// ── Animated Counter Hook ────────────────────────────────────────────
+function useCounter(target: number | null, duration = 1200): number {
   const [value, setValue] = useState(0);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!active) return;
-    let start = 0;
-    const startTime = performance.now();
-
-    function tick(now: number) {
-      const elapsed = now - startTime;
+    if (target === null || target === 0) {
+      setValue(0);
+      return;
+    }
+    const start = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);
       // ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(eased * target);
-      setValue(current);
+      setValue(Math.round(target * eased));
       if (progress < 1) {
-        start = requestAnimationFrame(tick);
+        rafRef.current = requestAnimationFrame(animate);
       }
-    }
-
-    start = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(start);
-  }, [target, duration, active]);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target, duration]);
 
   return value;
 }
 
-// ── Section wrapper with intersection animation ──────────────────────
-function AnimatedSection({
-  children,
-  className = "",
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  delay?: number;
-}) {
-  const { ref, inView } = useInView();
-
-  return (
-    <div
-      ref={ref}
-      className={className}
-      style={{
-        opacity: inView ? 1 : 0,
-        transform: inView ? "translateY(0)" : "translateY(28px)",
-        transition: `opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s`,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-// ── Confidence badge ─────────────────────────────────────────────────
-function ConfidenceBadge({
-  confiance,
-}: {
-  confiance: ParsedAnalysis["confiance"];
-}) {
-  if (!confiance) return null;
-  const map = {
-    "élevé": {
-      bg: "rgba(45,106,79,0.1)",
-      color: EMERALD,
-      border: "rgba(45,106,79,0.25)",
-      icon: ShieldCheck,
-      label: "Confiance élevée",
-    },
-    moyen: {
-      bg: "rgba(202,103,2,0.1)",
-      color: AMBER,
-      border: "rgba(202,103,2,0.25)",
-      icon: AlertTriangle,
-      label: "Confiance moyenne",
-    },
-    faible: {
-      bg: "rgba(155,34,38,0.1)",
-      color: BORDEAUX,
-      border: "rgba(155,34,38,0.25)",
-      icon: AlertTriangle,
-      label: "Confiance faible",
-    },
-  };
-  const c = map[confiance];
-  const Icon = c.icon;
-
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "6px 14px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 600,
-        letterSpacing: "0.02em",
-        color: c.color,
-        backgroundColor: c.bg,
-        border: `1px solid ${c.border}`,
-      }}
-    >
-      <Icon style={{ width: 14, height: 14 }} />
-      {c.label}
-    </span>
-  );
-}
-
-// ── Hero Section ─────────────────────────────────────────────────────
-function HeroSection({
+// ── SVG Gauge Component ──────────────────────────────────────────────
+function GaugeSVG({
   value,
-  echantillon,
-  confiance,
-  fiabilite,
+  size = 220,
+  strokeWidth = 14,
+  color,
 }: {
   value: number;
-  echantillon: number | null;
-  confiance: ParsedAnalysis["confiance"];
-  fiabilite: ParsedAnalysis["fiabilite"];
+  size?: number;
+  strokeWidth?: number;
+  color: string;
 }) {
-  const { ref, inView } = useInView(0.2);
-  const counter = useAnimatedCounter(value, 2000, inView);
-  const fiabCounter = useAnimatedCounter(fiabilite.score, 2200, inView);
-
-  const verdict =
-    value >= 60
-      ? "Perspective favorable"
-      : value >= 40
-        ? "Issue incertaine"
-        : "Perspective défavorable";
-
-  const mainColor = pctColor(value);
-
-  // Radial gradient: dark navy center blending out
-  const bgGradient = `radial-gradient(ellipse at 50% 40%, ${NAVY}08 0%, transparent 70%)`;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
 
   return (
-    <div
-      ref={ref}
-      style={{
-        position: "relative",
-        overflow: "hidden",
-        borderRadius: 20,
-        border: "1px solid rgba(30,58,95,0.08)",
-        background: `linear-gradient(135deg, #faf9f7 0%, #f5f3ef 50%, #f0ede7 100%)`,
-        padding: "48px 32px 40px",
-      }}
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="drop-shadow-sm"
+      style={
+        {
+          "--gauge-circumference": circumference,
+          "--gauge-offset": offset,
+        } as React.CSSProperties
+      }
     >
-      {/* Subtle radial bg */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: bgGradient,
-          pointerEvents: "none",
-        }}
+      {/* Track */}
+      <circle
+        className="dv-gauge-track"
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        strokeWidth={strokeWidth}
       />
-
-      {/* Animated accent ring */}
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          width: 280,
-          height: 280,
-          transform: "translate(-50%, -55%)",
-          borderRadius: "50%",
-          border: `2px solid ${mainColor}15`,
-          animation: "dv-pulse-ring 4s ease-in-out infinite",
-          pointerEvents: "none",
-        }}
+      {/* Fill */}
+      <circle
+        className="dv-gauge-fill"
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        strokeWidth={strokeWidth}
+        stroke={color}
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
+    </svg>
+  );
+}
 
-      <div style={{ position: "relative", textAlign: "center" }}>
-        {/* Title */}
-        <p
-          style={{
-            fontFamily: "Georgia, 'Times New Roman', serif",
-            fontSize: 12,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.18em",
-            color: NAVY,
-            opacity: 0.5,
-            marginBottom: 8,
-          }}
-        >
-          Probabilité de succès
-        </p>
-
-        {/* Giant counter */}
+// ── KPI Card Component ───────────────────────────────────────────────
+function KPICard({
+  icon: Icon,
+  label,
+  value,
+  sublabel,
+  color,
+  delay,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  value: string;
+  sublabel?: string;
+  color: string;
+  delay: string;
+}) {
+  return (
+    <div className={`dv-card dv-fade-up ${delay} p-5`}>
+      <div className="flex items-start justify-between mb-3">
         <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "center",
-            gap: 4,
-            animation: inView
-              ? "dv-count-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
-              : "none",
-          }}
+          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ backgroundColor: color + "12" }}
         >
-          <span
-            style={{
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: 112,
-              fontWeight: 700,
-              lineHeight: 1,
-              color: mainColor,
-              fontVariantNumeric: "tabular-nums",
-              textShadow: `0 2px 40px ${mainColor}20`,
-            }}
-          >
-            {counter}
-          </span>
-          <span
-            style={{
-              fontSize: 40,
-              fontWeight: 500,
-              color: mainColor,
-              opacity: 0.6,
-              marginLeft: 2,
-            }}
-          >
-            %
-          </span>
-        </div>
-
-        {/* Verdict */}
-        <p
-          style={{
-            fontFamily: "Georgia, 'Times New Roman', serif",
-            fontSize: 16,
-            fontWeight: 500,
-            color: NAVY,
-            opacity: 0.7,
-            marginTop: 8,
-            letterSpacing: "0.01em",
-          }}
-        >
-          {verdict}
-        </p>
-
-        {/* Divider line */}
-        <div
-          style={{
-            width: 48,
-            height: 2,
-            background: `linear-gradient(90deg, ${GOLD}, ${mainColor})`,
-            borderRadius: 1,
-            margin: "20px auto 20px",
-          }}
-        />
-
-        {/* Meta strip */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 24,
-            flexWrap: "wrap",
-          }}
-        >
-          {echantillon !== null && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 13,
-                color: NAVY,
-                opacity: 0.6,
-              }}
-            >
-              <BarChart3 style={{ width: 14, height: 14 }} />
-              {echantillon} décisions analysées
-            </span>
-          )}
-          <ConfidenceBadge confiance={confiance} />
-          {fiabilite.score > 0 && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "6px 14px",
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: "0.02em",
-                color: NAVY,
-                backgroundColor: `${NAVY}0a`,
-                border: `1px solid ${NAVY}18`,
-              }}
-            >
-              <Target style={{ width: 14, height: 14 }} />
-              Fiabilité : {fiabCounter}/100
-            </span>
-          )}
+          <span style={{ color }}><Icon size={20} /></span>
         </div>
       </div>
+      <p className="font-mono text-2xl font-bold tracking-tight" style={{ color }}>
+        {value}
+      </p>
+      <p className="text-sm text-stone-500 mt-1 font-sans">{label}</p>
+      {sublabel && (
+        <p className="text-xs text-stone-400 mt-0.5 font-sans">{sublabel}</p>
+      )}
     </div>
   );
 }
 
-// ── KPI Card ─────────────────────────────────────────────────────────
-function KpiCard({
-  label,
-  value,
-  suffix,
+// ── Section Header ───────────────────────────────────────────────────
+function SectionHeader({
   icon: Icon,
-  accentColor,
-  delay = 0,
+  title,
 }: {
-  label: string;
-  value: string | number;
-  suffix?: string;
-  icon: React.ElementType;
-  accentColor: string;
-  delay?: number;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
 }) {
   return (
-    <AnimatedSection delay={delay}>
+    <div className="flex items-center gap-2.5 mb-4">
       <div
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          borderRadius: 16,
-          border: "1px solid rgba(30,58,95,0.06)",
-          backgroundColor: "#fff",
-          padding: "22px 22px 20px",
-          boxShadow:
-            "0 1px 3px rgba(30,58,95,0.04), 0 6px 24px rgba(30,58,95,0.03)",
-          transition: "box-shadow 0.3s ease, transform 0.3s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow =
-            "0 4px 12px rgba(30,58,95,0.06), 0 12px 40px rgba(30,58,95,0.06)";
-          e.currentTarget.style.transform = "translateY(-2px)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow =
-            "0 1px 3px rgba(30,58,95,0.04), 0 6px 24px rgba(30,58,95,0.03)";
-          e.currentTarget.style.transform = "translateY(0)";
-        }}
+        className="w-8 h-8 rounded-lg flex items-center justify-center"
+        style={{ backgroundColor: NAVY + "10" }}
       >
-        {/* Top accent bar */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: `linear-gradient(90deg, ${accentColor}, ${accentColor}80)`,
-            borderRadius: "16px 16px 0 0",
-          }}
-        />
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ minWidth: 0 }}>
-            <p
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                color: "#94a3b8",
-                margin: 0,
-              }}
-            >
-              {label}
-            </p>
-            <p
-              style={{
-                fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: 30,
-                fontWeight: 700,
-                fontVariantNumeric: "tabular-nums",
-                lineHeight: 1.1,
-                margin: "8px 0 0",
-                color: "#1a1a2e",
-              }}
-            >
-              {value}
-              {suffix && (
-                <span
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 400,
-                    color: "#94a3b8",
-                    marginLeft: 4,
-                  }}
-                >
-                  {suffix}
-                </span>
-              )}
-            </p>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              backgroundColor: `${accentColor}12`,
-              flexShrink: 0,
-            }}
-          >
-            <Icon
-              style={{ width: 20, height: 20, color: accentColor }}
-            />
-          </div>
-        </div>
+        <span style={{ color: NAVY }}><Icon size={16} /></span>
       </div>
-    </AnimatedSection>
-  );
-}
-
-// ── Section heading ──────────────────────────────────────────────────
-function SectionHeading({
-  children,
-  icon: Icon,
-}: {
-  children: React.ReactNode;
-  icon?: React.ElementType;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        marginBottom: 20,
-      }}
-    >
-      {Icon && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            backgroundColor: `${NAVY}0a`,
-          }}
-        >
-          <Icon style={{ width: 16, height: 16, color: NAVY }} />
-        </div>
-      )}
-      <h3
-        style={{
-          fontFamily: "Georgia, 'Times New Roman', serif",
-          fontSize: 17,
-          fontWeight: 700,
-          color: "#1a1a2e",
-          margin: 0,
-          letterSpacing: "-0.01em",
-        }}
-      >
-        {children}
+      <h3 className="font-serif text-lg font-semibold" style={{ color: NAVY }}>
+        {title}
       </h3>
     </div>
   );
 }
 
-// ── Card wrapper ─────────────────────────────────────────────────────
-function DashCard({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
+// ── Custom Tooltip ───────────────────────────────────────────────────
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  if (!active || !payload || !payload.length) return null;
   return (
-    <div
-      style={{
-        borderRadius: 16,
-        border: "1px solid rgba(30,58,95,0.06)",
-        backgroundColor: "#fff",
-        padding: 28,
-        boxShadow:
-          "0 1px 3px rgba(30,58,95,0.04), 0 6px 24px rgba(30,58,95,0.03)",
-        ...style,
-      }}
-    >
-      {children}
+    <div className="dv-tooltip-custom">
+      <p className="text-xs font-medium text-stone-600 mb-0.5">{label}</p>
+      <p className="text-sm font-mono font-bold" style={{ color: NAVY }}>
+        {payload[0].value}%
+      </p>
     </div>
   );
 }
 
-// ── Arguments horizontal bar chart ───────────────────────────────────
-function ArgumentsChart({
-  args,
+// ── Horizontal Bar (Custom) ──────────────────────────────────────────
+function HorizontalBarRow({
+  label,
+  value,
+  maxValue = 100,
+  color,
+  delay,
 }: {
-  args: ParsedAnalysis["arguments"];
+  label: string;
+  value: number;
+  maxValue?: number;
+  color: string;
+  delay: number;
 }) {
-  const { ref, inView } = useInView();
-  if (args.length === 0) return null;
+  const [width, setWidth] = useState(0);
 
-  const sorted = [...args].sort((a, b) => (b.taux ?? 0) - (a.taux ?? 0));
-  const data = sorted.map((a) => ({
-    name: a.name.length > 48 ? a.name.slice(0, 46) + "\…" : a.name,
-    taux: a.taux ?? 0,
-  }));
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setWidth((value / maxValue) * 100);
+    }, 100 + delay * 80);
+    return () => clearTimeout(timer);
+  }, [value, maxValue, delay]);
 
   return (
-    <AnimatedSection>
-      <DashCard>
-        <SectionHeading icon={BarChart3}>
-          Taux de succès par argument
-        </SectionHeading>
-
-        <div ref={ref} style={{ height: Math.max(240, args.length * 56) }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              layout="vertical"
-              margin={{ left: 8, right: 56, top: 4, bottom: 4 }}
-            >
-              <defs>
-                <linearGradient id="dvBarGrad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor={NAVY} />
-                  <stop offset="100%" stopColor={GOLD} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                horizontal={false}
-                stroke="#f1efe9"
-              />
-              <XAxis
-                type="number"
-                domain={[0, 100]}
-                tickFormatter={(v) => `${v}%`}
-                fontSize={11}
-                stroke="#cbd5e1"
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={210}
-                fontSize={12}
-                tick={{ fill: "#475569" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                formatter={(v) => [`${v} %`, "Taux de succès"]}
-                contentStyle={{
-                  borderRadius: 12,
-                  border: "none",
-                  boxShadow: "0 8px 32px rgba(30,58,95,0.12)",
-                  fontSize: 13,
-                  padding: "10px 16px",
-                }}
-                cursor={{ fill: "rgba(30,58,95,0.03)" }}
-              />
-              <Bar
-                dataKey="taux"
-                fill="url(#dvBarGrad)"
-                radius={[0, 10, 10, 0]}
-                barSize={30}
-                isAnimationActive={inView}
-                animationDuration={1200}
-                animationEasing="ease-out"
-                label={{
-                  position: "right",
-                  formatter: (v: unknown) => `${v}%`,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  fill: NAVY,
-                }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </DashCard>
-    </AnimatedSection>
-  );
-}
-
-// ── Jurisdictions grid ───────────────────────────────────────────────
-function JurisdictionsGrid({
-  jurisdictions,
-}: {
-  jurisdictions: ParsedAnalysis["juridictions"];
-}) {
-  if (jurisdictions.length === 0) return null;
-
-  return (
-    <AnimatedSection>
-      <DashCard>
-        <SectionHeading icon={Landmark}>
-          Analyse par juridiction
-        </SectionHeading>
+    <div className="mb-3 last:mb-0">
+      <div className="flex justify-between items-baseline mb-1.5">
+        <span className="text-sm text-stone-700 font-sans truncate mr-3 max-w-[70%]">
+          {label}
+        </span>
+        <span className="text-sm font-mono font-semibold shrink-0" style={{ color }}>
+          {value}%
+        </span>
+      </div>
+      <div className="h-2.5 rounded-full bg-stone-100 overflow-hidden">
         <div
+          className="h-full rounded-full transition-all duration-1000 ease-out"
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-            gap: 14,
+            width: `${width}%`,
+            background: `linear-gradient(90deg, ${color}cc, ${color})`,
           }}
-        >
-          {jurisdictions.map((j, i) => {
-            const taux = j.taux ?? 0;
-            const color = pctColor(taux);
-            return (
-              <AnimatedSection key={j.name} delay={0.05 * i}>
-                <div
-                  style={{
-                    borderRadius: 14,
-                    border: "1px solid rgba(30,58,95,0.06)",
-                    backgroundColor: "#faf9f7",
-                    padding: "18px 20px",
-                    transition: "box-shadow 0.25s ease, transform 0.25s ease",
-                    cursor: "default",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow =
-                      "0 4px 16px rgba(30,58,95,0.06)";
-                    e.currentTarget.style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = "none";
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: "#1a1a2e",
-                        margin: 0,
-                      }}
-                    >
-                      {j.name}
-                    </p>
-                    <span
-                      style={{
-                        fontFamily: "Georgia, 'Times New Roman', serif",
-                        fontSize: 20,
-                        fontWeight: 700,
-                        fontVariantNumeric: "tabular-nums",
-                        color,
-                      }}
-                    >
-                      {taux}%
-                    </span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div
-                    style={{
-                      marginTop: 12,
-                      height: 6,
-                      borderRadius: 3,
-                      backgroundColor: "#e8e5de",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        borderRadius: 3,
-                        width: `${taux}%`,
-                        backgroundColor: color,
-                        transition: "width 1.2s cubic-bezier(0.16, 1, 0.3, 1)",
-                      }}
-                    />
-                  </div>
-
-                  {j.delai && (
-                    <div
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        marginTop: 10,
-                        padding: "3px 10px",
-                        borderRadius: 999,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: NAVY,
-                        opacity: 0.6,
-                        backgroundColor: `${NAVY}08`,
-                      }}
-                    >
-                      <Clock style={{ width: 11, height: 11 }} />
-                      {j.delai}
-                    </div>
-                  )}
-                </div>
-              </AnimatedSection>
-            );
-          })}
-        </div>
-      </DashCard>
-    </AnimatedSection>
+        />
+      </div>
+    </div>
   );
 }
 
-// ── Custom pie center label ──────────────────────────────────────────
-function PieCenterLabel({
-  cx,
-  cy,
-  total,
-}: {
-  cx: number;
-  cy: number;
-  total: number;
-}) {
-  return (
-    <g>
-      <text
-        x={cx}
-        y={cy - 8}
-        textAnchor="middle"
-        dominantBaseline="central"
-        style={{
-          fontSize: 28,
-          fontWeight: 700,
-          fontFamily: "Georgia, 'Times New Roman', serif",
-          fill: "#1a1a2e",
-        }}
-      >
-        {total}
-      </text>
-      <text
-        x={cx}
-        y={cy + 16}
-        textAnchor="middle"
-        dominantBaseline="central"
-        style={{ fontSize: 10, fontWeight: 600, fill: "#94a3b8", letterSpacing: "0.08em", textTransform: "uppercase" }}
-      >
-        instances
-      </text>
-    </g>
+// ── Extract Article 700 from sections fallback ───────────────────────
+function extractArticle700Fallback(data: ParsedAnalysis) {
+  if (data.article700) return data.article700;
+
+  // Try to find in sections
+  const section = data.sections.find(
+    (s) =>
+      s.title.toLowerCase().includes("article 700") ||
+      s.content.toLowerCase().includes("article 700")
   );
+  if (!section) return null;
+
+  const text = section.content;
+  const tauxMatch = text.match(
+    /(\d{1,3}(?:[.,]\d+)?)\s*%/
+  );
+  const amounts = [...text.matchAll(/(\d[\d\s.,]*)\s*€/g)].map((m) =>
+    parseFloat(m[1].replace(/\s/g, "").replace(",", "."))
+  ).filter((v) => !isNaN(v));
+
+  return {
+    tauxCondamnation: tauxMatch ? parseFloat(tauxMatch[1].replace(",", ".")) : null,
+    montantMoyen: amounts[0] ?? null,
+    montantMedian: amounts[1] ?? null,
+  };
 }
 
-// ── Instances donut ──────────────────────────────────────────────────
-function InstancesDonut({
-  instances,
-}: {
-  instances: ParsedAnalysis["instances"];
-}) {
-  if (instances.length === 0) return null;
-
-  const data = instances.map((inst, i) => ({
-    name: inst.name,
-    value: inst.taux ?? 0,
-    fill: PIE_COLORS[i % PIE_COLORS.length],
-  }));
-
-  const total = instances.length;
-
-  return (
-    <AnimatedSection>
-      <DashCard>
-        <SectionHeading icon={Target}>
-          Répartition par instance
-        </SectionHeading>
-
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ width: 240, height: 240, position: "relative" }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={64}
-                  outerRadius={100}
-                  paddingAngle={3}
-                  dataKey="value"
-                  strokeWidth={0}
-                  animationDuration={1400}
-                  animationEasing="ease-out"
-                >
-                  {data.map((entry, i) => (
-                    <Cell key={i} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(v) => [`${v} %`]}
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: "none",
-                    boxShadow: "0 8px 32px rgba(30,58,95,0.12)",
-                    fontSize: 13,
-                    padding: "10px 16px",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Center label overlay */}
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                textAlign: "center",
-                pointerEvents: "none",
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "Georgia, 'Times New Roman', serif",
-                  fontSize: 28,
-                  fontWeight: 700,
-                  color: "#1a1a2e",
-                  lineHeight: 1,
-                }}
-              >
-                {total}
-              </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: "#94a3b8",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  marginTop: 2,
-                }}
-              >
-                instances
-              </div>
-            </div>
-          </div>
-
-          {/* Custom legend */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              justifyContent: "center",
-              gap: "8px 20px",
-              marginTop: 20,
-            }}
-          >
-            {data.map((entry, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 13,
-                }}
-              >
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 3,
-                    backgroundColor: entry.fill,
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={{ color: "#475569" }}>{entry.name}</span>
-                <span
-                  style={{
-                    fontFamily: "Georgia, 'Times New Roman', serif",
-                    fontWeight: 700,
-                    fontVariantNumeric: "tabular-nums",
-                    color: "#1a1a2e",
-                  }}
-                >
-                  {entry.value}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </DashCard>
-    </AnimatedSection>
-  );
+// ── Extract recommendations as bullet points ─────────────────────────
+function extractRecommendations(reco: string): string[] {
+  if (!reco) return [];
+  const lines = reco
+    .split(/\n/)
+    .map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim())
+    .filter((l) => l.length > 10);
+  return lines.slice(0, 4);
 }
 
-// ── Montants visual scale ────────────────────────────────────────────
-function MontantsScale({
-  montants,
-}: {
-  montants: ParsedAnalysis["montants"];
-}) {
-  if (
-    montants.min === null &&
-    montants.median === null &&
-    montants.max === null
-  )
-    return null;
+// ══════════════════════════════════════════════════════════════════════
+// ██  MAIN COMPONENT
+// ══════════════════════════════════════════════════════════════════════
 
-  const min = montants.min ?? 0;
-  const max = montants.max ?? 0;
-  const median = montants.median ?? 0;
-  const range = max - min || 1;
-  const medianPct = Math.min(92, Math.max(8, ((median - min) / range) * 100));
-
-  return (
-    <AnimatedSection>
-      <DashCard>
-        <SectionHeading icon={Banknote}>
-          Fourchette des montants alloués
-        </SectionHeading>
-
-        <div
-          style={{
-            maxWidth: 560,
-            margin: "0 auto",
-            padding: "12px 8px 0",
-          }}
-        >
-          {/* Three value markers */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: 24,
-            }}
-          >
-            {/* Min */}
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  color: "#94a3b8",
-                  marginBottom: 4,
-                }}
-              >
-                Minimum
-              </div>
-              <div
-                style={{
-                  fontFamily: "Georgia, 'Times New Roman', serif",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: EMERALD,
-                }}
-              >
-                {fmt(montants.min)}
-              </div>
-            </div>
-
-            {/* Median */}
-            {montants.median !== null && (
-              <div style={{ textAlign: "center" }}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                    color: "#94a3b8",
-                    marginBottom: 4,
-                  }}
-                >
-                  Médian
-                </div>
-                <div
-                  style={{
-                    fontFamily: "Georgia, 'Times New Roman', serif",
-                    fontSize: 24,
-                    fontWeight: 700,
-                    color: NAVY,
-                  }}
-                >
-                  {fmt(montants.median)}
-                </div>
-              </div>
-            )}
-
-            {/* Max */}
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  color: "#94a3b8",
-                  marginBottom: 4,
-                }}
-              >
-                Maximum
-              </div>
-              <div
-                style={{
-                  fontFamily: "Georgia, 'Times New Roman', serif",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: BORDEAUX,
-                }}
-              >
-                {fmt(montants.max)}
-              </div>
-            </div>
-          </div>
-
-          {/* Gradient bar */}
-          <div style={{ position: "relative", padding: "0 4px" }}>
-            <div
-              style={{
-                height: 10,
-                borderRadius: 5,
-                background: `linear-gradient(90deg, ${EMERALD}, ${GOLD} 50%, ${BORDEAUX})`,
-                position: "relative",
-                boxShadow: `inset 0 1px 2px rgba(0,0,0,0.08)`,
-              }}
-            >
-              {/* Min marker */}
-              <div
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: 16,
-                  height: 16,
-                  borderRadius: "50%",
-                  backgroundColor: "#fff",
-                  border: `3px solid ${EMERALD}`,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                }}
-              />
-
-              {/* Median marker */}
-              {montants.median !== null && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: `${medianPct}%`,
-                    top: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: 20,
-                    height: 20,
-                    borderRadius: "50%",
-                    backgroundColor: "#fff",
-                    border: `3px solid ${NAVY}`,
-                    boxShadow: "0 2px 12px rgba(30,58,95,0.2)",
-                    zIndex: 2,
-                  }}
-                />
-              )}
-
-              {/* Max marker */}
-              <div
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "50%",
-                  transform: "translate(50%, -50%)",
-                  width: 16,
-                  height: 16,
-                  borderRadius: "50%",
-                  backgroundColor: "#fff",
-                  border: `3px solid ${BORDEAUX}`,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </DashCard>
-    </AnimatedSection>
-  );
-}
-
-// ── Fiabilite bar ────────────────────────────────────────────────────
-function FiabiliteBar({
-  fiabilite,
-}: {
-  fiabilite: ParsedAnalysis["fiabilite"];
-}) {
-  const { ref, inView } = useInView();
-  const counter = useAnimatedCounter(fiabilite.score, 1600, inView);
-
-  const barColor =
-    fiabilite.score >= 80
-      ? EMERALD
-      : fiabilite.score >= 60
-        ? NAVY
-        : fiabilite.score >= 40
-          ? AMBER
-          : BORDEAUX;
-
-  return (
-    <AnimatedSection>
-      <DashCard>
-        <SectionHeading icon={ShieldCheck}>
-          Indice de fiabilité
-        </SectionHeading>
-
-        <div ref={ref}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              gap: 8,
-              marginBottom: 12,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: 40,
-                fontWeight: 700,
-                fontVariantNumeric: "tabular-nums",
-                color: barColor,
-                lineHeight: 1,
-              }}
-            >
-              {counter}
-            </span>
-            <span style={{ fontSize: 18, fontWeight: 500, color: "#94a3b8" }}>
-              / 100
-            </span>
-            <span
-              style={{
-                marginLeft: 8,
-                padding: "4px 12px",
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: 600,
-                color: barColor,
-                backgroundColor: `${barColor}12`,
-              }}
-            >
-              {fiabilite.label}
-            </span>
-          </div>
-
-          {/* Bar */}
-          <div
-            style={{
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: "#e8e5de",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                height: "100%",
-                borderRadius: 4,
-                width: inView ? `${fiabilite.score}%` : "0%",
-                background: `linear-gradient(90deg, ${barColor}, ${barColor}cc)`,
-                transition: "width 1.6s cubic-bezier(0.16, 1, 0.3, 1)",
-              }}
-            />
-          </div>
-
-          {fiabilite.details && (
-            <p
-              style={{
-                marginTop: 12,
-                fontSize: 13,
-                color: "#64748b",
-                lineHeight: 1.5,
-              }}
-            >
-              {fiabilite.details}
-            </p>
-          )}
-        </div>
-      </DashCard>
-    </AnimatedSection>
-  );
-}
-
-// ── Main Dashboard ───────────────────────────────────────────────────
 export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     injectStyles();
   }, []);
 
-  const hasStats =
-    data.tauxSuccesGlobal !== null ||
-    data.arguments.length > 0 ||
-    data.juridictions.length > 0 ||
-    data.instances.length > 0 ||
-    data.montants.min !== null ||
-    data.montants.max !== null;
+  const taux = data.tauxSuccesGlobal ?? 0;
+  const animatedTaux = useCounter(data.tauxSuccesGlobal, 1500);
+  const animatedSources = useCounter(data.sourceCount, 1000);
+  const animatedSample = useCounter(data.echantillon, 1000);
+  const animatedFiab = useCounter(data.fiabilite.score, 1200);
 
-  if (!hasStats) return null;
+  const heroColor = pctColor(taux);
+  const args = [...data.arguments].sort((a, b) => (b.taux ?? 0) - (a.taux ?? 0));
+  const juris = [...data.juridictions].sort((a, b) => (b.taux ?? 0) - (a.taux ?? 0));
+  const art700 = extractArticle700Fallback(data);
+  const recommendations = extractRecommendations(data.recommandation);
+
+  // Montant range positions (percentage along bar)
+  const montMax = data.montants.max ?? 1;
+  const montMinPos = data.montants.min != null ? (data.montants.min / montMax) * 100 : 0;
+  const montMedPos = data.montants.median != null ? (data.montants.median / montMax) * 100 : 50;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-      {/* ── Dashboard header ──────────────────────────────── */}
-      <AnimatedSection>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: `linear-gradient(135deg, ${NAVY}14, ${GOLD}14)`,
-            }}
-          >
-            <Scale style={{ width: 22, height: 22, color: NAVY }} />
+    <div ref={containerRef} className="space-y-6 pb-8">
+      {/* ── ROW 1: Hero Gauge + KPIs ────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Hero Gauge */}
+        <div className="dv-card dv-scale-in dv-d1 p-8 flex flex-col items-center justify-center lg:col-span-1">
+          <p className="text-sm font-sans text-stone-400 uppercase tracking-widest mb-4">
+            Taux de succes
+          </p>
+          <div className="relative">
+            <GaugeSVG value={taux} size={200} strokeWidth={12} color={heroColor} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span
+                className="font-mono text-5xl font-extrabold tracking-tight"
+                style={{ color: heroColor }}
+              >
+                {animatedTaux}
+              </span>
+              <span
+                className="text-xl font-mono font-bold -mt-1"
+                style={{ color: heroColor + "99" }}
+              >
+                %
+              </span>
+            </div>
           </div>
-          <div>
-            <h2
-              style={{
-                fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: 22,
-                fontWeight: 700,
-                color: "#1a1a2e",
-                margin: 0,
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Tableau de bord analytique
-            </h2>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#94a3b8",
-                margin: "2px 0 0",
-              }}
-            >
-              Synthèse jurimétrique
-              {data.sourceCount > 0 && ` \• ${data.sourceCount} sources`}
+          {data.echantillon && (
+            <p className="text-sm text-stone-400 font-sans mt-4">
+              Sur un echantillon de{" "}
+              <span className="font-semibold text-stone-600">
+                {data.echantillon}
+              </span>{" "}
+              decisions
             </p>
+          )}
+        </div>
+
+        {/* KPI Grid */}
+        <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+          <KPICard
+            icon={FileText}
+            label="Sources citees"
+            value={String(animatedSources)}
+            sublabel="References verifiables"
+            color={NAVY}
+            delay="dv-d2"
+          />
+          <KPICard
+            icon={BookOpen}
+            label="Echantillon"
+            value={
+              data.echantillon != null ? `${animatedSample}` : "—"
+            }
+            sublabel="Decisions analysees"
+            color={GOLD}
+            delay="dv-d3"
+          />
+          <KPICard
+            icon={ShieldCheck}
+            label="Fiabilite"
+            value={`${animatedFiab}/100`}
+            sublabel={data.fiabilite.label}
+            color={fiabiliteColor(data.fiabilite.score)}
+            delay="dv-d4"
+          />
+          <KPICard
+            icon={TrendingUp}
+            label="Confiance"
+            value={confianceLabel(data.confiance)}
+            sublabel="Niveau de confiance"
+            color={confianceColor(data.confiance)}
+            delay="dv-d5"
+          />
+        </div>
+      </div>
+
+      {/* ── ROW 2: Charts ───────────────────────────────────────── */}
+      {(args.length > 0 || juris.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Arguments Bar Chart */}
+          {args.length > 0 && (
+            <div
+              className={`dv-card dv-fade-up dv-d4 p-6 ${
+                juris.length > 0 ? "lg:col-span-3" : "lg:col-span-5"
+              }`}
+            >
+              <SectionHeader icon={Scale} title="Arguments — Taux de succes" />
+              <div className="mt-2">
+                {args.map((arg, i) => (
+                  <HorizontalBarRow
+                    key={arg.name}
+                    label={arg.name}
+                    value={arg.taux ?? 0}
+                    color={pctColor(arg.taux ?? 0)}
+                    delay={i}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Jurisdictions */}
+          {juris.length > 0 && (
+            <div
+              className={`dv-card dv-fade-up dv-d5 p-6 ${
+                args.length > 0 ? "lg:col-span-2" : "lg:col-span-5"
+              }`}
+            >
+              <SectionHeader icon={Gavel} title="Juridictions" />
+              <div className="mt-2">
+                {juris.map((j, i) => (
+                  <HorizontalBarRow
+                    key={j.name}
+                    label={j.name}
+                    value={j.taux ?? 0}
+                    color={NAVY_LIGHT}
+                    delay={i}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ROW 3: Financial + Article 700 + Instances ──────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Montants Range */}
+        {(data.montants.min != null ||
+          data.montants.median != null ||
+          data.montants.max != null) && (
+          <div className="dv-card dv-fade-up dv-d5 p-6">
+            <SectionHeader icon={Banknote} title="Montants accordes" />
+            <div className="space-y-6 mt-4">
+              {/* Range visualization */}
+              <div className="px-2">
+                <div className="dv-range-bar">
+                  {data.montants.min != null && (
+                    <div
+                      className="dv-range-marker"
+                      style={{
+                        left: `${montMinPos}%`,
+                        backgroundColor: BORDEAUX,
+                      }}
+                    />
+                  )}
+                  {data.montants.median != null && (
+                    <div
+                      className="dv-range-marker"
+                      style={{
+                        left: `${montMedPos}%`,
+                        backgroundColor: AMBER,
+                      }}
+                    />
+                  )}
+                  {data.montants.max != null && (
+                    <div
+                      className="dv-range-marker"
+                      style={{
+                        left: "97%",
+                        backgroundColor: EMERALD,
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Labels */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-xs text-stone-400 uppercase tracking-wider font-sans">
+                    Minimum
+                  </p>
+                  <p
+                    className="font-mono text-lg font-bold mt-1"
+                    style={{ color: BORDEAUX }}
+                  >
+                    {fmtEur(data.montants.min)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-stone-400 uppercase tracking-wider font-sans">
+                    Median
+                  </p>
+                  <p
+                    className="font-mono text-lg font-bold mt-1"
+                    style={{ color: AMBER }}
+                  >
+                    {fmtEur(data.montants.median)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-stone-400 uppercase tracking-wider font-sans">
+                    Maximum
+                  </p>
+                  <p
+                    className="font-mono text-lg font-bold mt-1"
+                    style={{ color: EMERALD }}
+                  >
+                    {fmtEur(data.montants.max)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Article 700 CPC */}
+        {art700 && (
+          <div className="dv-card dv-fade-up dv-d6 p-6">
+            <SectionHeader icon={Gavel} title="Article 700 CPC" />
+            <div className="space-y-5 mt-4">
+              {art700.tauxCondamnation != null && (
+                <div>
+                  <div className="flex justify-between items-baseline mb-1.5">
+                    <span className="text-sm text-stone-500 font-sans">
+                      Taux de condamnation
+                    </span>
+                    <span
+                      className="font-mono text-xl font-bold"
+                      style={{ color: pctColor(art700.tauxCondamnation) }}
+                    >
+                      {art700.tauxCondamnation}%
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-stone-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-1000 ease-out"
+                      style={{
+                        width: `${art700.tauxCondamnation}%`,
+                        backgroundColor: pctColor(art700.tauxCondamnation),
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                {art700.montantMoyen != null && (
+                  <div className="text-center p-3 rounded-xl bg-stone-50">
+                    <p className="text-xs text-stone-400 uppercase tracking-wider font-sans">
+                      Montant moyen
+                    </p>
+                    <p
+                      className="font-mono text-lg font-bold mt-1"
+                      style={{ color: NAVY }}
+                    >
+                      {fmtEur(art700.montantMoyen)}
+                    </p>
+                  </div>
+                )}
+                {art700.montantMedian != null && (
+                  <div className="text-center p-3 rounded-xl bg-stone-50">
+                    <p className="text-xs text-stone-400 uppercase tracking-wider font-sans">
+                      Montant median
+                    </p>
+                    <p
+                      className="font-mono text-lg font-bold mt-1"
+                      style={{ color: NAVY }}
+                    >
+                      {fmtEur(art700.montantMedian)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Instance Pipeline */}
+        {data.instances.length > 0 && (
+          <div className="dv-card dv-fade-up dv-d7 p-6">
+            <SectionHeader icon={TrendingUp} title="Par instance" />
+            <div className="flex flex-col gap-3 mt-4">
+              {data.instances.map((inst, i) => (
+                <div key={inst.name}>
+                  <div
+                    className="flex items-center justify-between p-4 rounded-xl"
+                    style={{ backgroundColor: NAVY + "08" }}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-stone-700 font-sans">
+                        {inst.name}
+                      </p>
+                    </div>
+                    <span
+                      className="font-mono text-xl font-bold"
+                      style={{ color: pctColor(inst.taux ?? 0) }}
+                    >
+                      {inst.taux != null ? `${inst.taux}%` : "—"}
+                    </span>
+                  </div>
+                  {i < data.instances.length - 1 && (
+                    <div className="dv-instance-arrow py-1">
+                      <ArrowRight size={18} className="rotate-90" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── ROW 4: Recommendations ──────────────────────────────── */}
+      {recommendations.length > 0 && (
+        <div className="dv-card dv-fade-up dv-d8 p-6">
+          <SectionHeader icon={Lightbulb} title="Recommandations strategiques" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+            {recommendations.map((rec, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-3 p-4 rounded-xl"
+                style={{ backgroundColor: EMERALD + "08" }}
+              >
+                <CheckCircle2
+                  size={18}
+                  className="shrink-0 mt-0.5"
+                  style={{ color: EMERALD }}
+                />
+                <p className="text-sm text-stone-700 font-sans leading-relaxed">
+                  {rec}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-      </AnimatedSection>
-
-      {/* ── Hero section ──────────────────────────────────── */}
-      {data.tauxSuccesGlobal !== null && (
-        <HeroSection
-          value={data.tauxSuccesGlobal}
-          echantillon={data.echantillon}
-          confiance={data.confiance}
-          fiabilite={data.fiabilite}
-        />
       )}
 
-      {/* ── KPI strip ─────────────────────────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 16,
-        }}
-      >
-        {data.tauxSuccesGlobal !== null && (
-          <KpiCard
-            label="Taux de succès"
-            value={`${data.tauxSuccesGlobal}`}
-            suffix="%"
-            icon={TrendingUp}
-            accentColor={pctColor(data.tauxSuccesGlobal)}
-            delay={0}
-          />
-        )}
-        {data.echantillon !== null && (
-          <KpiCard
-            label="Décisions analysées"
-            value={data.echantillon}
-            icon={Users}
-            accentColor={NAVY}
-            delay={0.05}
-          />
-        )}
-        {data.juridictions.length > 0 && (
-          <KpiCard
-            label="Juridictions"
-            value={data.juridictions.length}
-            icon={Landmark}
-            accentColor={GOLD}
-            delay={0.1}
-          />
-        )}
-        {data.montants.median !== null && (
-          <KpiCard
-            label="Montant médian"
-            value={new Intl.NumberFormat("fr-FR", {
-              maximumFractionDigits: 0,
-            }).format(data.montants.median)}
-            suffix="\€"
-            icon={Banknote}
-            accentColor={EMERALD}
-            delay={0.15}
-          />
-        )}
+      {/* ── Fiabilite Footer ────────────────────────────────────── */}
+      <div className="dv-fade-up dv-d8 flex items-center justify-center gap-2 text-xs text-stone-400 font-sans pt-2">
+        <ShieldCheck size={14} />
+        <span>
+          Indice de fiabilite : {data.fiabilite.score}/100 — {data.fiabilite.details}
+        </span>
       </div>
-
-      {/* ── Arguments chart ───────────────────────────────── */}
-      <ArgumentsChart args={data.arguments} />
-
-      {/* ── Jurisdictions + Instances row ──────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
-          gap: 24,
-        }}
-      >
-        <JurisdictionsGrid jurisdictions={data.juridictions} />
-        <InstancesDonut instances={data.instances} />
-      </div>
-
-      {/* ── Montants scale ────────────────────────────────── */}
-      <MontantsScale montants={data.montants} />
-
-      {/* ── Fiabilite ─────────────────────────────────────── */}
-      {data.fiabilite.score > 0 && (
-        <FiabiliteBar fiabilite={data.fiabilite} />
-      )}
     </div>
   );
 }
