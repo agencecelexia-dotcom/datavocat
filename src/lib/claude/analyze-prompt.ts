@@ -60,12 +60,12 @@ STRUCTURE TA REPONSE EXACTEMENT AINSI :
 [Arguments a privilegier, juridiction optimale, risques a anticiper, delais previsibles, montants esperes/redoutes, negociation vs contentieux]
 
 ## Decisions cles a exploiter
-[15-25 decisions les plus pertinentes avec reference complete, date, solution, et apport pour le dossier]
+[Le MAXIMUM de decisions pertinentes avec reference complete, date, solution, et apport pour le dossier]
 [Inclus a la fois des decisions Judilibre (si disponibles) ET des arrets de principe que tu connais]
-[IMPORTANT : cite un MAXIMUM de decisions — plus tu en cites, plus l'analyse est utile pour l'avocat]
+[Plus tu en cites, plus l'analyse est utile — mais ne cite QUE des decisions reelles et pertinentes]
 
 ## Annexe des sources
-[OBLIGATOIRE — Tableau exhaustif de TOUTES les decisions citees dans l'analyse — vise au MINIMUM 15 sources, idealement 20-30]
+[OBLIGATOIRE — Tableau exhaustif de TOUTES les decisions citees dans l'analyse — cite le MAXIMUM de sources pertinentes]
 Pour CHAQUE decision citee, presente une entree structuree ainsi :
 
 ### [Reference complete (ECLI ou n° pourvoi ou Cass. chambre, date)]
@@ -93,4 +93,4 @@ REGLES :
 - Les recommandations sont des outils d'aide a la decision strategique, pas des consultations juridiques
 - SOIS GENEREUX en contenu : un avocat prefere trop d'information (qu'il peut filtrer) que pas assez
 - Si Judilibre retourne des decisions, analyse-les en priorite car elles sont verifiables en temps reel
-- CITE LE MAXIMUM DE SOURCES POSSIBLES : vise au minimum 15-20 decisions dans l'annexe. Chaque decision Judilibre fournie en contexte doit etre analysee et citee. Complete largement avec tes connaissances (arrets de principe, jurisprudence constante, decisions recentes marquantes)`;
+- CITE LE MAXIMUM DE SOURCES POSSIBLES : chaque decision Judilibre fournie en contexte doit etre analysee et citee. Complete avec tes connaissances (arrets de principe, jurisprudence constante). Mais ne cite QUE des decisions reelles — jamais de references inventees`;
