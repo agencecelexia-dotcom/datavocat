@@ -18,7 +18,6 @@ import {
   ShieldAlert,
   ShieldX,
   CheckCircle2,
-  User,
   Gavel,
   ChevronDown,
   ChevronUp,
@@ -40,17 +39,9 @@ interface Analysis {
   response: string;
   status: string;
   created_at: string;
-  client_id: string | null;
   jugement_final: string | null;
   jugement_date: string | null;
   jugement_resultat: "favorable" | "partiellement_favorable" | "defavorable" | null;
-}
-
-interface ClientOption {
-  id: string;
-  prenom: string;
-  nom: string;
-  entreprise: string | null;
 }
 
 export default function AnalysisDetailPage() {
@@ -59,8 +50,6 @@ export default function AnalysisDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState<"text" | "dashboard" | "slides">("text");
   const [showSources, setShowSources] = useState(false);
-  const [clients, setClients] = useState<ClientOption[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState<string>("");
   // Jugement final state
   const [jugementOpen, setJugementOpen] = useState(false);
   const [jugementFinal, setJugementFinal] = useState("");
@@ -70,14 +59,10 @@ export default function AnalysisDetailPage() {
   const [jugementSaved, setJugementSaved] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/analyses/${id}`).then((r) => r.json()),
-      fetch("/api/clients").then((r) => (r.ok ? r.json() : [])),
-    ])
-      .then(([data, clientsData]) => {
+    fetch(`/api/analyses/${id}`)
+      .then((r) => r.json())
+      .then((data) => {
         setAnalysis(data);
-        setClients(clientsData);
-        setSelectedClientId(data.client_id || "");
         setJugementFinal(data.jugement_final || "");
         setJugementDate(data.jugement_date ? data.jugement_date.split("T")[0] : "");
         setJugementResultat(data.jugement_resultat || "");
@@ -91,15 +76,6 @@ export default function AnalysisDetailPage() {
     if (!analysis?.response || analysis.status !== "done") return null;
     return parseAnalysisResponse(analysis.response);
   }, [analysis]);
-
-  const handleClientChange = async (clientId: string) => {
-    setSelectedClientId(clientId);
-    await fetch(`/api/analyses/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client_id: clientId || null }),
-    });
-  };
 
   const handleExport = async (format: "pdf" | "docx") => {
     if (!analysis?.response) return;
@@ -191,24 +167,6 @@ export default function AnalysisDetailPage() {
               })}
             </p>
           </div>
-          {/* Client selector */}
-          {clients.length > 0 && (
-            <div className="flex shrink-0 items-center gap-2">
-              <User className="h-3.5 w-3.5 text-muted-foreground" />
-              <select
-                value={selectedClientId}
-                onChange={(e) => handleClientChange(e.target.value)}
-                className="h-8 rounded-lg border border-border/50 bg-background px-2.5 text-xs text-foreground outline-none focus:border-[#1e3a5f]/30"
-              >
-                <option value="">Sans client</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.prenom} {c.nom}{c.entreprise ? ` — ${c.entreprise}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
       </Card>
 

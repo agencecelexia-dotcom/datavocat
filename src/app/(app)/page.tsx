@@ -25,23 +25,13 @@ import {
   ShieldAlert,
   ShieldX,
   CheckCircle2,
-  Star,
 } from "lucide-react";
-import Link from "next/link";
 import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisSlides } from "@/components/analysis/slides";
 import { AnalysisChat } from "@/components/analysis/chat";
 import { formatMarkdownSafe } from "@/lib/format-markdown";
 import { CopyMarkdown } from "@/components/ui/copy-markdown";
-import { useFavorites } from "@/hooks/use-favorites";
-
-interface ClientOption {
-  id: string;
-  prenom: string;
-  nom: string;
-  entreprise: string | null;
-}
 
 interface ClarifyQuestion {
   id: string;
@@ -71,14 +61,11 @@ const LAWYER_JOKES = [
 ];
 
 export default function AnalyzePage() {
-  const { favorites } = useFavorites();
   const [query, setQuery] = useState("");
   const [phase, setPhase] = useState<Phase>("input");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
-  const [clients, setClients] = useState<ClientOption[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [activeView, setActiveView] = useState<
     "text" | "dashboard" | "slides"
   >("text");
@@ -93,14 +80,6 @@ export default function AnalyzePage() {
     if (!response || phase !== "done") return null;
     return parseAnalysisResponse(response);
   }, [response, phase]);
-
-  // Fetch clients for selector
-  useEffect(() => {
-    fetch("/api/clients")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setClients(data))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (responseRef.current) {
@@ -177,7 +156,7 @@ export default function AnalyzePage() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: fullQuery, clientId: selectedClientId || undefined }),
+        body: JSON.stringify({ query: fullQuery }),
       });
 
       if (!res.ok) {
@@ -219,7 +198,6 @@ export default function AnalyzePage() {
     setAnswers({});
     setActiveView("text");
     setShowSources(false);
-    setSelectedClientId("");
   };
 
   const setAnswer = (id: string, value: string) => {
@@ -303,21 +281,6 @@ export default function AnalyzePage() {
               />
               <div className="relative z-10 flex items-center justify-between border-t border-border/30 px-4 py-3">
                 <div className="flex items-center gap-3">
-                  {/* Client selector */}
-                  {clients.length > 0 && (
-                    <select
-                      value={selectedClientId}
-                      onChange={(e) => setSelectedClientId(e.target.value)}
-                      className="h-8 rounded-lg border border-border/50 bg-background px-2.5 text-xs text-foreground outline-none focus:border-[#1e3a5f]/30"
-                    >
-                      <option value="">Sans client</option>
-                      {clients.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.prenom} {c.nom}{c.entreprise ? ` — ${c.entreprise}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  )}
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
                     <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Ctrl</kbd>
                     <span>+</span>
@@ -382,41 +345,6 @@ export default function AnalyzePage() {
             </span>
           </div>
 
-          {/* Favorites widget */}
-          {favorites.length > 0 && (
-            <div className="w-full max-w-3xl space-y-3">
-              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-                <Star className="h-3.5 w-3.5 fill-[#c9a96e] text-[#c9a96e]" />
-                Mes favoris
-              </p>
-              <Card className="divide-y divide-border/30 overflow-hidden border-border/40 bg-card shadow-sm">
-                {favorites.slice(0, 5).map((fav) => (
-                  <Link
-                    key={fav.id}
-                    href={
-                      `/decisions/${fav.id}`
-                    }
-                    className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm transition-all duration-200 hover:bg-accent"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Star className="h-3.5 w-3.5 shrink-0 fill-[#c9a96e] text-[#c9a96e]" />
-                      <span className="truncate font-medium text-foreground">
-                        {fav.title}
-                      </span>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-                      <span className="font-mono">{fav.reference}</span>
-                      {fav.date && (
-                        <span>
-                          {new Date(fav.date).toLocaleDateString("fr-FR")}
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </Card>
-            </div>
-          )}
         </div>
       ) : phase === "clarify" && !loading ? (
         /* ═══ CLARIFICATION STATE ═══ */

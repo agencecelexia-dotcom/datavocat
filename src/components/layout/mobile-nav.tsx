@@ -3,15 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Scale, History, FileText, BarChart3, GitCompareArrows, Users } from "lucide-react";
+import { Scale, History, GitCompareArrows } from "lucide-react";
 
 const navItems = [
   { label: "Nouvelle analyse", href: "/", icon: Scale },
   { label: "Historique", href: "/historique", icon: History },
-  { label: "Decisions", href: "/decisions", icon: FileText },
-  { label: "Statistiques", href: "/statistiques", icon: BarChart3 },
   { label: "Comparateur", href: "/comparateur", icon: GitCompareArrows },
-  { label: "Clients", href: "/clients", icon: Users },
 ];
 
 export function MobileNav() {

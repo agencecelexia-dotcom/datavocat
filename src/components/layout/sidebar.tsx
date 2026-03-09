@@ -6,10 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   Scale,
   History,
-  FileText,
-  BarChart3,
   GitCompareArrows,
-  Users,
   Sparkles,
   Command,
 } from "lucide-react";
@@ -27,24 +24,9 @@ const navItems = [
     icon: History,
   },
   {
-    label: "Décisions",
-    href: "/decisions",
-    icon: FileText,
-  },
-  {
-    label: "Statistiques",
-    href: "/statistiques",
-    icon: BarChart3,
-  },
-  {
     label: "Comparateur",
     href: "/comparateur",
     icon: GitCompareArrows,
-  },
-  {
-    label: "Clients",
-    href: "/clients",
-    icon: Users,
   },
 ];
 
@@ -78,8 +60,8 @@ export function Sidebar() {
 
           return (
             <div key={item.href}>
-              {/* Section divider before Statistiques */}
-              {i === 3 && (
+              {/* Section divider */}
+              {i === 2 && (
                 <div className="mx-2 my-3 h-px bg-white/[0.04]" />
               )}
               <Link
