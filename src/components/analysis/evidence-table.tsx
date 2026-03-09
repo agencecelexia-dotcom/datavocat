@@ -296,7 +296,7 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
       </p>
 
       {/* Synthesis blocks */}
-      {(data.synthese || data.periode || data.interpretation) && (
+      {(data.synthese || data.periode || data.facteursDeterminants || data.interpretation) && (
         <div className="space-y-3">
           {data.synthese && (
             <div className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -313,6 +313,15 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Periode couverte</p>
                 <p className="text-sm leading-relaxed text-slate-700">{data.periode}</p>
+              </div>
+            </div>
+          )}
+          {data.facteursDeterminants && (
+            <div className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <Filter className="mt-0.5 h-4 w-4 shrink-0" style={{ color: EMERALD }} />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Facteurs determinants</p>
+                <p className="text-sm leading-relaxed text-slate-700">{data.facteursDeterminants}</p>
               </div>
             </div>
           )}
