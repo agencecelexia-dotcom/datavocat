@@ -46,7 +46,7 @@ export interface ParsedAnalysis {
     taux: number | null;
     delai: string | null;
   }>;
-  instances: Array<{ name: string; taux: number | null }>;
+  instances: Array<{ name: string; taux: number | null; total: number | null; gagnees: number | null }>;
   montants: { min: number | null; median: number | null; max: number | null };
   recommandation: string;
   decisionsClés: string;
@@ -379,10 +379,10 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     // Parse specific sections
     const lowerTitle = title.toLowerCase();
 
-    if (lowerTitle.includes("analyse de la situation")) {
+    if (lowerTitle.includes("analyse de la situation") || lowerTitle.includes("resume de la situation")) {
       result.situation = content;
     }
-    if (lowerTitle.includes("recherche")) {
+    if (lowerTitle.includes("recherche") || (lowerTitle === "sources")) {
       result.recherche = content;
     }
     if (lowerTitle.includes("recommandation")) {
@@ -460,14 +460,31 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
   // Extract instance stats
   const instSection = text.match(/### Par instance.*?(?=###|## |$)/is);
   if (instSection) {
-    const instLines = instSection[0].matchAll(
+    const instText = instSection[0];
+    const instLines = instText.matchAll(
       /[-•*]\s*\*?\*?(.+?)\*?\*?\s*[:\-—]\s*(\d{1,3}(?:[.,]\d+)?)\s*%/g
     );
     for (const m of instLines) {
-      result.instances.push({
-        name: m[1].trim().replace(/\*+/g, ""),
-        taux: parseFloat(m[2].replace(",", ".")),
-      });
+      const name = m[1].trim().replace(/\*+/g, "");
+      const taux = parseFloat(m[2].replace(",", "."));
+      // Try to extract total and gagnees from surrounding context
+      const nameEscaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const contextMatch = instText.match(
+        new RegExp(nameEscaped + "[\\s\\S]{0,200}?(\\d+)\\s*(?:decisions?|d[ée]cisions?)\\s*(?:analys[ée]es?|total)?[\\s\\S]{0,100}?(\\d+)\\s*(?:decisions?|d[ée]cisions?)\\s*(?:gagn[ée]es?|favorable)", "i")
+      );
+      const totalMatch = instText.match(
+        new RegExp(nameEscaped + "[\\s\\S]{0,300}?(?:sur|Sur)\\s+(\\d+)\\s+(?:decisions?|d[ée]cisions?)", "i")
+      );
+      let total: number | null = null;
+      let gagnees: number | null = null;
+      if (contextMatch) {
+        total = parseInt(contextMatch[1]);
+        gagnees = parseInt(contextMatch[2]);
+      } else if (totalMatch) {
+        total = parseInt(totalMatch[1]);
+        gagnees = total !== null && taux !== null ? Math.round(total * taux / 100) : null;
+      }
+      result.instances.push({ name, taux, total, gagnees });
     }
   }
 

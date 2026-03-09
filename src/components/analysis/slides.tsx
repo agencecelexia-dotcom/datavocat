@@ -598,7 +598,7 @@ function SlideSituation({ data }: { data: ParsedAnalysis }) {
             Contexte juridique
           </p>
           <h2 className="font-serif text-3xl font-bold tracking-tight" style={{ color: NAVY }}>
-            Votre situation
+            Resume de la situation de votre client
           </h2>
         </div>
 
@@ -888,6 +888,13 @@ function SlideInstances({ data }: { data: ParsedAnalysis }) {
           <h2 className="font-serif text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: NAVY }}>
             Succes par instance
           </h2>
+          <p
+            className="mt-3 max-w-lg text-xs leading-relaxed text-gray-400 italic"
+            style={{ animation: "fadeIn 0.5s ease-out 0.2s both" }}
+          >
+            Les pourcentages indiquent le taux de decisions favorables a la partie demanderesse
+            sur l&apos;ensemble des decisions analysees pour cette instance.
+          </p>
         </div>
 
         {/* Pipeline */}
@@ -1322,7 +1329,7 @@ function SlideDecisionsCles({ data }: { data: ParsedAnalysis }) {
 }
 
 // ════════════════════════════════════════════
-// SLIDE 10 — RECOMMANDATION STRATEGIQUE
+// SLIDE 10 — RECOMMANDATIONS STRATEGIQUES
 // ════════════════════════════════════════════
 
 function SlideRecommandation({ data }: { data: ParsedAnalysis }) {
@@ -1353,7 +1360,7 @@ function SlideRecommandation({ data }: { data: ParsedAnalysis }) {
             Plan d&apos;action
           </p>
           <h2 className="font-serif text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: NAVY }}>
-            Recommandation strategique
+            Recommandations strategiques
           </h2>
         </div>
 
@@ -1521,6 +1528,7 @@ function SlideFiabilite({ data }: { data: ParsedAnalysis }) {
         >
           L&apos;indice de fiabilite est calcule automatiquement en fonction du nombre de sources,
           de la taille de l&apos;echantillon et de la qualite des donnees disponibles.
+          L&apos;analyse jurimetrique ne remplace pas le conseil juridique de l&apos;avocat.
         </p>
       </div>
     </Slide>
@@ -1668,6 +1676,23 @@ function SlideSynthese({ data }: { data: ParsedAnalysis }) {
             </div>
           )}
 
+          {/* Confidence level */}
+          {(data.sourceCount > 0 || data.fiabilite.score > 0) && (
+            <div
+              className="mb-6 text-center"
+              style={{ animation: "fadeIn 0.8s ease-out 0.7s both" }}
+            >
+              <p className="text-xs text-white/50">
+                Analyse basee sur{" "}
+                <span className="font-semibold text-white/70">{data.sourceCount} decisions</span>
+                {" "}&mdash; niveau de confiance :{" "}
+                <span className="font-semibold" style={{ color: GOLD }}>
+                  {data.fiabilite.label.toLowerCase()}
+                </span>
+              </p>
+            </div>
+          )}
+
           {/* Disclaimer */}
           <p
             className="text-center text-[10px] leading-relaxed text-white/30"
@@ -1675,6 +1700,7 @@ function SlideSynthese({ data }: { data: ParsedAnalysis }) {
           >
             Ce rapport est genere par intelligence artificielle a titre indicatif.
             Il ne constitue pas un avis juridique et doit etre valide par un professionnel du droit.
+            L&apos;analyse jurimetrique ne remplace pas le conseil juridique de l&apos;avocat.
           </p>
 
           {/* Branding footer */}
