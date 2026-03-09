@@ -67,12 +67,12 @@ export interface ParsedAnalysis {
  * Build a clickable URL for a French court decision reference
  */
 function buildSourceUrl(ecli: string): string {
-  // ECLI → Cour de cassation direct decision page
+  // ECLI → Legifrance direct link (most reliable)
   if (ecli.startsWith("ECLI:")) {
-    return `https://www.courdecassation.fr/decision/${encodeURIComponent(ecli)}`;
+    return `https://www.legifrance.gouv.fr/juri/id/${encodeURIComponent(ecli)}`;
   }
-  // Pourvoi number → Cour de cassation search
-  return `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ecli)}`;
+  // Pourvoi number → Legifrance search
+  return `https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(ecli)}`;
 }
 
 /**
@@ -133,7 +133,7 @@ function extractSources(text: string): SourceReference[] {
     sources.push({
       type: "decision",
       reference: ref,
-      url: `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ref)}`,
+      url: `https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(ref)}`,
       date: match[2],
       chamber: match[1],
       solution: "",
@@ -264,7 +264,9 @@ function extractDetailedSources(text: string): DetailedSource[] {
   const entryStarts: Array<{ ref: string; start: number }> = [];
   let m;
   while ((m = entryRegex.exec(annexeText)) !== null) {
-    entryStarts.push({ ref: m[1].trim(), start: m.index });
+    // Strip markdown from reference header
+    const cleanRef = m[1].trim().replace(/\*{1,2}/g, "").replace(/\[([^\]]*)\]/g, "$1").trim();
+    entryStarts.push({ ref: cleanRef, start: m.index });
   }
 
   for (let i = 0; i < entryStarts.length; i++) {
@@ -273,18 +275,22 @@ function extractDetailedSources(text: string): DetailedSource[] {
     const block = annexeText.slice(start, end);
     const ref = entryStarts[i].ref;
 
+    // Strip markdown formatting (**, *, ##, [], etc.) from a value
+    const stripMd = (s: string): string =>
+      s.replace(/\*{1,2}/g, "").replace(/^#+\s*/, "").replace(/\[([^\]]*)\]/g, "$1").trim();
+
     const getField = (pattern: RegExp): string => {
       const match = block.match(pattern);
-      return match ? match[1].trim() : "";
+      return match ? stripMd(match[1]) : "";
     };
 
-    const juridiction = getField(/\*?\*?Juridiction\*?\*?\s*[:：]\s*(.+)/i);
-    const chambre = getField(/\*?\*?Chambre\*?\*?\s*[:：]\s*(.+)/i);
-    const date = getField(/\*?\*?Date\*?\*?\s*[:：]\s*(.+)/i);
-    const solution = getField(/\*?\*?Solution\*?\*?\s*[:：]\s*(.+)/i);
-    const source = getField(/\*?\*?Source\*?\*?\s*[:：]\s*(.+)/i);
-    const pertinenceRaw = getField(/\*?\*?Pertinence\*?\*?\s*[:：]\s*(.+)/i).toLowerCase();
-    const apport = getField(/\*?\*?Apport\*?\*?\s*[:：]\s*(.+)/i);
+    const juridiction = getField(/[-•*]\s*\*?\*?Juridiction\*?\*?\s*[:：]\s*(.+)/i);
+    const chambre = getField(/[-•*]\s*\*?\*?Chambre\*?\*?\s*[:：]\s*(.+)/i);
+    const date = getField(/[-•*]\s*\*?\*?Date\*?\*?\s*[:：]\s*(.+)/i);
+    const solution = getField(/[-•*]\s*\*?\*?Solution\*?\*?\s*[:：]\s*(.+)/i);
+    const source = getField(/[-•*]\s*\*?\*?Source\*?\*?\s*[:：]\s*(.+)/i);
+    const pertinenceRaw = getField(/[-•*]\s*\*?\*?Pertinence\*?\*?\s*[:：]\s*(.+)/i).toLowerCase();
+    const apport = getField(/[-•*]\s*\*?\*?Apport\*?\*?\s*[:：]\s*(.+)/i);
 
     let pertinence: DetailedSource["pertinence"] = "";
     if (pertinenceRaw.includes("favorable") && !pertinenceRaw.includes("defavorable") && !pertinenceRaw.includes("défavorable")) {
@@ -305,7 +311,7 @@ function extractDetailedSources(text: string): DetailedSource[] {
       if (pourvoiMatch) {
         url = buildSourceUrl(pourvoiMatch[1]);
       } else {
-        url = `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ref)}`;
+        url = `https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(ref)}`;
       }
     }
 
