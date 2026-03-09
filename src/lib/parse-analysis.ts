@@ -557,19 +557,21 @@ function extractEvidenceTable(text: string): EvidenceTable | null {
   if (rows.length === 0) return null;
 
   // Extract synthesis text blocks below the table
-  const afterTable = sectionText.split(tableLines[tableLines.length - 1]).pop() || "";
+  // Strip markdown bold markers before matching to handle **Synthese du tableau** : ...
+  const afterTable = (sectionText.split(tableLines[tableLines.length - 1]).pop() || "").replace(/\*{1,2}/g, "");
   const syntheseMatch = afterTable.match(/synth[eè]se\s*(?:du\s+tableau)?\s*[:：]\s*(.+)/i);
   const periodeMatch = afterTable.match(/p[eé]riode\s*(?:couverte)?\s*[:：]\s*(.+)/i);
   const interpreMatch = afterTable.match(/(?:ce\s+que\s+cela\s+signifie|signification)\s*(?:pour\s+votre\s+dossier)?\s*[:：]\s*(.+)/i);
   const facteursMatch = afterTable.match(/facteurs?\s*d[eé]terminants?\s*[:：]\s*(.+)/i);
+  const recentesMatch = afterTable.match(/d[eé]cisions?\s*r[eé]centes?\s*[:：]\s*(.+)/i);
 
   return {
     headers,
     rows,
-    synthese: syntheseMatch ? syntheseMatch[1].trim().replace(/\*{1,2}/g, "") : "",
-    periode: periodeMatch ? periodeMatch[1].trim().replace(/\*{1,2}/g, "") : "",
-    interpretation: interpreMatch ? interpreMatch[1].trim().replace(/\*{1,2}/g, "") : "",
-    facteursDeterminants: facteursMatch ? facteursMatch[1].trim().replace(/\*{1,2}/g, "") : "",
+    synthese: syntheseMatch ? syntheseMatch[1].trim() : "",
+    periode: periodeMatch ? periodeMatch[1].trim() : "",
+    interpretation: interpreMatch ? interpreMatch[1].trim() : "",
+    facteursDeterminants: facteursMatch ? facteursMatch[1].trim() : "",
   };
 }
 
@@ -813,10 +815,11 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
   // Extract Article 700 CPC stats
   const art700Section = text.match(/###\s*Article\s*700.*?(?=###|## |$)/is);
   if (art700Section) {
-    const art700Text = art700Section[0];
+    // Strip markdown bold markers before matching to handle **Taux de condamnation** : ...
+    const art700Text = art700Section[0].replace(/\*{1,2}/g, "");
     const tauxCond = art700Text.match(/taux\s+(?:de\s+)?condamnation\s*[:\-—]\s*(?:environ\s+)?(\d{1,3}(?:[.,]\d+)?)\s*%/i);
-    const moyenMatch = art700Text.match(/montant\s+moyen\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*€/i);
-    const medianMatch = art700Text.match(/montant\s+m[ée]dian\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*€/i);
+    const moyenMatch = art700Text.match(/montant\s+moyen\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*(?:€|euros?)/i);
+    const medianMatch = art700Text.match(/montant\s+m[ée]dian\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*(?:€|euros?)/i);
     result.article700 = {
       tauxCondamnation: tauxCond ? parseFloat(tauxCond[1].replace(",", ".")) : null,
       montantMoyen: moyenMatch ? parseFloat(moyenMatch[1].replace(/\s/g, "").replace(",", ".")) : null,
