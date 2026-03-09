@@ -29,6 +29,18 @@ export interface FiabiliteScore {
   details: string;
 }
 
+export interface EvidenceTableRow {
+  [key: string]: string;
+}
+
+export interface EvidenceTable {
+  headers: string[];
+  rows: EvidenceTableRow[];
+  synthese: string;
+  periode: string;
+  interpretation: string;
+}
+
 export interface ParsedAnalysis {
   situation: string;
   recherche: string;
@@ -60,6 +72,7 @@ export interface ParsedAnalysis {
     montantMoyen: number | null;
     montantMedian: number | null;
   } | null;
+  evidenceTable: EvidenceTable | null;
   sections: Array<{ title: string; content: string; emoji: string }>;
 }
 
@@ -328,6 +341,71 @@ function extractDetailedSources(text: string): DetailedSource[] {
   return sources;
 }
 
+/**
+ * Extract the evidence table from the "Tableau de preuve statistique" section
+ */
+function extractEvidenceTable(text: string): EvidenceTable | null {
+  // Find the section
+  const sectionMatch = text.match(/## (?:.*?)?Tableau de preuve(.*?)(?=\n## |$)/is);
+  if (!sectionMatch) return null;
+
+  const sectionText = sectionMatch[1];
+
+  // Find markdown table: lines starting with |
+  const lines = sectionText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const tableLines = lines.filter((l) => l.startsWith("|") && l.endsWith("|"));
+
+  if (tableLines.length < 3) return null; // Need header + separator + at least 1 row
+
+  // Parse header
+  const headerLine = tableLines[0];
+  const headers = headerLine
+    .split("|")
+    .map((h) => h.trim())
+    .filter(Boolean);
+
+  if (headers.length < 2) return null;
+
+  // Skip separator line (index 1), parse data rows
+  const rows: EvidenceTableRow[] = [];
+  for (let i = 2; i < tableLines.length; i++) {
+    const cells = tableLines[i]
+      .split("|")
+      .map((c) => c.trim())
+      .filter((_, idx, arr) => idx > 0 && idx < arr.length); // Remove empty first/last from split
+
+    // Skip synthesis rows that span columns (contain "Synthese", "TOTAL", etc.)
+    const firstCell = cells[0]?.toLowerCase() || "";
+    if (firstCell.includes("synthese") || firstCell.includes("total") || firstCell.includes("moyenne")) {
+      continue;
+    }
+
+    if (cells.length >= 2) {
+      const row: EvidenceTableRow = {};
+      headers.forEach((header, idx) => {
+        row[header] = (cells[idx] || "").replace(/\*{1,2}/g, "");
+      });
+      rows.push(row);
+    }
+  }
+
+  if (rows.length === 0) return null;
+
+  // Extract synthesis text blocks below the table
+  const afterTable = sectionText.split(tableLines[tableLines.length - 1]).pop() || "";
+  const syntheseMatch = afterTable.match(/synth[eè]se\s*(?:du\s+tableau)?\s*[:：]\s*(.+)/i);
+  const periodeMatch = afterTable.match(/p[eé]riode\s*(?:couverte)?\s*[:：]\s*(.+)/i);
+  const interpreMatch = afterTable.match(/(?:ce\s+que\s+cela\s+signifie|signification)\s*(?:pour\s+votre\s+dossier)?\s*[:：]\s*(.+)/i);
+
+  return {
+    headers,
+    rows,
+    synthese: syntheseMatch ? syntheseMatch[1].trim().replace(/\*{1,2}/g, "") : "",
+    periode: periodeMatch ? periodeMatch[1].trim().replace(/\*{1,2}/g, "") : "",
+    interpretation: interpreMatch ? interpreMatch[1].trim().replace(/\*{1,2}/g, "") : "",
+  };
+}
+
 export function parseAnalysisResponse(text: string): ParsedAnalysis {
   const result: ParsedAnalysis = {
     situation: "",
@@ -346,6 +424,7 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     detailedSources: [],
     sourceCount: 0,
     article700: null,
+    evidenceTable: null,
     fiabilite: { score: 0, label: "Tres faible", details: "" },
     sections: [],
   };
@@ -398,6 +477,7 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     if (lowerTitle.includes("limites")) {
       result.limites = content;
     }
+    // "Tableau de preuve" is handled separately by extractEvidenceTable
   }
 
   // Extract global success rate
@@ -532,6 +612,9 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
 
   // Extract detailed sources from "Annexe des sources" section
   result.detailedSources = extractDetailedSources(text);
+
+  // Extract evidence table
+  result.evidenceTable = extractEvidenceTable(text);
 
   // Compute fiabilite
   result.fiabilite = computeFiabilite(

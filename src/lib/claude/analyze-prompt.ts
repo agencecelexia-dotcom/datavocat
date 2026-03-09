@@ -98,6 +98,35 @@ Classe les decisions par ordre de pertinence decroissante pour le dossier.
 ## Limites de l'analyse
 [Sources utilisees, fiabilite, decisions non publiees, biais eventuels]
 
+## Tableau de preuve statistique
+OBLIGATOIRE — Ce tableau recapitule TOUTES les decisions analysees et constitue la preuve des statistiques avancees.
+Genere un tableau markdown avec des colonnes ADAPTEES au type de contentieux traite.
+
+Colonnes OBLIGATOIRES (toujours presentes) :
+| N° | Decision | Juridiction | Date | Solution | Pertinence | Source |
+
+Colonnes ADAPTATIVES (choisis 3 a 6 colonnes supplementaires pertinentes selon le contentieux) :
+- Droit du travail : Motif du licenciement, Anciennete, Indemnite accordee, Convention collective, Taille entreprise
+- Droit de la famille : Type de procedure, Prestation compensatoire, Garde, Pension alimentaire
+- Droit commercial : Type de litige, Montant du litige, Clause contractuelle, Dommages-interets
+- Droit penal : Infraction, Peine prononcee, Recidive, Circonstances
+- Droit administratif : Acte conteste, Motif d'annulation, Indemnisation, Delai de jugement
+- Droit de la consommation : Pratique en cause, Prejudice, Sanction, Clause abusive
+- Droit immobilier : Type de bail, Montant, Duree, Motif de resiliation
+- Responsabilite civile : Fait generateur, Prejudice corporel, IPP/DFT, Montant total
+- Contentieux social (accords collectifs) : Secteur, Objet accord, Signataires, Cause nullite, Effet temporal
+- Autre matiere : adapte les colonnes aux specificites du contentieux
+
+IMPORTANT :
+- Chaque decision citee dans l'analyse DOIT apparaitre dans ce tableau
+- Indique "Favorable", "Defavorable" ou "Nuance" dans la colonne Pertinence
+- Ajoute une LIGNE DE SYNTHESE en bas du tableau avec les totaux/moyennes
+- Format markdown standard avec | et --- pour les separateurs
+- En dessous du tableau, ajoute un bloc de synthese :
+  **Synthese du tableau** : Sur [N] decisions, [X] favorables ([Y%]), [Z] defavorables ([W%]), [R] nuancees. [Phrase d'interpretation].
+  **Periode couverte** : [date la plus ancienne] a [date la plus recente]
+  **Ce que cela signifie pour votre dossier** : [Interpretation en 2-3 phrases]
+
 REGLES :
 - NE JAMAIS mentionner les honoraires d'avocat — le site est destine aux avocats dont les honoraires sont libres (article 10 loi du 31/12/1971). En revanche, TOUJOURS inclure la section Article 700 CPC avec les stats de condamnation.
 - Quand tu cites une decision Judilibre fournie en contexte, utilise la reference exacte avec [Judilibre]
