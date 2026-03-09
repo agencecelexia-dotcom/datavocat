@@ -63,6 +63,21 @@ STRUCTURE TA REPONSE EXACTEMENT AINSI :
 [5-8 decisions les plus pertinentes avec reference complete, date, solution, et apport pour le dossier]
 [Inclus a la fois des decisions Judilibre (si disponibles) ET des arrets de principe que tu connais]
 
+## Annexe des sources
+[OBLIGATOIRE — Tableau exhaustif de TOUTES les decisions citees dans l'analyse]
+Pour CHAQUE decision citee, presente une entree structuree ainsi :
+
+### [Reference complete (ECLI ou n° pourvoi ou Cass. chambre, date)]
+- **Juridiction** : [Cour de cassation / CA / CPH / TJ + ville si applicable]
+- **Chambre** : [sociale / civile / commerciale / etc.]
+- **Date** : [date complete]
+- **Solution** : [cassation / rejet / cassation partielle / etc.]
+- **Source** : [Judilibre] ou [Connaissance consolidee]
+- **Pertinence** : [favorable / defavorable / neutre] pour le dossier
+- **Apport** : [Resume en 2-3 phrases de ce que cette decision apporte au dossier : le principe pose, la regle appliquee, les faits similaires, pourquoi elle est utile pour la strategie]
+
+Classe les decisions par ordre de pertinence decroissante pour le dossier.
+
 ## Limites de l'analyse
 [Sources utilisees, fiabilite, decisions non publiees, biais eventuels]
 

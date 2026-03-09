@@ -11,6 +11,18 @@ export interface SourceReference {
   solution: string;
 }
 
+export interface DetailedSource {
+  reference: string;
+  juridiction: string;
+  chambre: string;
+  date: string;
+  solution: string;
+  source: string; // "Judilibre" | "Connaissance consolidee"
+  pertinence: "favorable" | "defavorable" | "neutre" | "";
+  apport: string;
+  url: string;
+}
+
 export interface FiabiliteScore {
   score: number; // 0-100
   label: "Tres eleve" | "Eleve" | "Moyen" | "Faible" | "Tres faible";
@@ -40,6 +52,7 @@ export interface ParsedAnalysis {
   decisionsClés: string;
   limites: string;
   sources: SourceReference[];
+  detailedSources: DetailedSource[];
   sourceCount: number;
   fiabilite: FiabiliteScore;
   article700: {
@@ -234,6 +247,84 @@ function computeFiabilite(
   return { score, label, details: factors.join(" · ") };
 }
 
+/**
+ * Extract detailed sources from the "Annexe des sources" section
+ */
+function extractDetailedSources(text: string): DetailedSource[] {
+  const sources: DetailedSource[] = [];
+
+  // Find the "Annexe des sources" section
+  const annexeMatch = text.match(/## (?:.*?)?Annexe des sources(.*?)(?=\n## |$)/is);
+  if (!annexeMatch) return sources;
+
+  const annexeText = annexeMatch[1];
+
+  // Split by ### headers (each is a source entry)
+  const entryRegex = /###\s+(.+)/g;
+  const entryStarts: Array<{ ref: string; start: number }> = [];
+  let m;
+  while ((m = entryRegex.exec(annexeText)) !== null) {
+    entryStarts.push({ ref: m[1].trim(), start: m.index });
+  }
+
+  for (let i = 0; i < entryStarts.length; i++) {
+    const start = entryStarts[i].start;
+    const end = i + 1 < entryStarts.length ? entryStarts[i + 1].start : annexeText.length;
+    const block = annexeText.slice(start, end);
+    const ref = entryStarts[i].ref;
+
+    const getField = (pattern: RegExp): string => {
+      const match = block.match(pattern);
+      return match ? match[1].trim() : "";
+    };
+
+    const juridiction = getField(/\*?\*?Juridiction\*?\*?\s*[:：]\s*(.+)/i);
+    const chambre = getField(/\*?\*?Chambre\*?\*?\s*[:：]\s*(.+)/i);
+    const date = getField(/\*?\*?Date\*?\*?\s*[:：]\s*(.+)/i);
+    const solution = getField(/\*?\*?Solution\*?\*?\s*[:：]\s*(.+)/i);
+    const source = getField(/\*?\*?Source\*?\*?\s*[:：]\s*(.+)/i);
+    const pertinenceRaw = getField(/\*?\*?Pertinence\*?\*?\s*[:：]\s*(.+)/i).toLowerCase();
+    const apport = getField(/\*?\*?Apport\*?\*?\s*[:：]\s*(.+)/i);
+
+    let pertinence: DetailedSource["pertinence"] = "";
+    if (pertinenceRaw.includes("favorable") && !pertinenceRaw.includes("defavorable") && !pertinenceRaw.includes("défavorable")) {
+      pertinence = "favorable";
+    } else if (pertinenceRaw.includes("defavorable") || pertinenceRaw.includes("défavorable")) {
+      pertinence = "defavorable";
+    } else if (pertinenceRaw.includes("neutre")) {
+      pertinence = "neutre";
+    }
+
+    // Build URL from reference
+    let url = "";
+    const ecliMatch = ref.match(/ECLI:[A-Z]{2}:[A-Z]+:\d{4}:[A-Z0-9.]+/);
+    if (ecliMatch) {
+      url = buildSourceUrl(ecliMatch[0]);
+    } else {
+      const pourvoiMatch = ref.match(/(\d{2,4}[-/.]\d{2,5}(?:\.\d+)?)/);
+      if (pourvoiMatch) {
+        url = buildSourceUrl(pourvoiMatch[1]);
+      } else {
+        url = `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ref)}`;
+      }
+    }
+
+    sources.push({
+      reference: ref,
+      juridiction,
+      chambre,
+      date,
+      solution,
+      source: source.replace(/[\[\]]/g, ""),
+      pertinence,
+      apport,
+      url,
+    });
+  }
+
+  return sources;
+}
+
 export function parseAnalysisResponse(text: string): ParsedAnalysis {
   const result: ParsedAnalysis = {
     situation: "",
@@ -249,6 +340,7 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     decisionsClés: "",
     limites: "",
     sources: [],
+    detailedSources: [],
     sourceCount: 0,
     article700: null,
     fiabilite: { score: 0, label: "Tres faible", details: "" },
@@ -417,6 +509,9 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
   // Extract sources
   result.sources = extractSources(text);
   result.sourceCount = result.sources.length;
+
+  // Extract detailed sources from "Annexe des sources" section
+  result.detailedSources = extractDetailedSources(text);
 
   // Compute fiabilite
   result.fiabilite = computeFiabilite(

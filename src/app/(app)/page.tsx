@@ -30,6 +30,7 @@ import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisSlides } from "@/components/analysis/slides";
 import { AnalysisChat } from "@/components/analysis/chat";
+import { SourcesAnnex } from "@/components/analysis/sources-annex";
 import { formatMarkdownSafe } from "@/lib/format-markdown";
 import { CopyMarkdown } from "@/components/ui/copy-markdown";
 
@@ -67,7 +68,7 @@ export default function AnalyzePage() {
   const [response, setResponse] = useState("");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<
-    "text" | "dashboard" | "slides"
+    "text" | "dashboard" | "slides" | "sources"
   >("text");
   const [showSources, setShowSources] = useState(false);
   const responseRef = useRef<HTMLDivElement>(null);
@@ -528,6 +529,11 @@ export default function AnalyzePage() {
                     label: "Slides",
                     icon: Presentation,
                   },
+                  {
+                    key: "sources" as const,
+                    label: "Sources",
+                    icon: BookOpen,
+                  },
                 ].map((tab) => (
                   <button
                     key={tab.key}
@@ -561,10 +567,10 @@ export default function AnalyzePage() {
               <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/30 bg-card/95 px-5 py-2.5 backdrop-blur-sm">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <div className="flex h-5 w-5 items-center justify-center rounded bg-[#1e3a5f]/10">
-                    {activeView === "text" ? <FileText className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "dashboard" ? <BarChart3 className="h-3 w-3 text-[#1e3a5f]" /> : <Presentation className="h-3 w-3 text-[#1e3a5f]" />}
+                    {activeView === "text" ? <FileText className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "dashboard" ? <BarChart3 className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "sources" ? <BookOpen className="h-3 w-3 text-[#1e3a5f]" /> : <Presentation className="h-3 w-3 text-[#1e3a5f]" />}
                   </div>
                   <span className="font-medium text-foreground">
-                    {activeView === "text" ? "Rapport d'analyse" : activeView === "dashboard" ? "Dashboard jurimetrique" : "Presentation"}
+                    {activeView === "text" ? "Rapport d'analyse" : activeView === "dashboard" ? "Dashboard jurimetrique" : activeView === "sources" ? "Annexe des sources" : "Presentation"}
                   </span>
                   <span className="text-muted-foreground/50">|</span>
                   <span>Datavocat</span>
@@ -617,6 +623,13 @@ export default function AnalyzePage() {
             {activeView === "slides" && phase === "done" && parsedData && (
               <div className="animate-fade-in-up">
                 <AnalysisSlides data={parsedData} query={query} />
+              </div>
+            )}
+
+            {/* Sources annex view */}
+            {activeView === "sources" && phase === "done" && parsedData && (
+              <div className="animate-fade-in-up p-6">
+                <SourcesAnnex data={parsedData} />
               </div>
             )}
           </div>
