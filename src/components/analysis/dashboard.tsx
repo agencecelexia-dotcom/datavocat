@@ -706,32 +706,59 @@ export function AnalysisDashboard({ data }: { data: ParsedAnalysis }) {
         {data.instances.length > 0 && (
           <div className="dv-card dv-fade-up dv-d7 p-6">
             <SectionHeader icon={TrendingUp} title="Par instance" />
-            <div className="flex flex-col gap-3 mt-4">
-              {data.instances.map((inst, i) => (
-                <div key={inst.name}>
-                  <div
-                    className="flex items-center justify-between p-4 rounded-xl"
-                    style={{ backgroundColor: NAVY + "08" }}
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-stone-700 font-sans">
-                        {inst.name}
-                      </p>
-                    </div>
-                    <span
-                      className="font-mono text-base font-bold sm:text-xl"
-                      style={{ color: pctColor(inst.taux ?? 0) }}
+            <p className="text-xs text-stone-400 font-sans -mt-2 mb-4 italic leading-relaxed">
+              Les pourcentages indiquent le taux de decisions favorables a la partie demanderesse sur l&apos;ensemble des decisions analysees pour cette instance.
+            </p>
+            <div className="flex flex-col gap-3">
+              {data.instances.map((inst, i) => {
+                const total = inst.total;
+                const gagnees = inst.gagnees ?? (total != null && inst.taux != null ? Math.round(total * inst.taux / 100) : null);
+                const insuffisant = total != null && total < 10;
+                return (
+                  <div key={inst.name}>
+                    <div
+                      className="p-4 rounded-xl"
+                      style={{ backgroundColor: NAVY + "08" }}
                     >
-                      {inst.taux != null ? `${inst.taux}%` : "—"}
-                    </span>
-                  </div>
-                  {i < data.instances.length - 1 && (
-                    <div className="dv-instance-arrow py-1">
-                      <ArrowRight size={18} className="rotate-90" />
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-stone-700 font-sans">
+                          {inst.name}
+                        </p>
+                        <span
+                          className="font-mono text-base font-bold sm:text-xl"
+                          style={{ color: insuffisant ? AMBER : pctColor(inst.taux ?? 0) }}
+                        >
+                          {insuffisant ? "—" : inst.taux != null ? `${inst.taux}%` : "—"}
+                        </span>
+                      </div>
+                      {insuffisant ? (
+                        <p className="text-xs text-amber-600 font-sans mt-1.5 italic">
+                          Donnees insuffisantes pour cette instance
+                        </p>
+                      ) : inst.taux != null ? (
+                        <div className="mt-1.5">
+                          <p className="text-xs text-stone-500 font-sans leading-relaxed">
+                            {inst.taux}% de succes
+                            {total != null && (
+                              <span>
+                                {" "}— Sur {total} decisions analysees, {inst.taux}% ont ete favorables au demandeur
+                                {gagnees != null && (
+                                  <span className="text-stone-400"> (soit {gagnees} decisions sur {total})</span>
+                                )}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
-                  )}
-                </div>
-              ))}
+                    {i < data.instances.length - 1 && (
+                      <div className="dv-instance-arrow py-1">
+                        <ArrowRight size={18} className="rotate-90" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
