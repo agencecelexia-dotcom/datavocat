@@ -66,13 +66,13 @@ export interface ParsedAnalysis {
 /**
  * Build a clickable URL for a French court decision reference
  */
-function buildSourceUrl(ecli: string): string {
-  // ECLI → Legifrance direct link (most reliable)
-  if (ecli.startsWith("ECLI:")) {
-    return `https://www.legifrance.gouv.fr/juri/id/${encodeURIComponent(ecli)}`;
+function buildSourceUrl(ref: string): string {
+  // ECLI → Cour de cassation direct decision page
+  if (ref.startsWith("ECLI:")) {
+    return `https://www.courdecassation.fr/decision/${encodeURIComponent(ref)}`;
   }
-  // Pourvoi number → Legifrance search
-  return `https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(ecli)}`;
+  // Pourvoi or other → Judilibre search
+  return `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ref)}`;
 }
 
 /**
@@ -133,7 +133,7 @@ function extractSources(text: string): SourceReference[] {
     sources.push({
       type: "decision",
       reference: ref,
-      url: `https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(ref)}`,
+      url: `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ref)}`,
       date: match[2],
       chamber: match[1],
       solution: "",
@@ -311,7 +311,7 @@ function extractDetailedSources(text: string): DetailedSource[] {
       if (pourvoiMatch) {
         url = buildSourceUrl(pourvoiMatch[1]);
       } else {
-        url = `https://www.legifrance.gouv.fr/search/juri?query=${encodeURIComponent(ref)}`;
+        url = `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ref)}`;
       }
     }
 

@@ -201,7 +201,7 @@ function SourceRow({
               className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 px-3 py-1.5 text-xs font-medium text-[#1e3a5f] transition-all hover:bg-[#1e3a5f]/10"
             >
               <ExternalLink className="h-3 w-3" />
-              Consulter sur Legifrance
+              Consulter sur Judilibre
             </a>
           )}
         </div>
@@ -366,7 +366,7 @@ export function SourcesAnnex({ data }: { data: ParsedAnalysis }) {
 
       {/* Footer note */}
       <p className="text-xs italic text-slate-400">
-        Les liens renvoient vers Legifrance. Verifiez systematiquement les decisions avant toute utilisation dans un acte de procedure.
+        Les liens renvoient vers Judilibre (Cour de cassation). Verifiez systematiquement les decisions avant toute utilisation dans un acte de procedure.
       </p>
     </div>
   );
