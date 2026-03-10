@@ -362,6 +362,25 @@ export default function AnalyzePage() {
           </div>
 
         </div>
+      ) : phase === "clarify" && loading ? (
+        /* ═══ LOADING CLARIFICATION QUESTIONS ═══ */
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4">
+          <div className="relative">
+            <div className="h-16 w-16 animate-spin rounded-full border-4 border-[#1e3a5f]/10 border-t-[#c9a96e]" style={{ animationDuration: "2s" }} />
+            <MessageCircleQuestion className="absolute inset-0 m-auto h-6 w-6 text-[#1e3a5f]" />
+          </div>
+          <div className="text-center">
+            <h2 className="font-serif text-xl text-[#1e3a5f]">
+              Preparation des questions
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              L&apos;IA analyse votre demande pour poser les bonnes questions...
+            </p>
+          </div>
+          <Card className="w-full max-w-lg border-border/40 bg-card p-4 shadow-sm">
+            <p className="text-sm leading-relaxed text-muted-foreground line-clamp-3">{query}</p>
+          </Card>
+        </div>
       ) : phase === "clarify" && !loading ? (
         /* ═══ CLARIFICATION STATE ═══ */
         <div data-tour="clarify-section" className="flex flex-1 flex-col gap-6 overflow-y-auto py-6">
