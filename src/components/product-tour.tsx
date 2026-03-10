@@ -323,14 +323,17 @@ export function ProductTour() {
         />
       )}
 
-      {/* Tooltip — for noOverlay steps, anchor top-right so it never blocks scroll */}
+      {/* Tooltip — for noOverlay steps, anchor bottom-center as a compact floating bar */}
       <div
         ref={tooltipRef}
-        className="fixed z-10 w-[320px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
+        className={noOverlay
+          ? "fixed z-10 w-[calc(100vw-24px)] max-w-lg rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
+          : "fixed z-10 w-[320px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
+        }
         style={noOverlay ? {
-          top: 12,
-          right: 12,
-          left: "auto",
+          bottom: 16,
+          left: "50%",
+          transform: "translateX(-50%)",
           opacity: tooltipReady ? 1 : 0,
           pointerEvents: "auto",
           transition: "opacity 0.2s",
