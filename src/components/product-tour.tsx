@@ -27,7 +27,6 @@ export function ProductTour() {
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isButtonStep = tour.step?.showButton === true;
-  const noOverlay = tour.step?.noOverlay === true;
 
   useEffect(() => {
     setMounted(true);
@@ -245,27 +244,6 @@ export function ProductTour() {
     return () => clearInterval(interval);
   }, [tour.isActive, tour.currentStep, reposition]);
 
-  // Dim sidebar + header during noOverlay steps to focus user on main content
-  useEffect(() => {
-    if (!tour.isActive || !noOverlay) return;
-    const sidebar = document.querySelector('[data-tour="sidebar"]') as HTMLElement | null;
-    const header = document.querySelector('header') as HTMLElement | null;
-    if (sidebar) {
-      sidebar.style.opacity = '0.3';
-      sidebar.style.pointerEvents = 'none';
-      sidebar.style.transition = 'opacity 0.3s ease';
-    }
-    if (header) {
-      header.style.opacity = '0.3';
-      header.style.pointerEvents = 'none';
-      header.style.transition = 'opacity 0.3s ease';
-    }
-    return () => {
-      if (sidebar) { sidebar.style.opacity = ''; sidebar.style.pointerEvents = ''; sidebar.style.transition = ''; }
-      if (header) { header.style.opacity = ''; header.style.pointerEvents = ''; header.style.transition = ''; }
-    };
-  }, [tour.isActive, tour.currentStep, noOverlay]);
-
   if (!mounted || !tour.isActive || !tour.step) return null;
 
   return createPortal(
@@ -279,65 +257,37 @@ export function ProductTour() {
           : { top: 0, left: 0, width: 0, height: 0, overflow: "visible", pointerEvents: "none" }
       }
     >
-      {/* Dark overlay with spotlight cutout — uses box-shadow instead of SVG
-          to avoid blocking scroll/touch events on interactive steps.
-          noOverlay steps: no dimming at all, just spotlight ring + tooltip */}
-      {noOverlay ? (
-        spotlight && tooltipReady && (
-          <div
-            className="pointer-events-none fixed rounded-xl ring-2 ring-[#c9a96e]"
-            style={{
-              top: spotlight.top,
-              left: spotlight.left,
-              width: spotlight.width,
-              height: spotlight.height,
-              transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
-              animation: "pulse-ring-no-overlay 2s ease-in-out infinite",
-            }}
-          />
-        )
-      ) : spotlight && tooltipReady ? (
+      {/* Spotlight ring — gold ring around target, no dark overlay (except welcome/button steps).
+          This keeps the page fully scrollable and interactive at all times. */}
+      {spotlight && tooltipReady ? (
         <div
-          className="fixed rounded-xl ring-2 ring-[#c9a96e]"
+          className="pointer-events-none fixed rounded-xl ring-2 ring-[#c9a96e]"
           style={{
             top: spotlight.top,
             left: spotlight.left,
             width: spotlight.width,
             height: spotlight.height,
-            boxShadow: "0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 0 rgba(201,169,110,0.4)",
-            pointerEvents: isButtonStep ? "auto" : "none",
             transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
             animation: "pulse-ring 2s ease-in-out infinite",
           }}
-          onClick={isButtonStep ? tour.skip : undefined}
         />
-      ) : (
-        /* No spotlight — full dark overlay (center/welcome steps) */
+      ) : isButtonStep ? (
+        /* No spotlight — full dark overlay only for welcome/button steps */
         <div
           className="fixed inset-0"
           style={{
             backgroundColor: "rgba(0,0,0,0.55)",
-            pointerEvents: isButtonStep ? "auto" : "none",
+            pointerEvents: "auto",
           }}
-          onClick={isButtonStep ? tour.skip : undefined}
+          onClick={tour.skip}
         />
-      )}
+      ) : null}
 
-      {/* Tooltip — for noOverlay steps, anchor bottom-center as a compact floating bar */}
+      {/* Tooltip */}
       <div
         ref={tooltipRef}
-        className={noOverlay
-          ? "fixed z-10 w-[calc(100vw-24px)] max-w-lg rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
-          : "fixed z-10 w-[320px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
-        }
-        style={noOverlay ? {
-          bottom: 16,
-          left: "50%",
-          transform: "translateX(-50%)",
-          opacity: tooltipReady ? 1 : 0,
-          pointerEvents: "auto",
-          transition: "opacity 0.2s",
-        } : {
+        className="fixed z-10 w-[320px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
+        style={{
           top: tooltipReady && tooltipPos ? tooltipPos.top : -9999,
           left: tooltipReady && tooltipPos ? tooltipPos.left : -9999,
           opacity: tooltipReady ? 1 : 0,
@@ -419,13 +369,9 @@ export function ProductTour() {
         </div>
       </div>
 
-      {/* Pulse animations */}
+      {/* Pulse animation — subtle gold glow */}
       <style>{`
         @keyframes pulse-ring {
-          0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 0 rgba(201,169,110,0.4); }
-          50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 6px rgba(201,169,110,0); }
-        }
-        @keyframes pulse-ring-no-overlay {
           0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0.4); }
           50% { box-shadow: 0 0 0 6px rgba(201,169,110,0); }
         }
