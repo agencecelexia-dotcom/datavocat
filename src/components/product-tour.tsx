@@ -203,13 +203,20 @@ export function ProductTour() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999]"
+      className="fixed z-[9999]"
       role="dialog"
-      aria-modal="true"
-      style={{ pointerEvents: isButtonStep ? undefined : "none" }}
+      aria-modal={isButtonStep}
+      style={
+        isButtonStep
+          ? { inset: 0 }
+          : { top: 0, left: 0, width: 0, height: 0, overflow: "visible", pointerEvents: "none" }
+      }
     >
       {/* Dark overlay with spotlight cutout */}
-      <svg className="absolute inset-0 h-full w-full" style={{ pointerEvents: "none" }}>
+      <svg
+        className="fixed inset-0 h-full w-full"
+        style={{ pointerEvents: isButtonStep ? "auto" : "none" }}
+      >
         <defs>
           <mask id="tour-mask">
             <rect width="100%" height="100%" fill="white" />
@@ -231,7 +238,6 @@ export function ProductTour() {
           height="100%"
           fill="rgba(0,0,0,0.55)"
           mask="url(#tour-mask)"
-          style={{ pointerEvents: isButtonStep ? "auto" : "none" }}
           onClick={isButtonStep ? tour.skip : undefined}
         />
       </svg>
@@ -239,7 +245,7 @@ export function ProductTour() {
       {/* Spotlight glow ring */}
       {spotlight && tooltipReady && (
         <div
-          className="pointer-events-none absolute rounded-xl ring-2 ring-[#c9a96e] shadow-lg shadow-[#c9a96e]/30"
+          className="pointer-events-none fixed rounded-xl ring-2 ring-[#c9a96e] shadow-lg shadow-[#c9a96e]/30"
           style={{
             top: spotlight.top,
             left: spotlight.left,
@@ -254,7 +260,7 @@ export function ProductTour() {
       {/* Tooltip */}
       <div
         ref={tooltipRef}
-        className="absolute z-10 w-[320px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
+        className="fixed z-10 w-[320px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
         style={{
           top: tooltipReady && tooltipPos ? tooltipPos.top : -9999,
           left: tooltipReady && tooltipPos ? tooltipPos.left : -9999,

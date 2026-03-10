@@ -435,7 +435,7 @@ export default function AnalyzePage() {
             ))}
           </div>
 
-          <div className="flex shrink-0 items-center justify-between border-t border-border/40 pt-4">
+          <div data-tour="clarify-buttons" className="flex shrink-0 items-center justify-between border-t border-border/40 pt-4">
             <Button
               variant="ghost"
               className="cursor-pointer gap-2 text-muted-foreground transition-all duration-200"

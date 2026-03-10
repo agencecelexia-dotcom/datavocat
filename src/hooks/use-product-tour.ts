@@ -42,7 +42,7 @@ const TOUR_STEPS: TourStep[] = [
     waitFor: '[data-tour="clarify-section"],[data-tour-phase="analyzing"]',
   },
   {
-    target: "clarify-section",
+    target: "clarify-buttons",
     title: "2. Repondez aux questions",
     description:
       "L'IA affine l'analyse. Repondez aux questions puis cliquez 'Lancer l'analyse' ou 'Passer et analyser'.",
