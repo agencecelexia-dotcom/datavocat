@@ -212,48 +212,32 @@ export function ProductTour() {
           : { top: 0, left: 0, width: 0, height: 0, overflow: "visible", pointerEvents: "none" }
       }
     >
-      {/* Dark overlay with spotlight cutout */}
-      <svg
-        className="fixed inset-0 h-full w-full"
-        style={{ pointerEvents: isButtonStep ? "auto" : "none" }}
-      >
-        <defs>
-          <mask id="tour-mask">
-            <rect width="100%" height="100%" fill="white" />
-            {spotlight && (
-              <rect
-                x={spotlight.left}
-                y={spotlight.top}
-                width={spotlight.width}
-                height={spotlight.height}
-                rx={12}
-                fill="black"
-                style={{ transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)" }}
-              />
-            )}
-          </mask>
-        </defs>
-        <rect
-          width="100%"
-          height="100%"
-          fill="rgba(0,0,0,0.55)"
-          mask="url(#tour-mask)"
-          onClick={isButtonStep ? tour.skip : undefined}
-        />
-      </svg>
-
-      {/* Spotlight glow ring */}
-      {spotlight && tooltipReady && (
+      {/* Dark overlay with spotlight cutout — uses box-shadow instead of SVG
+          to avoid blocking scroll/touch events on interactive steps */}
+      {spotlight && tooltipReady ? (
         <div
-          className="pointer-events-none fixed rounded-xl ring-2 ring-[#c9a96e] shadow-lg shadow-[#c9a96e]/30"
+          className="fixed rounded-xl ring-2 ring-[#c9a96e]"
           style={{
             top: spotlight.top,
             left: spotlight.left,
             width: spotlight.width,
             height: spotlight.height,
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 0 rgba(201,169,110,0.4)",
+            pointerEvents: isButtonStep ? "auto" : "none",
             transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
             animation: "pulse-ring 2s ease-in-out infinite",
           }}
+          onClick={isButtonStep ? tour.skip : undefined}
+        />
+      ) : (
+        /* No spotlight — full dark overlay (center/welcome steps) */
+        <div
+          className="fixed inset-0"
+          style={{
+            backgroundColor: "rgba(0,0,0,0.55)",
+            pointerEvents: isButtonStep ? "auto" : "none",
+          }}
+          onClick={isButtonStep ? tour.skip : undefined}
         />
       )}
 
@@ -338,11 +322,11 @@ export function ProductTour() {
         </div>
       </div>
 
-      {/* Pulse animation for spotlight ring */}
+      {/* Pulse animation — overlay shadow + glow pulse combined */}
       <style>{`
         @keyframes pulse-ring {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(201, 169, 110, 0.4); }
-          50% { box-shadow: 0 0 0 6px rgba(201, 169, 110, 0); }
+          0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 0 rgba(201,169,110,0.4); }
+          50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 6px rgba(201,169,110,0); }
         }
       `}</style>
     </div>,

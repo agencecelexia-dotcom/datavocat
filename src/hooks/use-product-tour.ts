@@ -94,15 +94,26 @@ const TOUR_STEPS: TourStep[] = [
 
 const LAUNCH_KEY = "datavocat_launch_tour";
 
+// Module-level flag: survives React Strict Mode effect double-firing.
+// The first effect run reads+removes localStorage and sets this flag.
+// After cleanup+re-run, the second effect sees the flag and starts the timer.
+let _pendingLaunch = false;
+
 export function useProductTour() {
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    const shouldLaunch = localStorage.getItem(LAUNCH_KEY);
-    if (shouldLaunch) {
+    const val = localStorage.getItem(LAUNCH_KEY);
+    if (val) {
       localStorage.removeItem(LAUNCH_KEY);
-      const timer = setTimeout(() => setIsActive(true), 600);
+      _pendingLaunch = true;
+    }
+    if (_pendingLaunch) {
+      const timer = setTimeout(() => {
+        _pendingLaunch = false;
+        setIsActive(true);
+      }, 600);
       return () => clearTimeout(timer);
     }
   }, []);
