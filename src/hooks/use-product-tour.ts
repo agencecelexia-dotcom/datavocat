@@ -17,6 +17,8 @@ export interface TourStep {
   buttonLabel?: string;
   /** Show a clickable button instead of requiring element interaction */
   showButton?: boolean;
+  /** Hide the dark overlay — user needs full page interaction */
+  noOverlay?: boolean;
 }
 
 /** Example query pre-filled during the interactive tour */
@@ -48,6 +50,7 @@ const TOUR_STEPS: TourStep[] = [
       "L'IA affine l'analyse. Repondez aux questions puis cliquez 'Lancer l'analyse' ou 'Passer et analyser'.",
     waitFor: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
     skipIf: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
+    noOverlay: true,
   },
   {
     target: "analyzing-screen",

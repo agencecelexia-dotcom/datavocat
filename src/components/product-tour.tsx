@@ -26,6 +26,7 @@ export function ProductTour() {
   const [tooltipReady, setTooltipReady] = useState(false);
 
   const isButtonStep = tour.step?.showButton === true;
+  const noOverlay = tour.step?.noOverlay === true;
 
   useEffect(() => {
     setMounted(true);
@@ -213,8 +214,23 @@ export function ProductTour() {
       }
     >
       {/* Dark overlay with spotlight cutout — uses box-shadow instead of SVG
-          to avoid blocking scroll/touch events on interactive steps */}
-      {spotlight && tooltipReady ? (
+          to avoid blocking scroll/touch events on interactive steps.
+          noOverlay steps: no dimming at all, just spotlight ring + tooltip */}
+      {noOverlay ? (
+        spotlight && tooltipReady && (
+          <div
+            className="pointer-events-none fixed rounded-xl ring-2 ring-[#c9a96e]"
+            style={{
+              top: spotlight.top,
+              left: spotlight.left,
+              width: spotlight.width,
+              height: spotlight.height,
+              transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+              animation: "pulse-ring-no-overlay 2s ease-in-out infinite",
+            }}
+          />
+        )
+      ) : spotlight && tooltipReady ? (
         <div
           className="fixed rounded-xl ring-2 ring-[#c9a96e]"
           style={{
@@ -322,11 +338,15 @@ export function ProductTour() {
         </div>
       </div>
 
-      {/* Pulse animation — overlay shadow + glow pulse combined */}
+      {/* Pulse animations */}
       <style>{`
         @keyframes pulse-ring {
           0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 0 rgba(201,169,110,0.4); }
           50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 6px rgba(201,169,110,0); }
+        }
+        @keyframes pulse-ring-no-overlay {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(201,169,110,0); }
         }
       `}</style>
     </div>,
