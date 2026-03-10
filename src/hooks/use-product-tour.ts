@@ -7,16 +7,16 @@ export interface TourStep {
   title: string;
   description: string;
   position?: "top" | "bottom" | "left" | "right" | "center";
-  /** "info" = just show tooltip, "interact" = allow clicks through overlay */
-  type?: "info" | "interact";
   /** Custom event name to dispatch when entering this step */
   action?: string;
   /** CSS selector — auto-advance when this element appears in DOM */
   waitFor?: string;
-  /** Override the "Suivant" button text */
+  /** CSS selector — skip this step if condition already met */
+  skipIf?: string;
+  /** Override the main button text (only for welcome step) */
   buttonLabel?: string;
-  /** Hide the Suivant button — user must interact to advance */
-  hideNext?: boolean;
+  /** Show a clickable button instead of requiring element interaction */
+  showButton?: boolean;
 }
 
 /** Example query pre-filled during the interactive tour */
@@ -28,71 +28,76 @@ const TOUR_STEPS: TourStep[] = [
     target: "tour-welcome",
     title: "Bienvenue sur Datavocat !",
     description:
-      "Decouvrez les fonctionnalites de la plateforme etape par etape. A la fin du tutoriel, vous pourrez lancer votre premiere analyse.",
+      "Ce tutoriel interactif vous guide a travers la plateforme. Vous allez cliquer sur chaque fonctionnalite pour la decouvrir.",
     position: "center",
     buttonLabel: "C'est parti !",
+    showButton: true,
   },
   {
     target: "analyze-button",
     title: "1. Lancez une analyse",
     description:
-      "Un exemple a ete pre-rempli pour vous. Cliquez sur le bouton 'Analyser' pour lancer la recherche dans 500 000+ decisions de justice.",
-    type: "interact",
+      "Un cas a ete pre-rempli. Cliquez sur le bouton Analyser en surbrillance.",
     action: "tour:fill-query",
     waitFor: '[data-tour="clarify-section"],[data-tour-phase="analyzing"]',
-    hideNext: true,
   },
   {
-    target: "examples",
-    title: "2. Exemples de demandes",
+    target: "clarify-section",
+    title: "2. Repondez aux questions",
     description:
-      "Pas d'inspiration ? Cliquez sur un exemple pour pre-remplir votre demande. Droit social, commercial, immobilier — tous les domaines sont couverts.",
+      "L'IA affine l'analyse. Repondez aux questions puis cliquez 'Lancer l'analyse' ou 'Passer et analyser'.",
+    waitFor: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
+    skipIf: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
   },
   {
-    target: "sidebar",
-    title: "3. Navigation",
+    target: "analyzing-screen",
+    title: "3. Analyse en cours",
     description:
-      "La barre laterale vous donne acces a : Nouvelle analyse, Historique de vos analyses passees, et Comparateur pour croiser plusieurs dossiers.",
-    position: "right",
+      "Recherche dans 500 000+ decisions. Patientez 30 a 60 secondes.",
+    waitFor: '[data-tour-phase="done"]',
+    skipIf: '[data-tour-phase="done"]',
+  },
+  {
+    target: "tour-view-tabs",
+    title: "4. Explorez les vues",
+    description:
+      "Cliquez sur l'onglet Dashboard pour voir les graphiques et KPIs.",
+    waitFor: '[data-tour-active-view="dashboard"]',
+  },
+  {
+    target: "tour-view-tabs",
+    title: "5. Decouvrez les sources",
+    description:
+      "Maintenant cliquez sur l'onglet Sources pour voir les decisions citees.",
+    waitFor: '[data-tour-active-view="sources"]',
+  },
+  {
+    target: "tour-export-buttons",
+    title: "6. Exportez votre travail",
+    description:
+      "Cliquez sur PDF ou DOCX pour telecharger votre rapport professionnel.",
   },
   {
     target: "nav-historique",
-    title: "4. Historique",
+    title: "7. Historique",
     description:
-      "Toutes vos analyses sont sauvegardees automatiquement. Retrouvez rapport, dashboard et sources de chaque analyse a tout moment.",
+      "Cliquez ici pour retrouver toutes vos analyses sauvegardees.",
     position: "right",
   },
   {
-    target: "tour-results-info",
-    title: "5. Resultats en 4 vues",
-    description:
-      "Apres chaque analyse, basculez entre : Rapport (texte detaille), Dashboard (graphiques et KPIs), Tableau de preuve et Sources (decisions citees avec liens Legifrance).",
-    position: "center",
-  },
-  {
-    target: "tour-exports-info",
-    title: "6. Exports professionnels",
-    description:
-      "Generez un PDF ou DOCX complet avec decisions, statistiques et recommandations strategiques. Pret a integrer dans votre dossier client.",
-    position: "center",
-  },
-  {
     target: "user-menu",
-    title: "7. Parametres",
+    title: "8. Parametres",
     description:
-      "Accedez a votre profil, mode sombre, et preferences. Vous pouvez relancer ce tutoriel a tout moment depuis Parametres > Preferences > Aide & Tutoriel.",
-    buttonLabel: "Terminer et essayer !",
+      "Cliquez pour acceder a vos parametres. Relancez ce tutoriel depuis Parametres > Aide & Tutoriel.",
   },
 ];
 
-// This key triggers the tour on next page load — set by Settings or Registration
 const LAUNCH_KEY = "datavocat_launch_tour";
 
 export function useProductTour() {
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Only launch if explicitly requested (via settings or registration)
   useEffect(() => {
     const shouldLaunch = localStorage.getItem(LAUNCH_KEY);
     if (shouldLaunch) {
@@ -102,20 +107,27 @@ export function useProductTour() {
     }
   }, []);
 
-  const next = useCallback(() => {
-    if (currentStep < TOUR_STEPS.length - 1) {
-      setCurrentStep((prev) => prev + 1);
-    } else {
+  const goToStep = useCallback((idx: number) => {
+    let nextIdx = idx;
+    while (nextIdx < TOUR_STEPS.length) {
+      const step = TOUR_STEPS[nextIdx];
+      if (step.skipIf && document.querySelector(step.skipIf)) {
+        nextIdx++;
+      } else {
+        break;
+      }
+    }
+    if (nextIdx >= TOUR_STEPS.length) {
       setIsActive(false);
       setCurrentStep(0);
+    } else {
+      setCurrentStep(nextIdx);
     }
-  }, [currentStep]);
+  }, []);
 
-  const prev = useCallback(() => {
-    if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
-    }
-  }, [currentStep]);
+  const next = useCallback(() => {
+    goToStep(currentStep + 1);
+  }, [currentStep, goToStep]);
 
   const skip = useCallback(() => {
     setIsActive(false);
@@ -129,12 +141,10 @@ export function useProductTour() {
     step: TOUR_STEPS[currentStep],
     steps: TOUR_STEPS,
     next,
-    prev,
     skip,
   };
 }
 
-/** Call this to schedule the tour on next page load */
 export function scheduleTour() {
   localStorage.setItem(LAUNCH_KEY, "true");
 }

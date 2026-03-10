@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useProductTour } from "@/hooks/use-product-tour";
-import { ChevronLeft, ChevronRight, X, Sparkles } from "lucide-react";
+import { X, Sparkles, MousePointerClick } from "lucide-react";
 
 interface Pos {
   top: number;
@@ -25,11 +25,11 @@ export function ProductTour() {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [tooltipReady, setTooltipReady] = useState(false);
 
+  const isButtonStep = tour.step?.showButton === true;
+
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const isInteractive = tour.step?.type === "interact";
 
   // Dispatch action event when entering a step
   useEffect(() => {
@@ -40,7 +40,7 @@ export function ProductTour() {
     return () => clearTimeout(timer);
   }, [tour.isActive, tour.currentStep, tour.step]);
 
-  // Watch for waitFor condition — auto-advance when met
+  // Watch for waitFor condition — auto-advance
   useEffect(() => {
     if (!tour.isActive || !tour.step?.waitFor) return;
 
@@ -50,14 +50,47 @@ export function ProductTour() {
       return () => clearTimeout(timer);
     }
 
+    const observer = new MutationObserver(() => {
+      if (check()) {
+        observer.disconnect();
+        setTimeout(() => tour.next(), 300);
+      }
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
+
     const interval = setInterval(() => {
       if (check()) {
         clearInterval(interval);
+        observer.disconnect();
         setTimeout(() => tour.next(), 300);
       }
     }, 500);
 
-    return () => clearInterval(interval);
+    return () => {
+      observer.disconnect();
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tour.isActive, tour.currentStep]);
+
+  // Click on target element → advance tour (for steps without waitFor)
+  useEffect(() => {
+    if (!tour.isActive || !tour.step || tour.step.showButton || tour.step.waitFor) return;
+
+    const target = document.querySelector(
+      `[data-tour="${tour.step.target}"]`
+    ) as HTMLElement | null;
+    if (!target) return;
+
+    const handler = () => {
+      setTimeout(() => tour.next(), 400);
+    };
+    target.addEventListener("click", handler);
+    return () => target.removeEventListener("click", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tour.isActive, tour.currentStep]);
 
@@ -67,17 +100,17 @@ export function ProductTour() {
 
     const tooltip = tooltipRef.current;
     const tooltipW = tooltip?.offsetWidth || 350;
-    const tooltipH = tooltip?.offsetHeight || 260;
+    const tooltipH = tooltip?.offsetHeight || 220;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const pad = 8;
+    const pad = 10;
     const gap = 14;
 
     const target = document.querySelector(
       `[data-tour="${tour.step.target}"]`
     ) as HTMLElement | null;
 
-    // No target or center step
+    // No target or center step → center tooltip
     if (!target || tour.step.position === "center") {
       setSpotlight(null);
       setTooltipPos({
@@ -88,7 +121,6 @@ export function ProductTour() {
       return;
     }
 
-    // Scroll target into view if needed
     const rect = target.getBoundingClientRect();
     if (rect.top < 0 || rect.bottom > vh) {
       target.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -137,22 +169,18 @@ export function ProductTour() {
 
     setTooltipPos({ top, left });
     setTooltipReady(true);
-  }, [tour.isActive, tour.step, isInteractive]);
+  }, [tour.isActive, tour.step]);
 
-  // Position after render so we can measure tooltip
   useLayoutEffect(() => {
     if (!tour.isActive) {
       setTooltipReady(false);
       return;
     }
     setTooltipReady(false);
-    const frame = requestAnimationFrame(() => {
-      reposition();
-    });
+    const frame = requestAnimationFrame(() => reposition());
     return () => cancelAnimationFrame(frame);
   }, [tour.isActive, tour.currentStep, reposition]);
 
-  // Reposition on resize/scroll
   useEffect(() => {
     if (!tour.isActive) return;
     const handle = () => reposition();
@@ -164,6 +192,13 @@ export function ProductTour() {
     };
   }, [tour.isActive, reposition]);
 
+  // Poll reposition — target may appear after step starts
+  useEffect(() => {
+    if (!tour.isActive) return;
+    const interval = setInterval(() => reposition(), 600);
+    return () => clearInterval(interval);
+  }, [tour.isActive, tour.currentStep, reposition]);
+
   if (!mounted || !tour.isActive || !tour.step) return null;
 
   return createPortal(
@@ -171,7 +206,7 @@ export function ProductTour() {
       className="fixed inset-0 z-[9999]"
       role="dialog"
       aria-modal="true"
-      style={{ pointerEvents: isInteractive ? "none" : undefined }}
+      style={{ pointerEvents: isButtonStep ? undefined : "none" }}
     >
       {/* Dark overlay with spotlight cutout */}
       <svg className="absolute inset-0 h-full w-full" style={{ pointerEvents: "none" }}>
@@ -196,21 +231,22 @@ export function ProductTour() {
           height="100%"
           fill="rgba(0,0,0,0.55)"
           mask="url(#tour-mask)"
-          style={{ pointerEvents: isInteractive ? "none" : "auto" }}
-          onClick={isInteractive ? undefined : tour.skip}
+          style={{ pointerEvents: isButtonStep ? "auto" : "none" }}
+          onClick={isButtonStep ? tour.skip : undefined}
         />
       </svg>
 
-      {/* Spotlight glow */}
+      {/* Spotlight glow ring */}
       {spotlight && tooltipReady && (
         <div
-          className="pointer-events-none absolute rounded-xl ring-2 ring-[#c9a96e]/40 shadow-lg shadow-[#c9a96e]/20"
+          className="pointer-events-none absolute rounded-xl ring-2 ring-[#c9a96e] shadow-lg shadow-[#c9a96e]/30"
           style={{
             top: spotlight.top,
             left: spotlight.left,
             width: spotlight.width,
             height: spotlight.height,
             transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+            animation: "pulse-ring 2s ease-in-out infinite",
           }}
         />
       )}
@@ -218,7 +254,7 @@ export function ProductTour() {
       {/* Tooltip */}
       <div
         ref={tooltipRef}
-        className="absolute z-10 w-[340px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
+        className="absolute z-10 w-[320px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
         style={{
           top: tooltipReady && tooltipPos ? tooltipPos.top : -9999,
           left: tooltipReady && tooltipPos ? tooltipPos.left : -9999,
@@ -230,11 +266,11 @@ export function ProductTour() {
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/30 px-4 py-2">
+        <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5 text-[#c9a96e]" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Etape {tour.currentStep + 1} / {tour.totalSteps}
+              {tour.currentStep + 1} / {tour.totalSteps}
             </span>
           </div>
           <button
@@ -246,8 +282,8 @@ export function ProductTour() {
           </button>
         </div>
 
-        {/* Progress segments */}
-        <div className="flex gap-1 px-4 pt-2.5">
+        {/* Progress */}
+        <div className="flex gap-0.5 px-4">
           {tour.steps.map((_, i) => (
             <div
               key={i}
@@ -263,8 +299,8 @@ export function ProductTour() {
         </div>
 
         {/* Content */}
-        <div className="px-4 pt-2.5 pb-1.5">
-          <h3 className="font-serif text-base font-semibold text-foreground">
+        <div className="px-4 pt-2 pb-3">
+          <h3 className="font-serif text-[15px] font-semibold text-foreground">
             {tour.step.title}
           </h3>
           <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
@@ -272,50 +308,37 @@ export function ProductTour() {
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between border-t border-border/30 px-4 py-2.5">
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-border/30 px-4 py-2">
           <button
             onClick={tour.skip}
-            className="cursor-pointer text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="cursor-pointer text-[11px] font-medium text-muted-foreground/60 transition-colors hover:text-foreground"
           >
-            Passer le tutoriel
+            Quitter
           </button>
-          <div className="flex items-center gap-2">
-            {tour.currentStep > 0 && !tour.step.hideNext && (
-              <button
-                onClick={tour.prev}
-                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border/40 bg-background px-2.5 text-xs font-medium text-foreground transition-all hover:bg-accent"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-                Retour
-              </button>
-            )}
-            {tour.step.hideNext && (
-              <span className="flex h-8 items-center gap-1.5 rounded-lg border border-[#c9a96e]/30 bg-[#c9a96e]/5 px-3 text-xs font-medium text-[#c9a96e]">
-                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#c9a96e]" />
-                Cliquez sur le bouton ci-dessous
-              </span>
-            )}
-            {!tour.step.hideNext && (
-              <button
-                onClick={tour.next}
-                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg bg-[#1e3a5f] px-3.5 text-xs font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all hover:bg-[#162d4a]"
-              >
-                {tour.step.buttonLabel ? (
-                  tour.step.buttonLabel
-                ) : tour.currentStep === tour.totalSteps - 1 ? (
-                  "Terminer"
-                ) : (
-                  <>
-                    Suivant
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+          {tour.step.showButton ? (
+            <button
+              onClick={tour.next}
+              className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg bg-[#1e3a5f] px-4 text-xs font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all hover:bg-[#162d4a]"
+            >
+              {tour.step.buttonLabel || "Suivant"}
+            </button>
+          ) : (
+            <span className="flex h-8 items-center gap-1.5 text-xs font-medium text-[#c9a96e]">
+              <MousePointerClick className="h-3.5 w-3.5" />
+              Cliquez sur l&apos;element en surbrillance
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Pulse animation for spotlight ring */}
+      <style>{`
+        @keyframes pulse-ring {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(201, 169, 110, 0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(201, 169, 110, 0); }
+        }
+      `}</style>
     </div>,
     document.body
   );

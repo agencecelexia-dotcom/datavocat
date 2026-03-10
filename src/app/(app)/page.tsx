@@ -257,7 +257,7 @@ export default function AnalyzePage() {
   ).length;
 
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col" data-tour-phase={phase} data-tour="tour-page">
+    <div className="mx-auto flex h-full max-w-5xl flex-col" data-tour-phase={phase} data-tour-active-view={activeView} data-tour="tour-page">
       {phase === "input" ? (
         /* INPUT STATE — Premium Hero */
         <div className="gradient-hero flex flex-1 flex-col items-center justify-center gap-8 px-4">
