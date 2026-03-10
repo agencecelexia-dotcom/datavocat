@@ -54,7 +54,7 @@ const TOUR_STEPS: TourStep[] = [
     target: "user-menu",
     title: "Parametres & tutoriel",
     description:
-      "Retrouvez ici vos preferences, le mode sombre, et la possibilite de relancer ce tutoriel a tout moment depuis Parametres > Preferences.",
+      "Cliquez ici pour acceder a vos Parametres : profil, securite, mode sombre, et preferences. Vous pouvez relancer ce tutoriel a tout moment depuis Parametres > Preferences > Aide & Tutoriel.",
   },
 ];
 

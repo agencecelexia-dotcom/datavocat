@@ -568,7 +568,7 @@ export default function ParametresPage() {
                     className="shrink-0 cursor-pointer gap-1.5 border-[#1e3a5f]/20 text-[#1e3a5f] hover:bg-[#1e3a5f]/5"
                     onClick={() => {
                       scheduleTour();
-                      router.push("/");
+                      window.location.href = "/";
                     }}
                   >
                     <Play className="h-3.5 w-3.5" />
