@@ -7,18 +7,14 @@ export interface TourStep {
   title: string;
   description: string;
   position?: "top" | "bottom" | "left" | "right" | "center";
-  /** "info" = just show tooltip, "interact" = allow clicks through overlay, "wait" = non-blocking wait */
-  type?: "info" | "interact" | "wait";
+  /** "info" = just show tooltip, "interact" = allow clicks through overlay */
+  type?: "info" | "interact";
   /** Custom event name to dispatch when entering this step */
   action?: string;
   /** CSS selector — auto-advance when this element appears in DOM */
   waitFor?: string;
-  /** CSS selector — skip this step immediately if condition already met */
-  skipIf?: string;
   /** Override the "Suivant" button text */
   buttonLabel?: string;
-  /** Hide the next button (user must complete action to advance) */
-  hideNext?: boolean;
 }
 
 /** Example query pre-filled during the interactive tour */
@@ -30,67 +26,59 @@ const TOUR_STEPS: TourStep[] = [
     target: "tour-welcome",
     title: "Bienvenue sur Datavocat !",
     description:
-      "Ce tutoriel vous guide a travers une analyse juridique complete en situation reelle. Vous allez utiliser la plateforme comme un avocat le ferait au quotidien.",
+      "Decouvrez les fonctionnalites de la plateforme etape par etape. A la fin du tutoriel, vous pourrez lancer votre premiere analyse.",
     position: "center",
     buttonLabel: "C'est parti !",
   },
   {
     target: "query-input",
-    title: "Decrivez votre affaire",
+    title: "1. Saisissez votre affaire",
     description:
-      "Un cas a ete pre-rempli : un licenciement pour faute grave conteste. Cliquez sur le bouton 'Analyser' pour lancer la recherche dans 500 000+ decisions.",
+      "Decrivez la situation juridique en langage naturel. Un exemple a ete pre-rempli pour vous. Cliquez 'Analyser' pour tester, ou passez a l'etape suivante.",
     type: "interact",
     action: "tour:fill-query",
-    // Wait until questions appear OR analysis starts (if clarify is skipped)
     waitFor: '[data-tour="clarify-section"],[data-tour-phase="analyzing"]',
-    hideNext: true,
   },
   {
-    target: "clarify-section",
-    title: "Questions de clarification",
+    target: "examples",
+    title: "2. Exemples de demandes",
     description:
-      "L'IA a genere des questions pour affiner l'analyse. Repondez a celles qui vous semblent pertinentes, puis cliquez 'Lancer l'analyse' ou 'Passer et analyser'.",
-    type: "interact",
-    waitFor: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
-    skipIf: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
-    hideNext: true,
+      "Pas d'inspiration ? Cliquez sur un exemple pour pre-remplir votre demande. Droit social, commercial, immobilier — tous les domaines sont couverts.",
   },
   {
-    target: "analyzing-screen",
-    title: "Analyse en cours",
+    target: "sidebar",
+    title: "3. Navigation",
     description:
-      "Datavocat recherche dans Judilibre (Cour de cassation + Cours d'appel) et data.gouv.fr. L'IA Claude analyse les decisions trouvees. Patientez environ 30 a 60 secondes.",
-    type: "wait",
-    waitFor: '[data-tour-phase="done"]',
-    skipIf: '[data-tour-phase="done"]',
-    hideNext: true,
-  },
-  {
-    target: "tour-view-tabs",
-    title: "Quatre vues de resultats",
-    description:
-      "Votre analyse est prete ! Basculez entre : Rapport (texte detaille), Dashboard (graphiques et KPIs), Tableau de preuve et Sources (decisions citees). Essayez de cliquer sur chaque onglet.",
-    type: "interact",
-  },
-  {
-    target: "tour-export-buttons",
-    title: "Exportez votre travail",
-    description:
-      "Generez un PDF ou DOCX professionnel avec decisions, statistiques et recommandations. Le document est pret a integrer dans votre dossier client.",
-  },
-  {
-    target: "nav-historique",
-    title: "Historique des analyses",
-    description:
-      "Toutes vos analyses sont sauvegardees automatiquement ici. Retrouvez-les a tout moment pour les relire, exporter ou comparer entre elles.",
+      "La barre laterale vous donne acces a : Nouvelle analyse, Historique de vos analyses passees, et Comparateur pour croiser plusieurs dossiers.",
     position: "right",
   },
   {
-    target: "user-menu",
-    title: "Parametres & tutoriel",
+    target: "nav-historique",
+    title: "4. Historique",
     description:
-      "Accedez a vos parametres : profil, mode sombre, preferences. Vous pouvez relancer ce tutoriel a tout moment depuis Parametres > Preferences > Aide & Tutoriel.",
-    buttonLabel: "Terminer",
+      "Toutes vos analyses sont sauvegardees automatiquement. Retrouvez rapport, dashboard et sources de chaque analyse a tout moment.",
+    position: "right",
+  },
+  {
+    target: "tour-results-info",
+    title: "5. Resultats en 4 vues",
+    description:
+      "Apres chaque analyse, basculez entre : Rapport (texte detaille), Dashboard (graphiques et KPIs), Tableau de preuve et Sources (decisions citees avec liens Legifrance).",
+    position: "center",
+  },
+  {
+    target: "tour-exports-info",
+    title: "6. Exports professionnels",
+    description:
+      "Generez un PDF ou DOCX complet avec decisions, statistiques et recommandations strategiques. Pret a integrer dans votre dossier client.",
+    position: "center",
+  },
+  {
+    target: "user-menu",
+    title: "7. Parametres",
+    description:
+      "Accedez a votre profil, mode sombre, et preferences. Vous pouvez relancer ce tutoriel a tout moment depuis Parametres > Preferences > Aide & Tutoriel.",
+    buttonLabel: "Terminer et essayer !",
   },
 ];
 
@@ -111,35 +99,18 @@ export function useProductTour() {
     }
   }, []);
 
-  const goToStep = useCallback((idx: number) => {
-    let nextIdx = idx;
-    while (nextIdx < TOUR_STEPS.length) {
-      const step = TOUR_STEPS[nextIdx];
-      if (step.skipIf && document.querySelector(step.skipIf)) {
-        nextIdx++;
-      } else {
-        break;
-      }
-    }
-    if (nextIdx >= TOUR_STEPS.length) {
+  const next = useCallback(() => {
+    if (currentStep < TOUR_STEPS.length - 1) {
+      setCurrentStep((prev) => prev + 1);
+    } else {
       setIsActive(false);
       setCurrentStep(0);
-    } else {
-      setCurrentStep(nextIdx);
     }
-  }, []);
-
-  const next = useCallback(() => {
-    goToStep(currentStep + 1);
-  }, [currentStep, goToStep]);
+  }, [currentStep]);
 
   const prev = useCallback(() => {
     if (currentStep > 0) {
-      let prevIdx = currentStep - 1;
-      while (prevIdx > 0 && (TOUR_STEPS[prevIdx].type === "wait" || TOUR_STEPS[prevIdx].type === "interact")) {
-        prevIdx--;
-      }
-      setCurrentStep(prevIdx);
+      setCurrentStep((prev) => prev - 1);
     }
   }, [currentStep]);
 
