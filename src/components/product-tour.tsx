@@ -99,13 +99,16 @@ export function ProductTour() {
       `[data-tour="${tour.step.target}"]`
     ) as HTMLElement | null;
 
-    // Interactive/wait steps with center position: dock to bottom-right corner
+    // Interactive/wait steps: dock to bottom-right (desktop) or bottom-center (mobile)
     // so the tooltip doesn't block page interaction
     if (isInteractive && (!target || tour.step.position === "center")) {
       setSpotlight(null);
+      const isMobile = vw < 768;
       setTooltipPos({
-        top: vh - tooltipH - 20,
-        left: vw - tooltipW - 20,
+        top: vh - tooltipH - 16,
+        left: isMobile
+          ? Math.max(8, (vw - tooltipW) / 2)
+          : Math.max(10, vw - tooltipW - 20),
       });
       setTooltipReady(true);
       return;
