@@ -99,7 +99,7 @@ export function Header({ userEmail, userName }: HeaderProps) {
         )}
 
         {/* User menu */}
-        <div className="relative" ref={dropdownRef}>
+        <div className="relative" ref={dropdownRef} data-tour="user-menu">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-all duration-200 hover:bg-accent"

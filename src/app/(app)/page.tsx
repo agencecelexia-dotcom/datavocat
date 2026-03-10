@@ -266,7 +266,7 @@ export default function AnalyzePage() {
 
           {/* Input card */}
           <form onSubmit={handleSubmit} className="w-full max-w-3xl animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card shadow-lg shadow-black/[0.03] transition-all duration-300 focus-within:border-[#1e3a5f]/20 focus-within:shadow-xl focus-within:shadow-[#1e3a5f]/[0.04]">
+            <div data-tour="query-input" className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card shadow-lg shadow-black/[0.03] transition-all duration-300 focus-within:border-[#1e3a5f]/20 focus-within:shadow-xl focus-within:shadow-[#1e3a5f]/[0.04]">
               {/* Shimmer effect on focus */}
               <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-focus-within:opacity-100 animate-shimmer" />
 
@@ -309,7 +309,7 @@ export default function AnalyzePage() {
           </form>
 
           {/* Examples */}
-          <div className="w-full max-w-3xl space-y-3 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+          <div data-tour="examples" className="w-full max-w-3xl space-y-3 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
               Exemples de demandes
             </p>

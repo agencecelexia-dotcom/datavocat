@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { CommandPalette } from "@/components/command-palette";
+import { ProductTour } from "@/components/product-tour";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AppLayout({
@@ -21,6 +22,7 @@ export default async function AppLayout({
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <CommandPalette />
+      <ProductTour />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header userEmail={userEmail} userName={userName} />
         <main className="flex-1 overflow-y-auto">

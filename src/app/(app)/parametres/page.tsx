@@ -22,8 +22,11 @@ import {
   AlertTriangle,
   FileText,
   ExternalLink,
+  HelpCircle,
+  Play,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface UserProfile {
   email: string;
@@ -41,6 +44,7 @@ interface Preferences {
 type ActiveTab = "profil" | "securite" | "preferences" | "legal";
 
 export default function ParametresPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<ActiveTab>("profil");
   const [profile, setProfile] = useState<UserProfile>({
     email: "",
@@ -192,19 +196,19 @@ export default function ParametresPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-border/40 bg-muted/50 p-1">
+      <div className="flex gap-1 overflow-x-auto rounded-xl border border-border/40 bg-muted/50 p-1">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+            className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-200 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm ${
               activeTab === tab.key
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <tab.icon className="h-4 w-4" />
-            {tab.label}
+            <span className="hidden sm:inline">{tab.label}</span>
           </button>
         ))}
       </div>
@@ -239,7 +243,7 @@ export default function ParametresPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="fullName">Nom complet</Label>
                 <div className="relative">
@@ -326,7 +330,7 @@ export default function ParametresPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="newPassword">Nouveau mot de passe</Label>
                 <div className="relative">
@@ -536,6 +540,39 @@ export default function ParametresPage() {
                       })
                     }
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Aide & Tutoriel */}
+            <div>
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <HelpCircle className="h-4 w-4 text-[#1e3a5f]" />
+                Aide & Tutoriel
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      Tutoriel guide
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Relancez le tutoriel interactif pour decouvrir toutes les
+                      fonctionnalites de Datavocat
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 cursor-pointer gap-1.5 border-[#1e3a5f]/20 text-[#1e3a5f] hover:bg-[#1e3a5f]/5"
+                    onClick={() => {
+                      localStorage.removeItem("datavocat_has_seen_tour");
+                      router.push("/");
+                    }}
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                    Revoir le tutoriel
+                  </Button>
                 </div>
               </div>
             </div>
