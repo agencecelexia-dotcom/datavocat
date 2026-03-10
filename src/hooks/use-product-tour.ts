@@ -41,36 +41,35 @@ const TOUR_STEPS: TourStep[] = [
       "Un cas a ete pre-rempli : un licenciement pour faute grave conteste. Cliquez sur le bouton 'Analyser' pour lancer la recherche dans 500 000+ decisions.",
     type: "interact",
     action: "tour:fill-query",
-    waitFor: '[data-tour-phase="clarify"],[data-tour-phase="analyzing"]',
+    // Wait until questions appear OR analysis starts (if clarify is skipped)
+    waitFor: '[data-tour="clarify-section"],[data-tour-phase="analyzing"]',
     hideNext: true,
   },
   {
-    target: "tour-page",
+    target: "clarify-section",
     title: "Questions de clarification",
     description:
-      "L'IA pose des questions pour affiner l'analyse : juridiction, anciennete, type de contrat... Repondez a celles que vous souhaitez, puis cliquez 'Lancer l'analyse' ou 'Passer et analyser'.",
+      "L'IA a genere des questions pour affiner l'analyse. Repondez a celles qui vous semblent pertinentes, puis cliquez 'Lancer l'analyse' ou 'Passer et analyser'.",
     type: "interact",
     waitFor: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
     skipIf: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
     hideNext: true,
-    position: "center",
   },
   {
-    target: "tour-page",
+    target: "analyzing-screen",
     title: "Analyse en cours",
     description:
-      "Datavocat recherche dans Judilibre (Cour de cassation + Cours d'appel) et data.gouv.fr. L'IA Claude analyse les decisions trouvees et redige votre rapport. Patientez environ 30 a 60 secondes.",
+      "Datavocat recherche dans Judilibre (Cour de cassation + Cours d'appel) et data.gouv.fr. L'IA Claude analyse les decisions trouvees. Patientez environ 30 a 60 secondes.",
     type: "wait",
     waitFor: '[data-tour-phase="done"]',
     skipIf: '[data-tour-phase="done"]',
     hideNext: true,
-    position: "center",
   },
   {
     target: "tour-view-tabs",
     title: "Quatre vues de resultats",
     description:
-      "Votre analyse est prete ! Basculez entre : Rapport (texte detaille), Dashboard (graphiques et KPIs), Tableau de preuve et Sources (annexe des decisions). Essayez de cliquer sur chaque onglet.",
+      "Votre analyse est prete ! Basculez entre : Rapport (texte detaille), Dashboard (graphiques et KPIs), Tableau de preuve et Sources (decisions citees). Essayez de cliquer sur chaque onglet.",
     type: "interact",
   },
   {
@@ -113,7 +112,6 @@ export function useProductTour() {
   }, []);
 
   const goToStep = useCallback((idx: number) => {
-    // Skip steps whose skipIf condition is already met
     let nextIdx = idx;
     while (nextIdx < TOUR_STEPS.length) {
       const step = TOUR_STEPS[nextIdx];
@@ -137,7 +135,6 @@ export function useProductTour() {
 
   const prev = useCallback(() => {
     if (currentStep > 0) {
-      // Go back, but skip interact/wait steps (can't redo them)
       let prevIdx = currentStep - 1;
       while (prevIdx > 0 && (TOUR_STEPS[prevIdx].type === "wait" || TOUR_STEPS[prevIdx].type === "interact")) {
         prevIdx--;

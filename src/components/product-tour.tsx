@@ -201,6 +201,13 @@ export function ProductTour() {
     };
   }, [tour.isActive, reposition]);
 
+  // Poll reposition for interact/wait steps — target may appear after step starts
+  useEffect(() => {
+    if (!tour.isActive || !isInteractive) return;
+    const interval = setInterval(() => reposition(), 600);
+    return () => clearInterval(interval);
+  }, [tour.isActive, tour.currentStep, isInteractive, reposition]);
+
   if (!mounted || !tour.isActive || !tour.step) return null;
 
   return createPortal(
@@ -226,7 +233,7 @@ export function ProductTour() {
         <rect
           width="100%"
           height="100%"
-          fill={isInteractive ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.55)"}
+          fill={isInteractive ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.55)"}
           mask="url(#tour-mask)"
           style={{ pointerEvents: isInteractive ? "none" : "auto" }}
           onClick={isInteractive ? undefined : tour.skip}

@@ -363,7 +363,7 @@ export default function AnalyzePage() {
         </div>
       ) : phase === "clarify" && !loading ? (
         /* ═══ CLARIFICATION STATE ═══ */
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto py-6">
+        <div data-tour="clarify-section" className="flex flex-1 flex-col gap-6 overflow-y-auto py-6">
           <Card className="shrink-0 border-border/60 bg-card p-4 shadow-sm">
             <p className="text-sm leading-relaxed">{query}</p>
           </Card>
@@ -611,7 +611,7 @@ export default function AnalyzePage() {
 
             {/* Loading screen with lawyer jokes — hides streaming text */}
             {phase === "analyzing" && (
-              <AnalyzingScreen />
+              <div data-tour="analyzing-screen"><AnalyzingScreen /></div>
             )}
 
             {/* Text view — premium document rendering */}
