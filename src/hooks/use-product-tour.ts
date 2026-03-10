@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 export interface TourStep {
   target: string;
@@ -19,6 +19,8 @@ export interface TourStep {
   showButton?: boolean;
   /** Hide the dark overlay — user needs full page interaction */
   noOverlay?: boolean;
+  /** Custom hint text shown in the footer for waitFor steps (default: auto-detected) */
+  waitHint?: string;
 }
 
 /** Example query pre-filled during the interactive tour */
@@ -51,6 +53,7 @@ const TOUR_STEPS: TourStep[] = [
     waitFor: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
     skipIf: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
     noOverlay: true,
+    waitHint: "Interagissez avec la page",
   },
   {
     target: "analyzing-screen",
@@ -59,6 +62,7 @@ const TOUR_STEPS: TourStep[] = [
       "Recherche dans 500 000+ decisions. Patientez 30 a 60 secondes.",
     waitFor: '[data-tour-phase="done"]',
     skipIf: '[data-tour-phase="done"]',
+    waitHint: "Veuillez patienter...",
   },
   {
     target: "tour-view-tabs",
@@ -78,7 +82,9 @@ const TOUR_STEPS: TourStep[] = [
     target: "tour-export-buttons",
     title: "6. Exportez votre travail",
     description:
-      "Cliquez sur PDF ou DOCX pour telecharger votre rapport professionnel.",
+      "Vous pouvez exporter en PDF ou DOCX a tout moment. Passons a la suite.",
+    showButton: true,
+    buttonLabel: "Suivant",
   },
   {
     target: "nav-historique",
@@ -105,6 +111,8 @@ let _pendingLaunch = false;
 export function useProductTour() {
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  // Guard against rapid/concurrent next() calls (double-advance protection)
+  const advancingRef = useRef(false);
 
   useEffect(() => {
     const val = localStorage.getItem(LAUNCH_KEY);
@@ -121,7 +129,15 @@ export function useProductTour() {
     }
   }, []);
 
+  // Reset advancing guard when step changes
+  useEffect(() => {
+    advancingRef.current = false;
+  }, [currentStep]);
+
   const goToStep = useCallback((idx: number) => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
+
     let nextIdx = idx;
     while (nextIdx < TOUR_STEPS.length) {
       const step = TOUR_STEPS[nextIdx];
@@ -134,6 +150,7 @@ export function useProductTour() {
     if (nextIdx >= TOUR_STEPS.length) {
       setIsActive(false);
       setCurrentStep(0);
+      advancingRef.current = false;
     } else {
       setCurrentStep(nextIdx);
     }
@@ -144,6 +161,7 @@ export function useProductTour() {
   }, [currentStep, goToStep]);
 
   const skip = useCallback(() => {
+    advancingRef.current = false;
     setIsActive(false);
     setCurrentStep(0);
   }, []);

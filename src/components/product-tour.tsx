@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useProductTour } from "@/hooks/use-product-tour";
-import { X, Sparkles, MousePointerClick } from "lucide-react";
+import { X, Sparkles, MousePointerClick, Loader2 } from "lucide-react";
 
 interface Pos {
   top: number;
@@ -24,6 +24,7 @@ export function ProductTour() {
   const [mounted, setMounted] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [tooltipReady, setTooltipReady] = useState(false);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isButtonStep = tour.step?.showButton === true;
   const noOverlay = tour.step?.noOverlay === true;
@@ -45,17 +46,34 @@ export function ProductTour() {
   useEffect(() => {
     if (!tour.isActive || !tour.step?.waitFor) return;
 
+    let cancelled = false;
+    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const advance = () => {
+      if (cancelled) return;
+      cancelled = true;
+      observer.disconnect();
+      clearInterval(interval);
+      pendingTimer = setTimeout(() => {
+        if (!cancelled) return; // extra guard — should always be true
+        tour.next();
+      }, 300);
+    };
+
     const check = () => !!document.querySelector(tour.step!.waitFor!);
     if (check()) {
-      const timer = setTimeout(() => tour.next(), 300);
-      return () => clearTimeout(timer);
+      // Already met — schedule advance and return cleanup
+      const timer = setTimeout(() => {
+        if (!cancelled) tour.next();
+      }, 300);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
     }
 
     const observer = new MutationObserver(() => {
-      if (check()) {
-        observer.disconnect();
-        setTimeout(() => tour.next(), 300);
-      }
+      if (check()) advance();
     });
     observer.observe(document.body, {
       attributes: true,
@@ -64,16 +82,14 @@ export function ProductTour() {
     });
 
     const interval = setInterval(() => {
-      if (check()) {
-        clearInterval(interval);
-        observer.disconnect();
-        setTimeout(() => tour.next(), 300);
-      }
+      if (check()) advance();
     }, 500);
 
     return () => {
+      cancelled = true;
       observer.disconnect();
       clearInterval(interval);
+      if (pendingTimer !== null) clearTimeout(pendingTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tour.isActive, tour.currentStep]);
@@ -87,11 +103,19 @@ export function ProductTour() {
     ) as HTMLElement | null;
     if (!target) return;
 
+    let clicked = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     const handler = () => {
-      setTimeout(() => tour.next(), 400);
+      if (clicked) return; // guard against rapid double-clicks
+      clicked = true;
+      timer = setTimeout(() => tour.next(), 400);
     };
     target.addEventListener("click", handler);
-    return () => target.removeEventListener("click", handler);
+    return () => {
+      target.removeEventListener("click", handler);
+      if (timer !== null) clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tour.isActive, tour.currentStep]);
 
@@ -123,9 +147,22 @@ export function ProductTour() {
     }
 
     const rect = target.getBoundingClientRect();
+
+    // Target is invisible (display:none, zero-size) — treat like no target
+    if (rect.width === 0 && rect.height === 0) {
+      setSpotlight(null);
+      setTooltipPos({
+        top: Math.max(20, (vh - tooltipH) / 2),
+        left: Math.max(12, (vw - tooltipW) / 2),
+      });
+      setTooltipReady(true);
+      return;
+    }
+
     if (rect.top < 0 || rect.bottom > vh) {
       target.scrollIntoView({ behavior: "smooth", block: "center" });
-      setTimeout(reposition, 350);
+      if (scrollTimerRef.current !== null) clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current = setTimeout(reposition, 350);
       return;
     }
 
@@ -147,6 +184,7 @@ export function ProductTour() {
         top = rect.bottom + pad + gap;
       }
       left = Math.max(8, Math.min(vw - tooltipW - 8, (vw - tooltipW) / 2));
+      top = Math.max(10, Math.min(vh - tooltipH - 10, top));
     } else {
       const pref = tour.step.position || "bottom";
 
@@ -179,7 +217,14 @@ export function ProductTour() {
     }
     setTooltipReady(false);
     const frame = requestAnimationFrame(() => reposition());
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      // Clean up any pending scrollIntoView reposition timer
+      if (scrollTimerRef.current !== null) {
+        clearTimeout(scrollTimerRef.current);
+        scrollTimerRef.current = null;
+      }
+    };
   }, [tour.isActive, tour.currentStep, reposition]);
 
   useEffect(() => {
@@ -199,6 +244,27 @@ export function ProductTour() {
     const interval = setInterval(() => reposition(), 600);
     return () => clearInterval(interval);
   }, [tour.isActive, tour.currentStep, reposition]);
+
+  // Dim sidebar + header during noOverlay steps to focus user on main content
+  useEffect(() => {
+    if (!tour.isActive || !noOverlay) return;
+    const sidebar = document.querySelector('[data-tour="sidebar"]') as HTMLElement | null;
+    const header = document.querySelector('header') as HTMLElement | null;
+    if (sidebar) {
+      sidebar.style.opacity = '0.3';
+      sidebar.style.pointerEvents = 'none';
+      sidebar.style.transition = 'opacity 0.3s ease';
+    }
+    if (header) {
+      header.style.opacity = '0.3';
+      header.style.pointerEvents = 'none';
+      header.style.transition = 'opacity 0.3s ease';
+    }
+    return () => {
+      if (sidebar) { sidebar.style.opacity = ''; sidebar.style.pointerEvents = ''; sidebar.style.transition = ''; }
+      if (header) { header.style.opacity = ''; header.style.pointerEvents = ''; header.style.transition = ''; }
+    };
+  }, [tour.isActive, tour.currentStep, noOverlay]);
 
   if (!mounted || !tour.isActive || !tour.step) return null;
 
@@ -270,6 +336,13 @@ export function ProductTour() {
             ? "top 0.35s cubic-bezier(0.4, 0, 0.2, 1), left 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s"
             : "none",
         }}
+        onWheel={(e) => {
+          // Pass scroll through to main content so tooltip doesn't block scrolling
+          const main = document.querySelector("main");
+          if (main) {
+            main.scrollTop += e.deltaY;
+          }
+        }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2">
@@ -329,6 +402,11 @@ export function ProductTour() {
             >
               {tour.step.buttonLabel || "Suivant"}
             </button>
+          ) : tour.step.waitHint ? (
+            <span className="flex h-8 items-center gap-1.5 text-xs font-medium text-muted-foreground/70">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {tour.step.waitHint}
+            </span>
           ) : (
             <span className="flex h-8 items-center gap-1.5 text-xs font-medium text-[#c9a96e]">
               <MousePointerClick className="h-3.5 w-3.5" />
