@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useProductTour } from "@/hooks/use-product-tour";
 import { ChevronLeft, ChevronRight, X, Sparkles } from "lucide-react";
 
-interface TooltipPosition {
+interface Pos {
   top: number;
   left: number;
-  placement: "top" | "bottom" | "left" | "right" | "center";
 }
 
 interface SpotlightRect {
@@ -20,35 +19,51 @@ interface SpotlightRect {
 
 export function ProductTour() {
   const tour = useProductTour();
-  const [tooltipPos, setTooltipPos] = useState<TooltipPosition | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<Pos | null>(null);
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null);
   const [mounted, setMounted] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const [tooltipReady, setTooltipReady] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const positionTooltip = useCallback(() => {
+  // Measure tooltip then position
+  const reposition = useCallback(() => {
     if (!tour.isActive || !tour.step) return;
+
+    const tooltip = tooltipRef.current;
+    const tooltipW = tooltip?.offsetWidth || 350;
+    const tooltipH = tooltip?.offsetHeight || 260;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const pad = 8;
+    const gap = 14;
 
     const target = document.querySelector(
       `[data-tour="${tour.step.target}"]`
     ) as HTMLElement | null;
 
+    // No target or center step
     if (!target || tour.step.position === "center") {
-      // Center on screen (no spotlight)
       setSpotlight(null);
       setTooltipPos({
-        top: window.innerHeight / 2 - 120,
-        left: window.innerWidth / 2 - 175,
-        placement: "center",
+        top: Math.max(20, (vh - tooltipH) / 2),
+        left: Math.max(12, (vw - tooltipW) / 2),
       });
+      setTooltipReady(true);
       return;
     }
 
+    // Scroll target into view if needed
     const rect = target.getBoundingClientRect();
-    const pad = 8;
+    if (rect.top < 0 || rect.bottom > vh) {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Wait for scroll then reposition
+      setTimeout(reposition, 350);
+      return;
+    }
 
     setSpotlight({
       top: rect.top - pad,
@@ -57,84 +72,81 @@ export function ProductTour() {
       height: rect.height + pad * 2,
     });
 
-    // Determine best placement
-    const tooltipW = 350;
-    const tooltipH = 200;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-
-    let placement = tour.step.position || "bottom";
     let top = 0;
     let left = 0;
-
-    // Mobile: always bottom or top
-    const isMobile = vw < 640;
+    const isMobile = vw < 768;
 
     if (isMobile) {
-      // On mobile, position below or above element
-      if (rect.bottom + tooltipH + 24 < vh) {
-        placement = "bottom";
+      // Mobile: prefer top, fallback bottom
+      if (rect.top - tooltipH - gap > 10) {
+        top = rect.top - pad - tooltipH - gap;
       } else {
-        placement = "top";
+        top = rect.bottom + pad + gap;
       }
-
-      if (placement === "bottom") {
-        top = rect.bottom + pad + 12;
-        left = Math.max(12, Math.min(vw - tooltipW - 12, rect.left + rect.width / 2 - tooltipW / 2));
-      } else {
-        top = rect.top - pad - tooltipH - 12;
-        left = Math.max(12, Math.min(vw - tooltipW - 12, rect.left + rect.width / 2 - tooltipW / 2));
-      }
+      left = Math.max(8, Math.min(vw - tooltipW - 8, (vw - tooltipW) / 2));
     } else {
-      // Desktop: try preferred, then fallback
-      if (placement === "right" && rect.right + tooltipW + 24 < vw) {
+      // Desktop
+      const pref = tour.step.position || "bottom";
+
+      if (pref === "right" && rect.right + tooltipW + gap + pad < vw) {
         top = rect.top + rect.height / 2 - tooltipH / 2;
-        left = rect.right + pad + 12;
-      } else if (placement === "left" && rect.left - tooltipW - 24 > 0) {
+        left = rect.right + pad + gap;
+      } else if (pref === "left" && rect.left - tooltipW - gap - pad > 0) {
         top = rect.top + rect.height / 2 - tooltipH / 2;
-        left = rect.left - pad - tooltipW - 12;
-      } else if (rect.bottom + tooltipH + 24 < vh) {
-        placement = "bottom";
-        top = rect.bottom + pad + 12;
+        left = rect.left - pad - tooltipW - gap;
+      } else if (rect.top - tooltipH - gap > 10) {
+        // Top
+        top = rect.top - pad - tooltipH - gap;
         left = rect.left + rect.width / 2 - tooltipW / 2;
       } else {
-        placement = "top";
-        top = rect.top - pad - tooltipH - 12;
+        // Bottom
+        top = rect.bottom + pad + gap;
         left = rect.left + rect.width / 2 - tooltipW / 2;
       }
 
-      // Clamp to viewport
-      top = Math.max(12, Math.min(vh - tooltipH - 12, top));
-      left = Math.max(12, Math.min(vw - tooltipW - 12, left));
+      // Clamp
+      top = Math.max(10, Math.min(vh - tooltipH - 10, top));
+      left = Math.max(10, Math.min(vw - tooltipW - 10, left));
     }
 
-    setTooltipPos({ top, left, placement });
+    setTooltipPos({ top, left });
+    setTooltipReady(true);
   }, [tour.isActive, tour.step]);
 
-  // Reposition on step change or resize
+  // Position after render so we can measure tooltip
+  useLayoutEffect(() => {
+    if (!tour.isActive) {
+      setTooltipReady(false);
+      return;
+    }
+    // First render without positioning (offscreen), then measure and position
+    setTooltipReady(false);
+    const frame = requestAnimationFrame(() => {
+      reposition();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [tour.isActive, tour.currentStep, reposition]);
+
+  // Reposition on resize/scroll
   useEffect(() => {
-    positionTooltip();
-
-    const handleResize = () => positionTooltip();
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("scroll", handleResize, true);
+    if (!tour.isActive) return;
+    const handle = () => reposition();
+    window.addEventListener("resize", handle);
+    window.addEventListener("scroll", handle, true);
     return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("scroll", handleResize, true);
+      window.removeEventListener("resize", handle);
+      window.removeEventListener("scroll", handle, true);
     };
-  }, [positionTooltip, tour.currentStep]);
+  }, [tour.isActive, reposition]);
 
-  if (!mounted || !tour.isActive || !tour.step || !tooltipPos) return null;
+  if (!mounted || !tour.isActive || !tour.step) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999]" role="dialog" aria-modal="true">
       {/* Dark overlay with spotlight cutout */}
-      <svg
-        className="absolute inset-0 h-full w-full"
-        style={{ pointerEvents: "none" }}
-      >
+      <svg className="absolute inset-0 h-full w-full" style={{ pointerEvents: "none" }}>
         <defs>
-          <mask id="tour-spotlight-mask">
+          <mask id="tour-mask">
             <rect width="100%" height="100%" fill="white" />
             {spotlight && (
               <rect
@@ -144,6 +156,7 @@ export function ProductTour() {
                 height={spotlight.height}
                 rx={12}
                 fill="black"
+                style={{ transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)" }}
               />
             )}
           </mask>
@@ -151,23 +164,23 @@ export function ProductTour() {
         <rect
           width="100%"
           height="100%"
-          fill="rgba(0,0,0,0.6)"
-          mask="url(#tour-spotlight-mask)"
+          fill="rgba(0,0,0,0.55)"
+          mask="url(#tour-mask)"
           style={{ pointerEvents: "auto" }}
           onClick={tour.skip}
         />
       </svg>
 
-      {/* Spotlight glow ring */}
-      {spotlight && (
+      {/* Spotlight glow */}
+      {spotlight && tooltipReady && (
         <div
-          className="pointer-events-none absolute rounded-xl ring-2 ring-[#c9a96e]/50 shadow-lg shadow-[#c9a96e]/20"
+          className="pointer-events-none absolute rounded-xl ring-2 ring-[#c9a96e]/40 shadow-lg shadow-[#c9a96e]/20"
           style={{
             top: spotlight.top,
             left: spotlight.left,
             width: spotlight.width,
             height: spotlight.height,
-            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         />
       )}
@@ -175,15 +188,18 @@ export function ProductTour() {
       {/* Tooltip */}
       <div
         ref={tooltipRef}
-        className="absolute z-10 w-[350px] max-w-[calc(100vw-24px)] animate-fade-in-up rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
+        className="absolute z-10 w-[340px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
         style={{
-          top: tooltipPos.top,
-          left: tooltipPos.left,
-          transition: "top 0.4s cubic-bezier(0.4, 0, 0.2, 1), left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          top: tooltipReady && tooltipPos ? tooltipPos.top : -9999,
+          left: tooltipReady && tooltipPos ? tooltipPos.left : -9999,
+          opacity: tooltipReady ? 1 : 0,
+          transition: tooltipReady
+            ? "top 0.35s cubic-bezier(0.4, 0, 0.2, 1), left 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s"
+            : "none",
         }}
       >
-        {/* Progress bar */}
-        <div className="flex items-center justify-between border-b border-border/30 px-4 py-2.5">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border/30 px-4 py-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5 text-[#c9a96e]" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -192,15 +208,15 @@ export function ProductTour() {
           </div>
           <button
             onClick={tour.skip}
-            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Fermer le tutoriel"
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="Fermer"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        {/* Step progress dots */}
-        <div className="flex gap-1 px-4 pt-3">
+        {/* Progress segments */}
+        <div className="flex gap-1 px-4 pt-2.5">
           {tour.steps.map((_, i) => (
             <div
               key={i}
@@ -216,36 +232,36 @@ export function ProductTour() {
         </div>
 
         {/* Content */}
-        <div className="px-4 pt-3 pb-2">
-          <h3 className="font-serif text-lg font-semibold text-foreground">
+        <div className="px-4 pt-2.5 pb-1.5">
+          <h3 className="font-serif text-base font-semibold text-foreground">
             {tour.step.title}
           </h3>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
             {tour.step.description}
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between border-t border-border/30 px-4 py-3">
+        <div className="flex items-center justify-between border-t border-border/30 px-4 py-2.5">
           <button
             onClick={tour.skip}
             className="cursor-pointer text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            Passer le tutoriel
+            Passer
           </button>
           <div className="flex items-center gap-2">
             {tour.currentStep > 0 && (
               <button
                 onClick={tour.prev}
-                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border/40 bg-background px-3 text-xs font-medium text-foreground transition-all hover:bg-accent"
+                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border/40 bg-background px-2.5 text-xs font-medium text-foreground transition-all hover:bg-accent"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
-                Precedent
+                Retour
               </button>
             )}
             <button
               onClick={tour.next}
-              className="flex h-8 cursor-pointer items-center gap-1 rounded-lg bg-[#1e3a5f] px-4 text-xs font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all hover:bg-[#162d4a]"
+              className="flex h-8 cursor-pointer items-center gap-1 rounded-lg bg-[#1e3a5f] px-3.5 text-xs font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all hover:bg-[#162d4a]"
             >
               {tour.currentStep === tour.totalSteps - 1 ? (
                 "Terminer"

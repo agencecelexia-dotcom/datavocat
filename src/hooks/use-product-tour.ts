@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 
 export interface TourStep {
-  target: string; // data-tour attribute value
+  target: string;
   title: string;
   description: string;
   position?: "top" | "bottom" | "left" | "right" | "center";
@@ -40,7 +40,7 @@ const TOUR_STEPS: TourStep[] = [
     target: "tour-results",
     title: "4 vues de resultats",
     description:
-      "Apres l'analyse, basculez entre Rapport (texte), Dashboard (graphiques et KPIs), Slides (presentation) et Sources (annexe des decisions). Chaque vue est exportable en PDF ou DOCX.",
+      "Apres l'analyse, basculez entre Rapport (texte), Dashboard (graphiques et KPIs), Tableau de preuve et Sources (annexe des decisions). Chaque vue est exportable en PDF ou DOCX.",
     position: "center",
   },
   {
@@ -54,22 +54,23 @@ const TOUR_STEPS: TourStep[] = [
     target: "user-menu",
     title: "Parametres & tutoriel",
     description:
-      "Retrouvez ici vos preferences, le mode sombre, et la possibilite de relancer ce tutoriel a tout moment depuis Parametres.",
+      "Retrouvez ici vos preferences, le mode sombre, et la possibilite de relancer ce tutoriel a tout moment depuis Parametres > Preferences.",
   },
 ];
 
-const STORAGE_KEY = "datavocat_has_seen_tour";
+// This key triggers the tour on next page load — set by Settings or Registration
+const LAUNCH_KEY = "datavocat_launch_tour";
 
 export function useProductTour() {
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Check on mount if tour should show
+  // Only launch if explicitly requested (via settings or registration)
   useEffect(() => {
-    const hasSeen = localStorage.getItem(STORAGE_KEY);
-    if (!hasSeen) {
-      // Small delay so the page renders first
-      const timer = setTimeout(() => setIsActive(true), 800);
+    const shouldLaunch = localStorage.getItem(LAUNCH_KEY);
+    if (shouldLaunch) {
+      localStorage.removeItem(LAUNCH_KEY);
+      const timer = setTimeout(() => setIsActive(true), 600);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -78,7 +79,8 @@ export function useProductTour() {
     if (currentStep < TOUR_STEPS.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      finish();
+      setIsActive(false);
+      setCurrentStep(0);
     }
   }, [currentStep]);
 
@@ -89,19 +91,8 @@ export function useProductTour() {
   }, [currentStep]);
 
   const skip = useCallback(() => {
-    finish();
-  }, []);
-
-  const finish = useCallback(() => {
     setIsActive(false);
     setCurrentStep(0);
-    localStorage.setItem(STORAGE_KEY, "true");
-  }, []);
-
-  const restart = useCallback(() => {
-    setCurrentStep(0);
-    setIsActive(true);
-    localStorage.removeItem(STORAGE_KEY);
   }, []);
 
   return {
@@ -113,7 +104,10 @@ export function useProductTour() {
     next,
     prev,
     skip,
-    finish,
-    restart,
   };
+}
+
+/** Call this to schedule the tour on next page load */
+export function scheduleTour() {
+  localStorage.setItem(LAUNCH_KEY, "true");
 }

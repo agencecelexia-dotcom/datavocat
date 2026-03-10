@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { scheduleTour } from "@/hooks/use-product-tour";
 
 interface UserProfile {
   email: string;
@@ -566,7 +567,7 @@ export default function ParametresPage() {
                     size="sm"
                     className="shrink-0 cursor-pointer gap-1.5 border-[#1e3a5f]/20 text-[#1e3a5f] hover:bg-[#1e3a5f]/5"
                     onClick={() => {
-                      localStorage.removeItem("datavocat_has_seen_tour");
+                      scheduleTour();
                       router.push("/");
                     }}
                   >
