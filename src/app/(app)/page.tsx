@@ -28,6 +28,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
+import { TOUR_QUERY } from "@/hooks/use-product-tour";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisSlides } from "@/components/analysis/slides";
 import { AnalysisChat } from "@/components/analysis/chat";
@@ -89,6 +90,17 @@ export default function AnalyzePage() {
       responseRef.current.scrollTop = responseRef.current.scrollHeight;
     }
   }, [response]);
+
+  // Tour: listen for fill-query event from product tour
+  useEffect(() => {
+    const handler = () => {
+      if (phase === "input") {
+        setQuery(TOUR_QUERY);
+      }
+    };
+    window.addEventListener("tour:fill-query", handler);
+    return () => window.removeEventListener("tour:fill-query", handler);
+  }, [phase]);
 
   // Step 1: Submit query -> get clarifying questions
   const handleSubmit = async (e: React.FormEvent) => {
@@ -245,7 +257,7 @@ export default function AnalyzePage() {
   ).length;
 
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col">
+    <div className="mx-auto flex h-full max-w-5xl flex-col" data-tour-phase={phase} data-tour="tour-page">
       {phase === "input" ? (
         /* INPUT STATE — Premium Hero */
         <div className="gradient-hero flex flex-1 flex-col items-center justify-center gap-8 px-4">
@@ -514,7 +526,7 @@ export default function AnalyzePage() {
               <div className="flex-1" />
 
               {/* View tabs - refined pill style */}
-              <div className="flex gap-0.5 rounded-xl border border-border/40 bg-muted/50 p-0.5">
+              <div data-tour="tour-view-tabs" className="flex gap-0.5 rounded-xl border border-border/40 bg-muted/50 p-0.5">
                 {[
                   {
                     key: "text" as const,
@@ -577,7 +589,7 @@ export default function AnalyzePage() {
                   <span className="hidden text-muted-foreground/50 sm:inline">|</span>
                   <span className="hidden sm:inline">Datavocat</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div data-tour="tour-export-buttons" className="flex items-center gap-1.5">
                   <CopyMarkdown content={response} />
                   <button
                     onClick={() => handleExport("pdf")}

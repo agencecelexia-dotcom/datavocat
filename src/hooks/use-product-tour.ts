@@ -7,54 +7,91 @@ export interface TourStep {
   title: string;
   description: string;
   position?: "top" | "bottom" | "left" | "right" | "center";
+  /** "info" = just show tooltip, "interact" = allow clicks through overlay, "wait" = non-blocking wait */
+  type?: "info" | "interact" | "wait";
+  /** Custom event name to dispatch when entering this step */
+  action?: string;
+  /** CSS selector — auto-advance when this element appears in DOM */
+  waitFor?: string;
+  /** CSS selector — skip this step immediately if condition already met */
+  skipIf?: string;
+  /** Override the "Suivant" button text */
+  buttonLabel?: string;
+  /** Hide the next button (user must complete action to advance) */
+  hideNext?: boolean;
 }
 
+/** Example query pre-filled during the interactive tour */
+export const TOUR_QUERY =
+  "Mon client est un salarie licencie pour faute grave apres 15 ans d'anciennete dans une entreprise de BTP. Il conteste le motif. Quelles sont ses chances devant le CPH de Paris ?";
+
 const TOUR_STEPS: TourStep[] = [
+  {
+    target: "tour-welcome",
+    title: "Bienvenue sur Datavocat !",
+    description:
+      "Ce tutoriel vous guide a travers une analyse juridique complete en situation reelle. Vous allez utiliser la plateforme comme un avocat le ferait au quotidien.",
+    position: "center",
+    buttonLabel: "C'est parti !",
+  },
   {
     target: "query-input",
     title: "Decrivez votre affaire",
     description:
-      "Saisissez la situation juridique de votre client en langage naturel. Datavocat interroge automatiquement Judilibre (Cour de cassation, Cours d'appel) et data.gouv.fr pour trouver la jurisprudence pertinente.",
+      "Un cas a ete pre-rempli : un licenciement pour faute grave conteste. Cliquez sur le bouton 'Analyser' pour lancer la recherche dans 500 000+ decisions.",
+    type: "interact",
+    action: "tour:fill-query",
+    waitFor: '[data-tour-phase="clarify"],[data-tour-phase="analyzing"]',
+    hideNext: true,
   },
   {
-    target: "examples",
-    title: "Exemples pour demarrer",
+    target: "tour-page",
+    title: "Questions de clarification",
     description:
-      "Cliquez sur un exemple pour pre-remplir votre demande. Ces cas couvrent differents domaines du droit : social, commercial, immobilier...",
+      "L'IA pose des questions pour affiner l'analyse : juridiction, anciennete, type de contrat... Repondez a celles que vous souhaitez, puis cliquez 'Lancer l'analyse' ou 'Passer et analyser'.",
+    type: "interact",
+    waitFor: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
+    skipIf: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
+    hideNext: true,
+    position: "center",
   },
   {
-    target: "sidebar",
-    title: "Votre espace de travail",
+    target: "tour-page",
+    title: "Analyse en cours",
     description:
-      "Naviguez entre vos analyses, l'historique et le comparateur. Utilisez Ctrl+K pour la palette de commandes rapide.",
-    position: "right",
+      "Datavocat recherche dans Judilibre (Cour de cassation + Cours d'appel) et data.gouv.fr. L'IA Claude analyse les decisions trouvees et redige votre rapport. Patientez environ 30 a 60 secondes.",
+    type: "wait",
+    waitFor: '[data-tour-phase="done"]',
+    skipIf: '[data-tour-phase="done"]',
+    hideNext: true,
+    position: "center",
+  },
+  {
+    target: "tour-view-tabs",
+    title: "Quatre vues de resultats",
+    description:
+      "Votre analyse est prete ! Basculez entre : Rapport (texte detaille), Dashboard (graphiques et KPIs), Tableau de preuve et Sources (annexe des decisions). Essayez de cliquer sur chaque onglet.",
+    type: "interact",
+  },
+  {
+    target: "tour-export-buttons",
+    title: "Exportez votre travail",
+    description:
+      "Generez un PDF ou DOCX professionnel avec decisions, statistiques et recommandations. Le document est pret a integrer dans votre dossier client.",
   },
   {
     target: "nav-historique",
     title: "Historique des analyses",
     description:
-      "Retrouvez toutes vos analyses precedentes ici. Chaque analyse est sauvegardee avec son rapport, dashboard et sources.",
+      "Toutes vos analyses sont sauvegardees automatiquement ici. Retrouvez-les a tout moment pour les relire, exporter ou comparer entre elles.",
     position: "right",
-  },
-  {
-    target: "tour-results",
-    title: "4 vues de resultats",
-    description:
-      "Apres l'analyse, basculez entre Rapport (texte), Dashboard (graphiques et KPIs), Tableau de preuve et Sources (annexe des decisions). Chaque vue est exportable en PDF ou DOCX.",
-    position: "center",
-  },
-  {
-    target: "tour-exports",
-    title: "Exports professionnels",
-    description:
-      "Generez un rapport PDF ou DOCX complet avec toutes les decisions, statistiques et recommandations, pret a integrer dans votre dossier client.",
-    position: "center",
   },
   {
     target: "user-menu",
     title: "Parametres & tutoriel",
     description:
-      "Cliquez ici pour acceder a vos Parametres : profil, securite, mode sombre, et preferences. Vous pouvez relancer ce tutoriel a tout moment depuis Parametres > Preferences > Aide & Tutoriel.",
+      "Accedez a vos parametres : profil, mode sombre, preferences. Vous pouvez relancer ce tutoriel a tout moment depuis Parametres > Preferences > Aide & Tutoriel.",
+    buttonLabel: "Terminer",
   },
 ];
 
@@ -75,18 +112,37 @@ export function useProductTour() {
     }
   }, []);
 
-  const next = useCallback(() => {
-    if (currentStep < TOUR_STEPS.length - 1) {
-      setCurrentStep((prev) => prev + 1);
-    } else {
+  const goToStep = useCallback((idx: number) => {
+    // Skip steps whose skipIf condition is already met
+    let nextIdx = idx;
+    while (nextIdx < TOUR_STEPS.length) {
+      const step = TOUR_STEPS[nextIdx];
+      if (step.skipIf && document.querySelector(step.skipIf)) {
+        nextIdx++;
+      } else {
+        break;
+      }
+    }
+    if (nextIdx >= TOUR_STEPS.length) {
       setIsActive(false);
       setCurrentStep(0);
+    } else {
+      setCurrentStep(nextIdx);
     }
-  }, [currentStep]);
+  }, []);
+
+  const next = useCallback(() => {
+    goToStep(currentStep + 1);
+  }, [currentStep, goToStep]);
 
   const prev = useCallback(() => {
     if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
+      // Go back, but skip interact/wait steps (can't redo them)
+      let prevIdx = currentStep - 1;
+      while (prevIdx > 0 && (TOUR_STEPS[prevIdx].type === "wait" || TOUR_STEPS[prevIdx].type === "interact")) {
+        prevIdx--;
+      }
+      setCurrentStep(prevIdx);
     }
   }, [currentStep]);
 

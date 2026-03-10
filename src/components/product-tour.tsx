@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useProductTour } from "@/hooks/use-product-tour";
-import { ChevronLeft, ChevronRight, X, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Sparkles, MousePointerClick } from "lucide-react";
 
 interface Pos {
   top: number;
@@ -28,6 +28,60 @@ export function ProductTour() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const isInteractive = tour.step?.type === "interact" || tour.step?.type === "wait";
+
+  // Dispatch action event when entering a step
+  useEffect(() => {
+    if (!tour.isActive || !tour.step?.action) return;
+    // Small delay to let the UI settle
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new CustomEvent(tour.step!.action!));
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [tour.isActive, tour.currentStep, tour.step]);
+
+  // Watch for waitFor condition — auto-advance when met
+  useEffect(() => {
+    if (!tour.isActive || !tour.step?.waitFor) return;
+
+    const check = () => !!document.querySelector(tour.step!.waitFor!);
+
+    // Already met?
+    if (check()) {
+      const timer = setTimeout(() => tour.next(), 300);
+      return () => clearTimeout(timer);
+    }
+
+    // Observe DOM changes
+    const observer = new MutationObserver(() => {
+      if (check()) {
+        observer.disconnect();
+        // Small delay for smooth transition
+        setTimeout(() => tour.next(), 300);
+      }
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
+
+    // Fallback polling (in case MutationObserver misses attribute changes)
+    const interval = setInterval(() => {
+      if (check()) {
+        clearInterval(interval);
+        observer.disconnect();
+        setTimeout(() => tour.next(), 300);
+      }
+    }, 500);
+
+    return () => {
+      observer.disconnect();
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tour.isActive, tour.currentStep]);
 
   // Measure tooltip then position
   const reposition = useCallback(() => {
@@ -60,7 +114,6 @@ export function ProductTour() {
     const rect = target.getBoundingClientRect();
     if (rect.top < 0 || rect.bottom > vh) {
       target.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Wait for scroll then reposition
       setTimeout(reposition, 350);
       return;
     }
@@ -77,7 +130,6 @@ export function ProductTour() {
     const isMobile = vw < 768;
 
     if (isMobile) {
-      // Mobile: prefer top, fallback bottom
       if (rect.top - tooltipH - gap > 10) {
         top = rect.top - pad - tooltipH - gap;
       } else {
@@ -85,7 +137,6 @@ export function ProductTour() {
       }
       left = Math.max(8, Math.min(vw - tooltipW - 8, (vw - tooltipW) / 2));
     } else {
-      // Desktop
       const pref = tour.step.position || "bottom";
 
       if (pref === "right" && rect.right + tooltipW + gap + pad < vw) {
@@ -95,16 +146,13 @@ export function ProductTour() {
         top = rect.top + rect.height / 2 - tooltipH / 2;
         left = rect.left - pad - tooltipW - gap;
       } else if (rect.top - tooltipH - gap > 10) {
-        // Top
         top = rect.top - pad - tooltipH - gap;
         left = rect.left + rect.width / 2 - tooltipW / 2;
       } else {
-        // Bottom
         top = rect.bottom + pad + gap;
         left = rect.left + rect.width / 2 - tooltipW / 2;
       }
 
-      // Clamp
       top = Math.max(10, Math.min(vh - tooltipH - 10, top));
       left = Math.max(10, Math.min(vw - tooltipW - 10, left));
     }
@@ -119,7 +167,6 @@ export function ProductTour() {
       setTooltipReady(false);
       return;
     }
-    // First render without positioning (offscreen), then measure and position
     setTooltipReady(false);
     const frame = requestAnimationFrame(() => {
       reposition();
@@ -142,7 +189,7 @@ export function ProductTour() {
   if (!mounted || !tour.isActive || !tour.step) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999]" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[9999]" role="dialog" aria-modal="true" style={{ pointerEvents: isInteractive ? "none" : undefined }}>
       {/* Dark overlay with spotlight cutout */}
       <svg className="absolute inset-0 h-full w-full" style={{ pointerEvents: "none" }}>
         <defs>
@@ -164,10 +211,10 @@ export function ProductTour() {
         <rect
           width="100%"
           height="100%"
-          fill="rgba(0,0,0,0.55)"
+          fill={isInteractive ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.55)"}
           mask="url(#tour-mask)"
-          style={{ pointerEvents: "auto" }}
-          onClick={tour.skip}
+          style={{ pointerEvents: isInteractive ? "none" : "auto" }}
+          onClick={isInteractive ? undefined : tour.skip}
         />
       </svg>
 
@@ -193,6 +240,7 @@ export function ProductTour() {
           top: tooltipReady && tooltipPos ? tooltipPos.top : -9999,
           left: tooltipReady && tooltipPos ? tooltipPos.left : -9999,
           opacity: tooltipReady ? 1 : 0,
+          pointerEvents: "auto",
           transition: tooltipReady
             ? "top 0.35s cubic-bezier(0.4, 0, 0.2, 1), left 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s"
             : "none",
@@ -239,6 +287,19 @@ export function ProductTour() {
           <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
             {tour.step.description}
           </p>
+          {/* Interaction hint for interact steps */}
+          {tour.step.type === "interact" && tour.step.hideNext && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[#c9a96e]">
+              <MousePointerClick className="h-3.5 w-3.5" />
+              Interagissez avec la page pour continuer
+            </div>
+          )}
+          {tour.step.type === "wait" && tour.step.hideNext && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[#c9a96e]">
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-[#c9a96e]/30 border-t-[#c9a96e]" />
+              En attente...
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -247,10 +308,10 @@ export function ProductTour() {
             onClick={tour.skip}
             className="cursor-pointer text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            Passer
+            Passer le tutoriel
           </button>
           <div className="flex items-center gap-2">
-            {tour.currentStep > 0 && (
+            {tour.currentStep > 0 && !tour.step.hideNext && (
               <button
                 onClick={tour.prev}
                 className="flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border/40 bg-background px-2.5 text-xs font-medium text-foreground transition-all hover:bg-accent"
@@ -259,19 +320,23 @@ export function ProductTour() {
                 Retour
               </button>
             )}
-            <button
-              onClick={tour.next}
-              className="flex h-8 cursor-pointer items-center gap-1 rounded-lg bg-[#1e3a5f] px-3.5 text-xs font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all hover:bg-[#162d4a]"
-            >
-              {tour.currentStep === tour.totalSteps - 1 ? (
-                "Terminer"
-              ) : (
-                <>
-                  Suivant
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </>
-              )}
-            </button>
+            {!tour.step.hideNext && (
+              <button
+                onClick={tour.next}
+                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg bg-[#1e3a5f] px-3.5 text-xs font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all hover:bg-[#162d4a]"
+              >
+                {tour.step.buttonLabel ? (
+                  tour.step.buttonLabel
+                ) : tour.currentStep === tour.totalSteps - 1 ? (
+                  "Terminer"
+                ) : (
+                  <>
+                    Suivant
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
