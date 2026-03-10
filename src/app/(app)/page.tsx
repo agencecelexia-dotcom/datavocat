@@ -303,6 +303,7 @@ export default function AnalyzePage() {
                   </span>
                 </div>
                 <Button
+                  data-tour="analyze-button"
                   type="submit"
                   className="cursor-pointer gap-2 bg-[#1e3a5f] px-5 text-sm font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all duration-300 hover:bg-[#162d4a] hover:shadow-lg hover:shadow-[#1e3a5f]/25 hover:-translate-y-px disabled:opacity-40"
                   disabled={!query.trim() || loading}

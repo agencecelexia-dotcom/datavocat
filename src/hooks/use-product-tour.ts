@@ -15,6 +15,8 @@ export interface TourStep {
   waitFor?: string;
   /** Override the "Suivant" button text */
   buttonLabel?: string;
+  /** Hide the Suivant button — user must interact to advance */
+  hideNext?: boolean;
 }
 
 /** Example query pre-filled during the interactive tour */
@@ -31,13 +33,14 @@ const TOUR_STEPS: TourStep[] = [
     buttonLabel: "C'est parti !",
   },
   {
-    target: "query-input",
-    title: "1. Saisissez votre affaire",
+    target: "analyze-button",
+    title: "1. Lancez une analyse",
     description:
-      "Decrivez la situation juridique en langage naturel. Un exemple a ete pre-rempli pour vous. Cliquez 'Analyser' pour tester, ou passez a l'etape suivante.",
+      "Un exemple a ete pre-rempli pour vous. Cliquez sur le bouton 'Analyser' pour lancer la recherche dans 500 000+ decisions de justice.",
     type: "interact",
     action: "tour:fill-query",
     waitFor: '[data-tour="clarify-section"],[data-tour-phase="analyzing"]',
+    hideNext: true,
   },
   {
     target: "examples",

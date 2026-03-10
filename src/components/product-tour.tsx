@@ -272,7 +272,7 @@ export function ProductTour() {
           </p>
         </div>
 
-        {/* Actions — ALWAYS visible */}
+        {/* Actions */}
         <div className="flex items-center justify-between border-t border-border/30 px-4 py-2.5">
           <button
             onClick={tour.skip}
@@ -281,7 +281,7 @@ export function ProductTour() {
             Passer le tutoriel
           </button>
           <div className="flex items-center gap-2">
-            {tour.currentStep > 0 && (
+            {tour.currentStep > 0 && !tour.step.hideNext && (
               <button
                 onClick={tour.prev}
                 className="flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border/40 bg-background px-2.5 text-xs font-medium text-foreground transition-all hover:bg-accent"
@@ -290,21 +290,29 @@ export function ProductTour() {
                 Retour
               </button>
             )}
-            <button
-              onClick={tour.next}
-              className="flex h-8 cursor-pointer items-center gap-1 rounded-lg bg-[#1e3a5f] px-3.5 text-xs font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all hover:bg-[#162d4a]"
-            >
-              {tour.step.buttonLabel ? (
-                tour.step.buttonLabel
-              ) : tour.currentStep === tour.totalSteps - 1 ? (
-                "Terminer"
-              ) : (
-                <>
-                  Suivant
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </>
-              )}
-            </button>
+            {tour.step.hideNext && (
+              <span className="flex h-8 items-center gap-1.5 rounded-lg border border-[#c9a96e]/30 bg-[#c9a96e]/5 px-3 text-xs font-medium text-[#c9a96e]">
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#c9a96e]" />
+                Cliquez sur le bouton ci-dessous
+              </span>
+            )}
+            {!tour.step.hideNext && (
+              <button
+                onClick={tour.next}
+                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg bg-[#1e3a5f] px-3.5 text-xs font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all hover:bg-[#162d4a]"
+              >
+                {tour.step.buttonLabel ? (
+                  tour.step.buttonLabel
+                ) : tour.currentStep === tour.totalSteps - 1 ? (
+                  "Terminer"
+                ) : (
+                  <>
+                    Suivant
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
