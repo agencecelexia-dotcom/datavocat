@@ -99,7 +99,19 @@ export function ProductTour() {
       `[data-tour="${tour.step.target}"]`
     ) as HTMLElement | null;
 
-    // No target or center step
+    // Interactive/wait steps with center position: dock to bottom-right corner
+    // so the tooltip doesn't block page interaction
+    if (isInteractive && (!target || tour.step.position === "center")) {
+      setSpotlight(null);
+      setTooltipPos({
+        top: vh - tooltipH - 20,
+        left: vw - tooltipW - 20,
+      });
+      setTooltipReady(true);
+      return;
+    }
+
+    // No target or center step (info only)
     if (!target || tour.step.position === "center") {
       setSpotlight(null);
       setTooltipPos({
@@ -159,7 +171,7 @@ export function ProductTour() {
 
     setTooltipPos({ top, left });
     setTooltipReady(true);
-  }, [tour.isActive, tour.step]);
+  }, [tour.isActive, tour.step, isInteractive]);
 
   // Position after render so we can measure tooltip
   useLayoutEffect(() => {
