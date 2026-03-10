@@ -323,11 +323,18 @@ export function ProductTour() {
         />
       )}
 
-      {/* Tooltip */}
+      {/* Tooltip — for noOverlay steps, anchor top-right so it never blocks scroll */}
       <div
         ref={tooltipRef}
         className="fixed z-10 w-[320px] max-w-[calc(100vw-16px)] rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/20"
-        style={{
+        style={noOverlay ? {
+          top: 12,
+          right: 12,
+          left: "auto",
+          opacity: tooltipReady ? 1 : 0,
+          pointerEvents: "auto",
+          transition: "opacity 0.2s",
+        } : {
           top: tooltipReady && tooltipPos ? tooltipPos.top : -9999,
           left: tooltipReady && tooltipPos ? tooltipPos.left : -9999,
           opacity: tooltipReady ? 1 : 0,
@@ -335,13 +342,6 @@ export function ProductTour() {
           transition: tooltipReady
             ? "top 0.35s cubic-bezier(0.4, 0, 0.2, 1), left 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s"
             : "none",
-        }}
-        onWheel={(e) => {
-          // Pass scroll through to main content so tooltip doesn't block scrolling
-          const main = document.querySelector("main");
-          if (main) {
-            main.scrollTop += e.deltaY;
-          }
         }}
       >
         {/* Header */}
