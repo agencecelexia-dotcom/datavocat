@@ -54,21 +54,21 @@ const DEFAULT_STREAM_STEPS: StreamSteps = {
 };
 
 const LAWYER_JOKES = [
-  "Pourquoi les avocats ne vont jamais a la plage ? Parce qu'ils ont peur que les chats les prennent pour du sable mouvant.",
-  "Quelle est la difference entre un avocat et un requin ? L'un est un predateur sans pitie, et l'autre est un poisson.",
-  "Un avocat demande a son client : 'Avez-vous dit toute la verite ?' Le client repond : 'Non, je vous ai engage pour ca.'",
-  "Comment appelle-t-on un avocat qui ne ment jamais ? Un debutant.",
-  "Pourquoi les avocats portent-ils la robe ? Pour cacher leur jeu.",
-  "Un juge demande a l'accuse : 'Pourquoi avez-vous vole cette voiture ?' L'accuse repond : 'Elle etait garee devant le palais de justice, j'ai cru que c'etait un service public.'",
-  "Que fait un avocat quand il fait froid ? Il met un article supplementaire.",
-  "Mon avocat m'a dit : 'J'ai une bonne et une mauvaise nouvelle.' La bonne : 'Votre femme a trouve une photo qui vaut 50 000 euros.' La mauvaise : 'C'est une photo de vous avec votre maitresse.'",
-  "Pourquoi les avocats font-ils de mauvais magiciens ? Parce qu'ils ne font que des tours de passe-passe juridiques.",
-  "Saviez-vous que 99% des avocats donnent une mauvaise image de la profession ? Le 100eme est en vacances.",
-  "Un avocat dit a un autre : 'On fait un proces ?' L'autre repond : 'D'accord, mais c'est moi qui gagne !'",
-  "La justice est aveugle. Heureusement, les avocats ont le nez creux.",
-  "Comment reconnait-on un bon avocat ? Il connait la loi. Et un excellent avocat ? Il connait le juge.",
-  "Pourquoi les avocats ne jouent-ils jamais a cache-cache ? Parce que personne ne les cherche.",
-  "Quelle est la devise des avocats ? 'In Deus we trust, tous les autres paient comptant.'",
+  "La robe noire des avocats français date de 1602 ; la toque et l'épitoge à hermine symbolisent l'appartenance à un ordre héritier du barreau de l'Ancien Régime.",
+  "La Cour de cassation rend environ 20 000 arrêts par an, dont moins de 5 % sont publiés au Bulletin — la sélection signale les décisions de principe.",
+  "Le serment de l'avocat, prêté une seule fois dans sa carrière, tient en une phrase : « Je jure, comme avocat, d'exercer mes fonctions avec dignité, conscience, indépendance, probité et humanité. »",
+  "Le secret professionnel de l'avocat est général, absolu et illimité dans le temps (article 66-5 loi n° 71-1130) — il survit au décès du client.",
+  "Le Palais de justice de Paris, sur l'île de la Cité, occupe l'emplacement du Palais des rois capétiens depuis le Xᵉ siècle.",
+  "L'article 4 du Code civil interdit au juge de refuser de juger sous prétexte du silence ou de l'obscurité de la loi : il s'expose sinon au déni de justice.",
+  "La prescription de l'action publique pour les crimes est de vingt ans depuis la loi du 27 février 2017 ; elle était de dix ans avant.",
+  "Le Conseil constitutionnel, créé par la Constitution de 1958, ne pouvait être saisi que par quatre autorités jusqu'en 2008 — la QPC a ouvert la porte aux justiciables.",
+  "Judilibre, ouverte en 2021, met en open data près de 600 000 décisions de la Cour de cassation et des cours d'appel, pseudonymisées conformément au RGPD.",
+  "La Cour de cassation n'est pas un troisième degré de juridiction : elle juge le droit, pas les faits — sauf cassation sans renvoi.",
+  "L'aveu judiciaire fait pleine foi contre celui qui l'a fait (article 1383-2 du Code civil) — il est indivisible et irrévocable.",
+  "Le délai-butoir de vingt ans (article 2232 du Code civil) plafonne la plupart des actions civiles, même si la prescription n'a jamais commencé à courir.",
+  "La loi du 15 juin 2000 a instauré la présomption d'innocence comme principe directeur du procès pénal, transposé à l'article préliminaire du Code de procédure pénale.",
+  "Le référé-liberté (article L. 521-2 du Code de justice administrative) doit être jugé dans les 48 heures — c'est la procédure administrative la plus rapide.",
+  "L'article 9 du Code de procédure civile rappelle qu'il incombe à chaque partie de prouver les faits nécessaires au succès de sa prétention — la charge de la preuve structure tout le procès civil.",
 ];
 
 export default function AnalyzePage() {
