@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Sparkles, History, GitCompareArrows, Search } from "lucide-react";
+import { Sparkles, History } from "lucide-react";
 import { LogoWordmark } from "@/components/brand/logo";
 
 const navItems = [
   { label: "Nouvelle analyse", href: "/", icon: Sparkles },
   { label: "Historique", href: "/historique", icon: History },
-  { label: "Comparateur", href: "/comparateur", icon: GitCompareArrows },
 ];
 
 export function Sidebar() {
@@ -82,43 +81,6 @@ export function Sidebar() {
 
       {/* Bottom */}
       <div className="px-4 pb-5 space-y-3">
-        {/* Search hint */}
-        <button
-          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md transition-all"
-          style={{
-            border: "1px solid var(--line)",
-            background: "transparent",
-          }}
-        >
-          <Search className="h-3 w-3" style={{ color: "var(--muted-foreground)" }} />
-          <span
-            className="text-[12px]"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            Rechercher
-          </span>
-          <span className="ml-auto flex items-center gap-0.5">
-            <kbd
-              className="font-mono text-[9px] px-1 py-0.5 rounded"
-              style={{
-                border: "1px solid var(--line)",
-                color: "var(--muted-foreground)",
-              }}
-            >
-              ⌘
-            </kbd>
-            <kbd
-              className="font-mono text-[9px] px-1 py-0.5 rounded"
-              style={{
-                border: "1px solid var(--line)",
-                color: "var(--muted-foreground)",
-              }}
-            >
-              K
-            </kbd>
-          </span>
-        </button>
-
         {/* Jurisprudence counter */}
         <div
           className="px-3 py-3 rounded-md"

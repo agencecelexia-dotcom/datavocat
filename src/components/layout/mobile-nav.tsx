@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, History, GitCompareArrows } from "lucide-react";
+import { Sparkles, History } from "lucide-react";
 
 const navItems = [
   { label: "Nouvelle analyse", href: "/", icon: Sparkles },
   { label: "Historique", href: "/historique", icon: History },
-  { label: "Comparateur", href: "/comparateur", icon: GitCompareArrows },
 ];
 
 export function MobileNav() {

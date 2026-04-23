@@ -26,9 +26,6 @@ function pathToBreadcrumb(pathname: string): { section: string; current: string 
   if (pathname.startsWith("/historique")) {
     return { section: "Espace de travail", current: "Historique" };
   }
-  if (pathname.startsWith("/comparateur")) {
-    return { section: "Espace de travail", current: "Comparateur" };
-  }
   if (pathname.startsWith("/parametres")) {
     return { section: "Compte", current: "Paramètres" };
   }

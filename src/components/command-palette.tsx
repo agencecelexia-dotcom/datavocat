@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Scale,
   History,
-  GitCompareArrows,
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,7 +21,6 @@ interface CommandItem {
 const items: CommandItem[] = [
   { id: "nav-home", label: "Nouvelle analyse", href: "/", icon: Scale, group: "navigation", keywords: ["accueil", "home", "nouvelle", "analyse"] },
   { id: "nav-historique", label: "Historique", href: "/historique", icon: History, group: "navigation", keywords: ["historique", "history", "analyses"] },
-  { id: "nav-comparateur", label: "Comparateur", href: "/comparateur", icon: GitCompareArrows, group: "navigation", keywords: ["comparateur", "comparer", "compare"] },
 ];
 
 function fuzzyMatch(text: string, query: string): boolean {

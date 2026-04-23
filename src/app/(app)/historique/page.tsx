@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Clock, ArrowRight, Gavel, Trash2, Sparkles } from "lucide-react";
+import { Clock, ArrowRight, Trash2, Sparkles } from "lucide-react";
 
 interface Analysis {
   id: string;
   query: string;
   status: string;
   created_at: string;
-  jugement_resultat: "favorable" | "partiellement_favorable" | "defavorable" | null;
 }
 
 function cleanQuery(query: string): string {
@@ -224,29 +223,8 @@ export default function HistoriquePage() {
                     </div>
                   </div>
 
-                  {/* Status + jugement */}
+                  {/* Status */}
                   <div className="shrink-0 flex items-center gap-3 text-right">
-                    {a.jugement_resultat && (
-                      <span
-                        className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.05em] font-semibold px-2 py-0.5 rounded"
-                        style={{
-                          color:
-                            a.jugement_resultat === "favorable"
-                              ? "var(--emerald, #2d6a4f)"
-                              : a.jugement_resultat === "partiellement_favorable"
-                                ? "var(--amber, #ca6702)"
-                                : "var(--bordeaux, #9b2226)",
-                          background: "color-mix(in srgb, currentColor 10%, transparent)",
-                        }}
-                      >
-                        <Gavel className="h-3 w-3" />
-                        {a.jugement_resultat === "favorable"
-                          ? "Favorable"
-                          : a.jugement_resultat === "partiellement_favorable"
-                            ? "Partiel"
-                            : "Défavorable"}
-                      </span>
-                    )}
                     <span
                       className="font-mono text-[9px] uppercase tracking-[0.15em] px-2 py-0.5 rounded"
                       style={{
