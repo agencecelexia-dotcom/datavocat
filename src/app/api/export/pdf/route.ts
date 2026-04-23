@@ -9,152 +9,253 @@ import {
   View,
   StyleSheet,
   renderToBuffer,
-  Font,
 } from "@react-pdf/renderer";
 
 export const maxDuration = 60;
 
-const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024; // 5 Mo
+const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024;
 
-// @react-pdf embarque Helvetica / Times par défaut, qui gèrent latin-1 étendu
-// (accents français OK). Pas besoin d'embed custom pour notre usage.
-Font.registerHyphenationCallback((word) => [word]);
+// ─── Palette Greffe ───────────────────────────────────────────────
+const C = {
+  ink: "#0b1220",
+  gold: "#b88a3e",
+  paper: "#f6f4ef",
+  line: "#d8d4c6",
+  muted: "#6b7280",
+  faint: "#9ca3af",
+};
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 60,
-    paddingBottom: 60,
-    paddingHorizontal: 50,
+    paddingTop: 72,
+    paddingBottom: 72,
+    paddingHorizontal: 60,
     fontFamily: "Helvetica",
-    fontSize: 10,
-    color: "#1a1a2e",
-    lineHeight: 1.5,
+    fontSize: 10.5,
+    color: C.ink,
+    lineHeight: 1.55,
   },
-  cover: {
+
+  // Cover
+  coverWrap: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 60,
+    paddingHorizontal: 40,
   },
-  brand: {
+  eyebrow: {
+    fontFamily: "Helvetica",
+    fontSize: 8.5,
+    color: C.gold,
+    letterSpacing: 3,
+    textTransform: "uppercase",
+    marginBottom: 36,
+  },
+  coverTitle: {
     fontFamily: "Times-Bold",
-    fontSize: 32,
-    color: "#0b1220",
-    letterSpacing: 1,
+    fontSize: 42,
+    color: C.ink,
+    textAlign: "center",
+    marginBottom: 14,
+    letterSpacing: 0.5,
+  },
+  coverSubtitle: {
+    fontFamily: "Times-Italic",
+    fontSize: 18,
+    color: C.gold,
+    textAlign: "center",
+    marginBottom: 48,
+  },
+  coverRule: {
+    width: 80,
+    borderBottomWidth: 0.8,
+    borderBottomColor: C.gold,
+    marginBottom: 32,
+  },
+  coverDate: {
+    fontFamily: "Times-Italic",
+    fontSize: 11,
+    color: C.muted,
     marginBottom: 8,
   },
-  subbrand: {
-    fontFamily: "Times-Italic",
-    fontSize: 16,
-    color: "#b88a3e",
-    marginBottom: 28,
-  },
-  rule: {
-    width: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: "#b88a3e",
-    marginBottom: 28,
-  },
-  date: {
-    fontSize: 10,
-    color: "#6b7280",
-    marginBottom: 4,
-  },
-  confidential: {
-    fontFamily: "Helvetica-Oblique",
-    fontSize: 9,
-    color: "#6b7280",
-    letterSpacing: 2,
+  coverConfidential: {
+    fontFamily: "Helvetica",
+    fontSize: 8,
+    color: C.muted,
+    letterSpacing: 2.5,
     textTransform: "uppercase",
-    marginTop: 28,
+    marginTop: 80,
+  },
+
+  // Sections
+  sectionEyebrow: {
+    fontFamily: "Helvetica",
+    fontSize: 8,
+    color: C.gold,
+    letterSpacing: 2.5,
+    textTransform: "uppercase",
+    marginTop: 20,
+    marginBottom: 6,
   },
   h1: {
     fontFamily: "Times-Bold",
-    fontSize: 18,
-    color: "#0b1220",
-    marginTop: 20,
-    marginBottom: 10,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e2d9",
+    fontSize: 20,
+    color: C.ink,
+    marginTop: 4,
+    marginBottom: 14,
+    paddingBottom: 8,
+    borderBottomWidth: 0.8,
+    borderBottomColor: C.line,
   },
   h2: {
-    fontFamily: "Helvetica-Bold",
-    fontSize: 12,
-    color: "#0b1220",
-    marginTop: 14,
+    fontFamily: "Times-Bold",
+    fontSize: 13,
+    color: C.ink,
+    marginTop: 16,
     marginBottom: 6,
+  },
+
+  // Bloc paragraph
+  pWrap: {
+    marginBottom: 8,
   },
   p: {
-    marginBottom: 6,
+    fontFamily: "Helvetica",
+    fontSize: 10.5,
+    color: C.ink,
   },
-  bold: {
-    fontFamily: "Helvetica-Bold",
-  },
-  italic: {
-    fontFamily: "Helvetica-Oblique",
-  },
-  bullet: {
+
+  // Bullets
+  bulletWrap: {
     flexDirection: "row",
-    marginBottom: 4,
-    paddingLeft: 12,
+    marginBottom: 5,
+    paddingLeft: 4,
   },
   bulletDot: {
-    width: 10,
+    width: 12,
+    fontSize: 10.5,
+    color: C.gold,
   },
-  queryBlock: {
-    backgroundColor: "#f6f4ef",
-    padding: 14,
-    marginTop: 10,
-    marginBottom: 18,
+  bulletText: {
+    flex: 1,
+    fontSize: 10.5,
+    color: C.ink,
+  },
+
+  // Query block
+  queryWrap: {
+    backgroundColor: C.paper,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
     borderLeftWidth: 2,
-    borderLeftColor: "#b88a3e",
+    borderLeftColor: C.gold,
   },
-  table: {
-    marginTop: 6,
-    marginBottom: 10,
+  queryLabel: {
+    fontFamily: "Helvetica",
+    fontSize: 7.5,
+    color: C.gold,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  queryText: {
+    fontFamily: "Times-Italic",
+    fontSize: 11,
+    color: C.ink,
+    lineHeight: 1.5,
+  },
+
+  // Table (petites tables — pour les gros tableaux on redirige CSV)
+  tableWrap: {
+    marginTop: 8,
+    marginBottom: 14,
+    borderWidth: 0.5,
+    borderColor: C.line,
   },
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 0.5,
-    borderBottomColor: "#e5e2d9",
+    borderBottomColor: C.line,
+  },
+  tableHeader: {
+    backgroundColor: C.paper,
   },
   tableCell: {
     flex: 1,
-    padding: 4,
-    fontSize: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    fontSize: 8.5,
+    color: C.ink,
     borderRightWidth: 0.5,
-    borderRightColor: "#e5e2d9",
+    borderRightColor: C.line,
   },
-  tableHeader: {
-    backgroundColor: "#f6f4ef",
+  tableCellBold: {
     fontFamily: "Helvetica-Bold",
   },
+
+  // Tableau de preuve stub
+  stubWrap: {
+    marginTop: 8,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: C.paper,
+    borderLeftWidth: 2,
+    borderLeftColor: C.gold,
+  },
+  stubTitle: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 10,
+    color: C.ink,
+    marginBottom: 4,
+  },
+  stubText: {
+    fontFamily: "Helvetica",
+    fontSize: 9,
+    color: C.muted,
+    lineHeight: 1.5,
+  },
+
+  // Footer
   footer: {
     position: "absolute",
     bottom: 30,
-    left: 50,
-    right: 50,
-    textAlign: "center",
-    fontSize: 8,
-    color: "#9ca3af",
-    fontFamily: "Helvetica-Oblique",
+    left: 60,
+    right: 60,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  footerText: {
+    fontFamily: "Helvetica",
+    fontSize: 7.5,
+    color: C.faint,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  footerPage: {
+    fontFamily: "Helvetica",
+    fontSize: 8.5,
+    color: C.muted,
   },
 });
 
-// ─── Markdown parser léger → blocs React ───────────────────────────
+// ─── Markdown parser → blocs ──────────────────────────────────────
 
 type Block =
   | { kind: "h1"; text: string }
   | { kind: "h2"; text: string }
   | { kind: "p"; text: string }
   | { kind: "ul"; items: string[] }
-  | { kind: "table"; headers: string[]; rows: string[][] };
+  | { kind: "table"; headers: string[]; rows: string[][] }
+  | { kind: "tableStub"; rowCount: number; colCount: number };
 
 function parseMarkdownToBlocks(md: string): Block[] {
   const lines = md.split("\n");
   const blocks: Block[] = [];
   let i = 0;
+  let inTableauDePreuveSection = false;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -165,7 +266,20 @@ function parseMarkdownToBlocks(md: string): Block[] {
       continue;
     }
 
-    // Tableau Markdown : ligne | | | suivie d'une ligne --- | --- | ---
+    // Détection du début / fin de la section "Tableau de preuve"
+    if (trimmed.startsWith("## ")) {
+      const title = trimmed.slice(3).toLowerCase();
+      if (title.includes("tableau de preuve")) {
+        inTableauDePreuveSection = true;
+        // On skippe le titre lui-même — on remplacera par un stub après parse complet
+        i++;
+        continue;
+      } else {
+        inTableauDePreuveSection = false;
+      }
+    }
+
+    // Détection tableau markdown
     if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
       const next = (lines[i + 1] || "").trim();
       const isSeparator = /^\|[\s:\-|]+\|$/.test(next);
@@ -174,7 +288,7 @@ function parseMarkdownToBlocks(md: string): Block[] {
           .slice(1, -1)
           .split("|")
           .map((c) => c.trim());
-        i += 2; // skip header + sep
+        i += 2;
         const rows: string[][] = [];
         while (i < lines.length) {
           const l = lines[i].trim();
@@ -187,9 +301,24 @@ function parseMarkdownToBlocks(md: string): Block[] {
           );
           i++;
         }
-        blocks.push({ kind: "table", headers, rows });
+        // Tableau de preuve → stub uniquement dans le PDF
+        if (inTableauDePreuveSection || headers.length > 7) {
+          blocks.push({
+            kind: "tableStub",
+            rowCount: rows.length,
+            colCount: headers.length,
+          });
+        } else {
+          blocks.push({ kind: "table", headers, rows });
+        }
         continue;
       }
+    }
+
+    // Si on est dans la section tableau de preuve, on skippe tout son contenu
+    if (inTableauDePreuveSection) {
+      i++;
+      continue;
     }
 
     if (trimmed.startsWith("## ")) {
@@ -222,37 +351,123 @@ function parseMarkdownToBlocks(md: string): Block[] {
   return blocks;
 }
 
-// ─── Rendu inline : **gras** et *italique* ────────────────────────
+// ─── Inline runs : **gras** ────────────────────────────────────────
 function renderInline(text: string): React.ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts
     .filter((p) => p !== "")
     .map((part, idx) => {
       if (part.startsWith("**") && part.endsWith("**")) {
         return React.createElement(
           Text,
-          { key: idx, style: styles.bold },
+          { key: idx, style: { fontFamily: "Helvetica-Bold" } },
           part.slice(2, -2)
-        );
-      }
-      if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
-        return React.createElement(
-          Text,
-          { key: idx, style: styles.italic },
-          part.slice(1, -1)
         );
       }
       return React.createElement(Text, { key: idx }, part);
     });
 }
 
-// ─── Document React-PDF ───────────────────────────────────────────
+// ─── Document ──────────────────────────────────────────────────────
 function AnalysisDocument(props: {
   query: string;
   blocks: Block[];
   dateStr: string;
 }) {
   const { query, blocks, dateStr } = props;
+
+  const renderedBlocks = blocks.map((b, i) => {
+    if (b.kind === "h1") {
+      return React.createElement(
+        View,
+        { key: i, wrap: false },
+        React.createElement(Text, { style: styles.sectionEyebrow }, "§"),
+        React.createElement(Text, { style: styles.h1 }, b.text)
+      );
+    }
+    if (b.kind === "h2") {
+      return React.createElement(
+        View,
+        { key: i, wrap: false },
+        React.createElement(Text, { style: styles.h2 }, b.text)
+      );
+    }
+    if (b.kind === "p") {
+      return React.createElement(
+        View,
+        { key: i, style: styles.pWrap },
+        React.createElement(
+          Text,
+          { style: styles.p },
+          renderInline(b.text)
+        )
+      );
+    }
+    if (b.kind === "ul") {
+      return React.createElement(
+        View,
+        { key: i, style: { marginBottom: 10 } },
+        ...b.items.map((it, j) =>
+          React.createElement(
+            View,
+            { key: j, style: styles.bulletWrap },
+            React.createElement(Text, { style: styles.bulletDot }, "§"),
+            React.createElement(
+              Text,
+              { style: styles.bulletText },
+              renderInline(it)
+            )
+          )
+        )
+      );
+    }
+    if (b.kind === "tableStub") {
+      return React.createElement(
+        View,
+        { key: i, style: styles.stubWrap, wrap: false },
+        React.createElement(
+          Text,
+          { style: styles.stubTitle },
+          "Tableau de preuve statistique"
+        ),
+        React.createElement(
+          Text,
+          { style: styles.stubText },
+          `${b.rowCount} décisions analysées sur ${b.colCount} facteurs juridiques décisifs. ` +
+            "Le tableau complet est disponible en export CSV ou DOCX (mieux adaptés à la lecture et au filtrage d'un corpus de cette densité)."
+        )
+      );
+    }
+    // kind === "table"
+    return React.createElement(
+      View,
+      { key: i, style: styles.tableWrap, wrap: true },
+      React.createElement(
+        View,
+        { style: [styles.tableRow, styles.tableHeader] },
+        ...b.headers.map((h, j) =>
+          React.createElement(
+            Text,
+            { key: j, style: [styles.tableCell, styles.tableCellBold] },
+            h
+          )
+        )
+      ),
+      ...b.rows.map((row, ri) =>
+        React.createElement(
+          View,
+          { key: ri, style: styles.tableRow, wrap: false },
+          ...row.map((cell, ci) =>
+            React.createElement(
+              Text,
+              { key: ci, style: styles.tableCell },
+              cell
+            )
+          )
+        )
+      )
+    );
+  });
 
   return React.createElement(
     Document,
@@ -263,99 +478,60 @@ function AnalysisDocument(props: {
       { size: "A4", style: styles.page, key: "cover" },
       React.createElement(
         View,
-        { style: styles.cover },
-        React.createElement(Text, { style: styles.brand }, "DATAVOCAT"),
+        { style: styles.coverWrap },
+        React.createElement(Text, { style: styles.eyebrow }, "Greffe"),
+        React.createElement(Text, { style: styles.coverTitle }, "Datavocat"),
         React.createElement(
           Text,
-          { style: styles.subbrand },
+          { style: styles.coverSubtitle },
           "Analyse jurimétrique"
         ),
-        React.createElement(View, { style: styles.rule }),
-        React.createElement(Text, { style: styles.date }, dateStr),
+        React.createElement(View, { style: styles.coverRule }),
+        React.createElement(Text, { style: styles.coverDate }, dateStr),
         React.createElement(
           Text,
-          { style: styles.confidential },
+          { style: styles.coverConfidential },
           "Document confidentiel"
+        )
+      ),
+      React.createElement(
+        View,
+        { style: styles.footer, fixed: true },
+        React.createElement(
+          Text,
+          { style: styles.footerText },
+          "Datavocat — Jurimétrie"
         )
       )
     ),
     // Contenu
     React.createElement(
       Page,
-      { size: "A4", style: styles.page, key: "content", wrap: true },
-      React.createElement(Text, { style: styles.h1 }, "Demande"),
+      { size: "A4", style: styles.page, key: "content" },
       React.createElement(
         View,
-        { style: styles.queryBlock },
-        React.createElement(Text, null, query || "(non précisée)")
+        { style: styles.queryWrap },
+        React.createElement(Text, { style: styles.queryLabel }, "Demande"),
+        React.createElement(
+          Text,
+          { style: styles.queryText },
+          query || "(non précisée)"
+        )
       ),
-      React.createElement(Text, { style: styles.h1 }, "Analyse"),
-      ...blocks.map((b, i) => {
-        if (b.kind === "h1")
-          return React.createElement(
-            Text,
-            { style: styles.h1, key: i },
-            b.text
-          );
-        if (b.kind === "h2")
-          return React.createElement(
-            Text,
-            { style: styles.h2, key: i },
-            b.text
-          );
-        if (b.kind === "p")
-          return React.createElement(
-            Text,
-            { style: styles.p, key: i },
-            renderInline(b.text)
-          );
-        if (b.kind === "ul")
-          return React.createElement(
-            View,
-            { key: i },
-            ...b.items.map((it, j) =>
-              React.createElement(
-                View,
-                { style: styles.bullet, key: j },
-                React.createElement(Text, { style: styles.bulletDot }, "•"),
-                React.createElement(
-                  Text,
-                  { style: { flex: 1 } },
-                  renderInline(it)
-                )
-              )
-            )
-          );
-        // table
-        return React.createElement(
-          View,
-          { style: styles.table, key: i, wrap: false },
-          React.createElement(
-            View,
-            { style: [styles.tableRow, styles.tableHeader] },
-            ...b.headers.map((h, j) =>
-              React.createElement(Text, { style: styles.tableCell, key: j }, h)
-            )
-          ),
-          ...b.rows.map((row, ri) =>
-            React.createElement(
-              View,
-              { style: styles.tableRow, key: ri },
-              ...row.map((cell, ci) =>
-                React.createElement(
-                  Text,
-                  { style: styles.tableCell, key: ci },
-                  cell
-                )
-              )
-            )
-          )
-        );
-      }),
+      ...renderedBlocks,
       React.createElement(
-        Text,
+        View,
         { style: styles.footer, fixed: true },
-        "Datavocat — Analyse jurimétrique assistée par IA. Ne constitue pas une consultation juridique."
+        React.createElement(
+          Text,
+          { style: styles.footerText },
+          "Datavocat — Jurimétrie"
+        ),
+        React.createElement(Text, {
+          style: styles.footerPage,
+          render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+            `${pageNumber} / ${totalPages}`,
+        })
       )
     )
   );
@@ -374,8 +550,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const query: string = body.query || "";
     const response: string = body.response || "";
-    // parsed is available but not used here — we prefer the raw markdown
-    // to preserve the full structure (tableau de preuve, etc.)
     void (body.parsed as ParsedAnalysis | null | undefined);
 
     if (!response || typeof response !== "string") {
@@ -407,8 +581,6 @@ export async function POST(request: NextRequest) {
       dateStr,
     });
 
-    // renderToBuffer type expects a Document element — le composant rend bien
-    // un <Document>, on cast pour satisfaire le check.
     const buffer = await renderToBuffer(
       element as unknown as Parameters<typeof renderToBuffer>[0]
     );
