@@ -3,119 +3,165 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  Scale,
-  History,
-  GitCompareArrows,
-  Sparkles,
-  Command,
-} from "lucide-react";
+import { Sparkles, History, GitCompareArrows, Search } from "lucide-react";
+import { LogoWordmark } from "@/components/brand/logo";
 
 const navItems = [
-  {
-    label: "Nouvelle analyse",
-    href: "/",
-    icon: Scale,
-    accent: true,
-  },
-  {
-    label: "Historique",
-    href: "/historique",
-    icon: History,
-  },
-  {
-    label: "Comparateur",
-    href: "/comparateur",
-    icon: GitCompareArrows,
-  },
+  { label: "Nouvelle analyse", href: "/", icon: Sparkles },
+  { label: "Historique", href: "/historique", icon: History },
+  { label: "Comparateur", href: "/comparateur", icon: GitCompareArrows },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside data-tour="sidebar" className="hidden w-[260px] shrink-0 flex-col bg-[#0c1929] lg:flex">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-3 px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#c9a96e]/10">
-          <Scale className="h-4 w-4 text-[#c9a96e]" />
-        </div>
-        <span className="font-serif text-lg tracking-tight text-white">
-          Datavocat
-        </span>
-        <span className="ml-auto rounded-md bg-[#c9a96e]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#c9a96e]">
-          Pro
-        </span>
+    <aside
+      data-tour="sidebar"
+      className="hidden w-[240px] shrink-0 flex-col lg:flex"
+      style={{
+        background: "var(--sidebar)",
+        borderRight: "1px solid var(--sidebar-border)",
+        color: "var(--sidebar-foreground)",
+      }}
+    >
+      {/* Logo + wordmark */}
+      <div className="px-5 pt-6 pb-5">
+        <LogoWordmark tone="light" />
       </div>
 
-      {/* Divider */}
-      <div className="mx-4 h-px bg-white/[0.06]" />
+      <div className="mx-5 h-px" style={{ background: "var(--line)" }} />
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-0.5 px-3 py-4">
-        {navItems.map((item, i) => {
+      {/* Nav */}
+      <nav className="flex-1 px-3 space-y-0.5 pt-3">
+        <div
+          className="px-3 pb-2 font-mono text-[9px] uppercase tracking-[0.22em]"
+          style={{ color: "var(--muted-foreground)", opacity: 0.7 }}
+        >
+          § Espace de travail
+        </div>
+        {navItems.map((it) => {
           const isActive =
-            pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
-
+            pathname === it.href ||
+            (it.href !== "/" && pathname.startsWith(it.href));
+          const Icon = it.icon;
           return (
-            <div key={item.href}>
-              {/* Section divider */}
-              {i === 2 && (
-                <div className="mx-2 my-3 h-px bg-white/[0.04]" />
+            <Link
+              key={it.href}
+              href={it.href}
+              {...(it.href === "/historique" ? { "data-tour": "nav-historique" } : {})}
+              className={cn(
+                "group relative flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] transition-all"
               )}
-              <Link
-                href={item.href}
-                {...(item.href === "/historique" ? { "data-tour": "nav-historique" } : {})}
-                className={cn(
-                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium cursor-pointer transition-all duration-200",
-                  isActive
-                    ? "bg-white/[0.08] text-white"
-                    : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
-                )}
+              style={{
+                background: isActive ? "var(--sidebar-accent)" : "transparent",
+                color: isActive
+                  ? "var(--sidebar-accent-foreground)"
+                  : "var(--muted-foreground)",
+              }}
+            >
+              {isActive && (
+                <div
+                  className="absolute left-0 w-[2px] h-5 rounded-r"
+                  style={{ background: "var(--gold)" }}
+                />
+              )}
+              <span
+                className="flex w-6 h-6 items-center justify-center"
+                style={{
+                  color: isActive ? "var(--gold)" : "var(--muted-foreground)",
+                }}
               >
-                {/* Active indicator */}
-                {isActive && (
-                  <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[#c9a96e]" />
-                )}
-
-                <span className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200",
-                  isActive
-                    ? "bg-[#c9a96e]/15 text-[#c9a96e]"
-                    : "text-slate-500 group-hover:text-slate-300",
-                  item.accent && !isActive && "text-[#c9a96e]/70"
-                )}>
-                  {item.accent && !isActive ? (
-                    <Sparkles className="h-4 w-4" />
-                  ) : (
-                    <item.icon className="h-4 w-4" />
-                  )}
-                </span>
-
-                <span>{item.label}</span>
-              </Link>
-            </div>
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="font-medium">{it.label}</span>
+            </Link>
           );
         })}
       </nav>
 
-      {/* Bottom section */}
-      <div className="space-y-3 px-4 pb-5">
-        {/* Shortcut hint */}
-        <div className="flex items-center gap-2 rounded-lg bg-white/[0.03] px-3 py-2.5">
-          <Command className="h-3.5 w-3.5 text-slate-500" />
-          <span className="text-xs text-slate-500">Palette de commandes</span>
-          <kbd className="ml-auto rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
-            Ctrl K
-          </kbd>
+      {/* Bottom */}
+      <div className="px-4 pb-5 space-y-3">
+        {/* Search hint */}
+        <button
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md transition-all"
+          style={{
+            border: "1px solid var(--line)",
+            background: "transparent",
+          }}
+        >
+          <Search className="h-3 w-3" style={{ color: "var(--muted-foreground)" }} />
+          <span
+            className="text-[12px]"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Rechercher
+          </span>
+          <span className="ml-auto flex items-center gap-0.5">
+            <kbd
+              className="font-mono text-[9px] px-1 py-0.5 rounded"
+              style={{
+                border: "1px solid var(--line)",
+                color: "var(--muted-foreground)",
+              }}
+            >
+              ⌘
+            </kbd>
+            <kbd
+              className="font-mono text-[9px] px-1 py-0.5 rounded"
+              style={{
+                border: "1px solid var(--line)",
+                color: "var(--muted-foreground)",
+              }}
+            >
+              K
+            </kbd>
+          </span>
+        </button>
+
+        {/* Jurisprudence counter */}
+        <div
+          className="px-3 py-3 rounded-md"
+          style={{
+            border: "1px solid var(--line)",
+            background: "var(--card)",
+          }}
+        >
+          <div
+            className="font-mono text-[9px] uppercase tracking-[0.2em]"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Base jurisprudence
+          </div>
+          <div
+            className="mt-1.5 font-mono text-[15px] tabular-nums tracking-tight"
+            style={{ color: "var(--ink)" }}
+          >
+            562 487
+          </div>
+          <div
+            className="text-[10px] mt-0.5"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Judilibre · data.gouv.fr
+          </div>
+          <div className="mt-2 flex items-center gap-1.5">
+            <div
+              className="w-1.5 h-1.5 rounded-full animate-pulse"
+              style={{ background: "var(--gold)" }}
+            />
+            <span className="text-[10px]" style={{ color: "var(--gold)" }}>
+              synchronisé
+            </span>
+          </div>
         </div>
 
-        {/* Branding */}
-        <div className="flex items-center justify-center gap-2 text-[10px] text-slate-600">
-          <span>Analyse Jurimétrique</span>
-          <span className="h-2.5 w-px bg-slate-700/50" />
-          <span>v1.0</span>
+        <div
+          className="flex items-center justify-between text-[10px] font-mono"
+          style={{ color: "var(--muted-foreground)", opacity: 0.6 }}
+        >
+          <span>v2.0 · 2026</span>
+          <span>CEDEX 1</span>
         </div>
       </div>
     </aside>

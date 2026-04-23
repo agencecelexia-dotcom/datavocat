@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { MessageCircle, Send, Loader2, ChevronDown } from "lucide-react";
 
 interface ChatMessage {
@@ -116,50 +114,92 @@ export function AnalysisChat({ analysisContext, query }: AnalysisChatProps) {
   const messageCount = messages.filter((m) => m.role === "user").length;
 
   return (
-    <div className="border-t border-border/60">
+    <div>
       {/* Collapsed header */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+        className="flex w-full items-center gap-3 py-3 text-left transition-colors cursor-pointer"
       >
-        <MessageCircle className="h-4 w-4 text-gold" />
-        <span className="text-sm font-medium">
-          Poser une question de suivi
-        </span>
+        <MessageCircle className="h-4 w-4" style={{ color: "var(--gold)" }} />
+        <div className="flex-1">
+          <div
+            className="font-mono text-[10px] uppercase tracking-[0.22em]"
+            style={{ color: "var(--gold)" }}
+          >
+            § Poser une question de suivi
+          </div>
+          <div
+            className="font-serif text-[16px] font-medium mt-0.5"
+            style={{ color: "var(--ink)" }}
+          >
+            Approfondir <span className="dv-italic">l&apos;analyse.</span>
+          </div>
+        </div>
         {messageCount > 0 && (
-          <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
+          <span
+            className="font-mono text-[10px] tabular-nums px-2 py-0.5 rounded"
+            style={{
+              background: "color-mix(in srgb, var(--gold) 12%, transparent)",
+              color: "var(--gold)",
+            }}
+          >
             {messageCount}
           </span>
         )}
-        <div className="flex-1" />
         <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          style={{ color: "var(--muted-foreground)" }}
         />
       </button>
 
       {/* Expanded chat */}
       {isOpen && (
-        <div className="flex flex-col border-t border-border/40">
+        <div
+          className="mt-4 rounded-md overflow-hidden"
+          style={{
+            border: "1px solid var(--line)",
+            background: "var(--card)",
+          }}
+        >
           {/* Messages list */}
           {messages.length > 0 && (
-            <div className="max-h-[400px] overflow-y-auto px-4 py-3 space-y-3">
+            <div className="max-h-[400px] overflow-y-auto px-4 py-4 space-y-3">
               {messages.map((msg, i) => (
                 <div
                   key={i}
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={
+                    className="px-4 py-2.5 max-w-[85%] text-[13px] leading-relaxed"
+                    style={
                       msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-2 max-w-[80%] ml-auto text-sm"
-                        : "bg-muted rounded-2xl rounded-bl-sm px-4 py-2 max-w-[85%] text-sm"
+                        ? {
+                            background: "var(--ink)",
+                            color: "#fff",
+                            borderRadius: "14px 14px 4px 14px",
+                          }
+                        : {
+                            background: "var(--paper)",
+                            color: "var(--ink)",
+                            border: "1px solid var(--line-soft)",
+                            borderRadius: "14px 14px 14px 4px",
+                          }
                     }
                   >
                     {msg.role === "assistant" && msg.content === "" && isStreaming ? (
                       <span className="inline-flex items-center gap-1">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:0ms]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:150ms]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:300ms]" />
+                        <span
+                          className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0ms]"
+                          style={{ background: "currentColor" }}
+                        />
+                        <span
+                          className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:150ms]"
+                          style={{ background: "currentColor" }}
+                        />
+                        <span
+                          className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:300ms]"
+                          style={{ background: "currentColor" }}
+                        />
                       </span>
                     ) : (
                       <ChatContent content={msg.content} />
@@ -172,8 +212,11 @@ export function AnalysisChat({ analysisContext, query }: AnalysisChatProps) {
           )}
 
           {/* Input bar */}
-          <div className="flex items-center gap-2 border-t border-border/40 px-4 py-3">
-            <Input
+          <div
+            className="flex items-center gap-2 px-4 py-3"
+            style={{ borderTop: "1px solid var(--line-soft)" }}
+          >
+            <input
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -181,23 +224,30 @@ export function AnalysisChat({ analysisContext, query }: AnalysisChatProps) {
               placeholder={
                 messages.length >= MAX_MESSAGES
                   ? "Limite de messages atteinte"
-                  : "Votre question..."
+                  : "Votre question…"
               }
               disabled={isStreaming || messages.length >= MAX_MESSAGES}
-              className="flex-1 text-sm"
+              className="flex-1 px-3 py-2 text-[13px] bg-transparent outline-none rounded-md"
+              style={{
+                border: "1px solid var(--line)",
+                background: "var(--bg)",
+                color: "var(--ink)",
+              }}
             />
-            <Button
-              size="icon"
+            <button
               onClick={handleSend}
-              disabled={!input.trim() || isStreaming || messages.length >= MAX_MESSAGES}
-              className="shrink-0 bg-gold hover:bg-gold/90"
+              disabled={
+                !input.trim() || isStreaming || messages.length >= MAX_MESSAGES
+              }
+              className="shrink-0 h-9 w-9 flex items-center justify-center rounded-md text-white cursor-pointer disabled:opacity-40"
+              style={{ background: "var(--ink)" }}
             >
               {isStreaming ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Send className="h-4 w-4" />
               )}
-            </Button>
+            </button>
           </div>
         </div>
       )}

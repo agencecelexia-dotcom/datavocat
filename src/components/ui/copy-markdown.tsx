@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 
 interface CopyMarkdownProps {
@@ -19,7 +18,6 @@ export function CopyMarkdown({ content, className }: CopyMarkdownProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for older browsers
       const textarea = document.createElement("textarea");
       textarea.value = content;
       textarea.style.position = "fixed";
@@ -34,23 +32,25 @@ export function CopyMarkdown({ content, className }: CopyMarkdownProps) {
   }, [content]);
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className={`gap-2 text-muted-foreground ${className ?? ""}`}
+    <button
       onClick={handleCopy}
+      className={`flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] rounded-md cursor-pointer transition-colors ${className ?? ""}`}
+      style={{
+        border: "1px solid var(--line)",
+        color: copied ? "var(--emerald, #2d6a4f)" : "var(--muted-foreground)",
+      }}
     >
       {copied ? (
         <>
-          <Check className="h-3.5 w-3.5 text-success" />
-          Copie !
+          <Check className="h-3 w-3" />
+          Copié !
         </>
       ) : (
         <>
-          <Copy className="h-3.5 w-3.5" />
-          Copier en Markdown
+          <Copy className="h-3 w-3" />
+          Copier
         </>
       )}
-    </Button>
+    </button>
   );
 }

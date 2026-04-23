@@ -8,6 +8,8 @@ export const maxDuration = 30;
  * Uses a lightweight approach (no react-pdf/renderer which has serverless issues)
  * Format: Simple PDF 1.4 with proper French text
  */
+const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024; // 5 Mo
+
 export async function POST(request: NextRequest) {
   const auth = await getAuthContext();
   if (!auth) {
@@ -16,59 +18,75 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const { query, response } = await request.json();
+  try {
+    const { query, response } = await request.json();
 
-  if (!response) {
-    return new Response(JSON.stringify({ error: "response requis" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
+    if (!response || typeof response !== "string") {
+      return new Response(JSON.stringify({ error: "response requis" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (response.length > MAX_PAYLOAD_SIZE) {
+      return new Response(
+        JSON.stringify({ error: "L'analyse est trop volumineuse pour être exportée en PDF." }),
+        { status: 413, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Clean markdown for plain text PDF
+    const cleanText = response
+      .replace(/^##+ /gm, "")
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/^[-*] /gm, "  - ");
+
+    const date = new Date().toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
+
+    // Build simple PDF content
+    const title = "DATAVOCAT — Analyse Jurimetrique";
+    const subtitle = `Généré le ${date}`;
+
+    const fullText = [
+      title,
+      subtitle,
+      "",
+      "═".repeat(50),
+      "",
+      "DEMANDE :",
+      query || "",
+      "",
+      "═".repeat(50),
+      "",
+      cleanText,
+      "",
+      "═".repeat(50),
+      "",
+      "Généré par Datavocat — Analyse jurimétrique assistée par IA",
+      "Ce document est un outil d'aide à la décision stratégique.",
+    ].join("\n");
+
+    // Generate minimal PDF
+    const pdf = generateMinimalPDF(fullText);
+
+    return new Response(pdf.buffer as ArrayBuffer, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="datavocat-analyse.pdf"',
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    console.error("PDF export failed", err);
+    return new Response(
+      JSON.stringify({ error: `Échec de la génération PDF : ${message}` }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
-
-  // Clean markdown for plain text PDF
-  const cleanText = response
-    .replace(/^##+ /gm, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/^[-*] /gm, "  - ");
-
-  const date = new Date().toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
-  // Build simple PDF content
-  const title = "DATAVOCAT — Analyse Jurimetrique";
-  const subtitle = `Généré le ${date}`;
-
-  const fullText = [
-    title,
-    subtitle,
-    "",
-    "═".repeat(50),
-    "",
-    "DEMANDE :",
-    query || "",
-    "",
-    "═".repeat(50),
-    "",
-    cleanText,
-    "",
-    "═".repeat(50),
-    "",
-    "Généré par Datavocat — Analyse jurimétrique assistée par IA",
-    "Ce document est un outil d'aide à la décision stratégique.",
-  ].join("\n");
-
-  // Generate minimal PDF
-  const pdf = generateMinimalPDF(fullText);
-
-  return new Response(pdf.buffer as ArrayBuffer, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": 'attachment; filename="datavocat-analyse.pdf"',
-    },
-  });
 }
 
 /**

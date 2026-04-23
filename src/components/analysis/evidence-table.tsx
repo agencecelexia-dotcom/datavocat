@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
-  Table,
   ChevronDown,
   ChevronUp,
   Filter,
@@ -10,24 +9,20 @@ import {
   CheckCircle2,
   XCircle,
   Minus,
-  Info,
-  Calendar,
-  BarChart3,
 } from "lucide-react";
 import type { EvidenceTable as EvidenceTableData } from "@/lib/parse-analysis";
 
-const NAVY = "#1e3a5f";
-const GOLD = "#c9a96e";
-const EMERALD = "#2d6a4f";
-const BORDEAUX = "#9b2226";
-const AMBER = "#ca6702";
+const EMERALD = "var(--emerald, #2d6a4f)";
+const BORDEAUX = "var(--bordeaux, #9b2226)";
+const AMBER = "var(--amber, #ca6702)";
+const MUTED = "var(--muted-foreground)";
 
 function pertinenceColor(value: string): string {
   const v = value.toLowerCase();
   if (v.includes("favorable") && !v.includes("defavorable") && !v.includes("défavorable")) return EMERALD;
   if (v.includes("defavorable") || v.includes("défavorable")) return BORDEAUX;
   if (v.includes("nuanc")) return AMBER;
-  return "#6b7280";
+  return MUTED;
 }
 
 function pertinenceIcon(value: string) {
@@ -44,13 +39,43 @@ function pertinenceIcon(value: string) {
   return null;
 }
 
+const COMPACT_KEYWORDS = ["n°", "decision", "référence", "reference", "date", "solution", "pertinence"];
+
+function isCompactColumn(header: string): boolean {
+  const h = header.toLowerCase();
+  return COMPACT_KEYWORDS.some((k) => h.includes(k));
+}
+
 export function EvidenceTable({ data }: { data: EvidenceTableData }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [filterPertinence, setFilterPertinence] = useState<"all" | "favorable" | "defavorable" | "nuance">("all");
+  // Mode condensé : colonnes essentielles par défaut, expand par ligne pour le détail.
+  const [compactMode, setCompactMode] = useState(true);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const hasPertinence = data.headers.some((h) => h.toLowerCase().includes("pertinence"));
+
+  const compactHeaders = useMemo(
+    () => data.headers.filter(isCompactColumn),
+    [data.headers]
+  );
+  const extraHeaders = useMemo(
+    () => data.headers.filter((h) => !isCompactColumn(h)),
+    [data.headers]
+  );
+  const showCompact = compactMode && compactHeaders.length >= 3 && extraHeaders.length > 0;
+  const visibleHeaders = showCompact ? compactHeaders : data.headers;
+
+  const toggleRow = (i: number) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  };
 
   // Compute stats
   const stats = useMemo(() => {
@@ -116,172 +141,357 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header éditorial */}
       <div>
-        <h2 className="flex items-center gap-2.5 font-serif text-2xl text-slate-900">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1e3a5f]/10">
-            <Table className="h-5 w-5 text-[#1e3a5f]" />
-          </div>
-          Tableau de preuve statistique
+        <div
+          className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
+          style={{ color: "var(--gold)" }}
+        >
+          § Tableau de preuve
+        </div>
+        <h2 className="font-serif text-[28px] font-medium tracking-tight">
+          {stats ? stats.total : data.rows.length} décisions <span className="dv-italic">analysées.</span>
         </h2>
-        <p className="mt-2 text-sm text-slate-500 font-sans leading-relaxed">
-          Ce tableau recapitule l&apos;integralite des decisions de justice mobilisees dans l&apos;analyse
-          et constitue la base probatoire des statistiques presentees. Chaque ligne correspond
-          a une decision reelle, identifiee par sa reference (ECLI, n° de pourvoi ou reference Cass.).
+        <p
+          className="mt-2 text-[13.5px] leading-relaxed max-w-2xl"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          Chaque ligne correspond à une décision réelle identifiée par sa référence (ECLI, n° de pourvoi ou référence Cass.). Base probatoire des statistiques présentées.
         </p>
       </div>
 
-      {/* Stats cards */}
+      {/* Stats chip line */}
       {stats && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm" title="Nombre total de decisions de justice analysees dans le cadre de cette recherche jurimetrique">
-            <p className="text-2xl font-bold" style={{ color: NAVY }}>{stats.total}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Decisions analysees</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm" title="Decisions dont l'issue soutient la position juridique de votre client (demande accueillie, cassation favorable, etc.)">
-            <p className="text-2xl font-bold" style={{ color: EMERALD }}>{stats.favorable}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Favorables</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm" title="Decisions dont l'issue est contraire a la position de votre client — a analyser pour anticiper les moyens adverses">
-            <p className="text-2xl font-bold" style={{ color: BORDEAUX }}>{stats.defavorable}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Defavorables</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm" title="Decisions a l'issue mitigee ou dont la pertinence depend du contexte precis du dossier (cassation partielle, gain partiel)">
-            <p className="text-2xl font-bold" style={{ color: AMBER }}>{stats.nuance}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Nuancees</p>
-          </div>
+        <div
+          className="flex flex-wrap items-center gap-x-6 gap-y-2 py-3 pb-4"
+          style={{ borderBottom: "1px solid var(--line)" }}
+        >
+          <StatChip label="Total" value={stats.total} color="var(--ink)" />
+          <StatChip label="Favorables" value={stats.favorable} color={EMERALD} />
+          <StatChip label="Défavorables" value={stats.defavorable} color={BORDEAUX} />
+          <StatChip label="Nuancées" value={stats.nuance} color={AMBER} />
         </div>
       )}
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search
+            className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2"
+            style={{ color: "var(--muted-foreground)" }}
+          />
           <input
             type="text"
-            placeholder="Rechercher dans le tableau..."
+            placeholder="Rechercher dans le tableau…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#1e3a5f]/40 focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]/20"
+            className="w-full py-2 pl-9 pr-3 text-[12.5px] outline-none rounded-md"
+            style={{
+              border: "1px solid var(--line)",
+              background: "var(--card)",
+              color: "var(--ink)",
+            }}
           />
         </div>
 
         {/* Pertinence filter */}
         {hasPertinence && (
-          <div className="flex items-center gap-1.5">
-            <Filter className="h-3.5 w-3.5 text-slate-400" />
+          <div data-tour="evidence-filters" className="flex items-center gap-1.5">
+            <Filter
+              className="h-3.5 w-3.5"
+              style={{ color: "var(--muted-foreground)" }}
+            />
             {[
-              { key: "all" as const, label: "Toutes", count: stats?.total, tooltip: "Afficher toutes les decisions analysees sans filtre" },
-              { key: "favorable" as const, label: "Favorables", count: stats?.favorable, tooltip: "Decisions dont l'issue est favorable a la partie demanderesse ou a une position juridique similaire a celle de votre client" },
-              { key: "defavorable" as const, label: "Defavorables", count: stats?.defavorable, tooltip: "Decisions dont l'issue est defavorable — utiles pour anticiper les arguments adverses et les risques" },
-              { key: "nuance" as const, label: "Nuancees", count: stats?.nuance, tooltip: "Decisions a l'issue mitigee (cassation partielle, gain partiel) ou dont la pertinence depend du contexte specifique du dossier" },
-            ].map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilterPertinence(f.key)}
-                title={f.tooltip}
-                className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                  filterPertinence === f.key
-                    ? "bg-[#1e3a5f] text-white shadow-sm"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                }`}
-              >
-                {f.label} {f.count !== undefined && `(${f.count})`}
-              </button>
-            ))}
+              { key: "all" as const, label: "Toutes", count: stats?.total, tooltip: "Afficher toutes les décisions sans filtre" },
+              { key: "favorable" as const, label: "Favorables", count: stats?.favorable, tooltip: "Décisions dont l'issue soutient la position de votre client" },
+              { key: "defavorable" as const, label: "Défavorables", count: stats?.defavorable, tooltip: "Décisions contraires — utiles pour anticiper les moyens adverses" },
+              { key: "nuance" as const, label: "Nuancées", count: stats?.nuance, tooltip: "Décisions à l'issue mitigée (cassation partielle, gain partiel)" },
+            ].map((f) => {
+              const active = filterPertinence === f.key;
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setFilterPertinence(f.key)}
+                  title={f.tooltip}
+                  className="px-3 py-1 text-[11.5px] transition-colors cursor-pointer"
+                  style={{
+                    color: active ? "var(--ink)" : "var(--muted-foreground)",
+                    fontWeight: active ? 600 : 400,
+                    borderBottom: active ? "2px solid var(--gold)" : "2px solid transparent",
+                  }}
+                >
+                  {f.label}
+                  {typeof f.count === "number" && (
+                    <span className="ml-1 font-mono tabular-nums opacity-60">
+                      ({f.count})
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Column count indicator */}
-      {data.headers.length > 10 && (
-        <p className="text-xs text-slate-400 flex items-center gap-1.5">
-          <Table className="h-3.5 w-3.5" />
-          {data.headers.length} colonnes — faites defiler horizontalement pour voir l&apos;ensemble des facteurs decisifs
-        </p>
+      {/* Légende persistante des filtres */}
+      {hasPertinence && (
+        <div
+          className="rounded-md px-3 py-2 text-[11px] leading-relaxed"
+          style={{
+            border: "1px solid var(--line)",
+            background: "var(--paper)",
+            color: "var(--muted-foreground)",
+          }}
+        >
+          <span
+            className="font-mono uppercase tracking-[0.15em] text-[10px] mr-1.5"
+            style={{ color: "var(--ink)" }}
+          >
+            Légende&nbsp;:
+          </span>
+          <span style={{ color: EMERALD }}>Favorables</span> = issue favorable pour votre client,{" "}
+          <span style={{ color: BORDEAUX }}>Défavorables</span> = issue opposée,{" "}
+          <span style={{ color: AMBER }}>Nuancées</span> = mitigées (gain partiel, cassation partielle).
+        </div>
       )}
 
+      {/* Column count + toggle */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p
+          className="text-[11px] font-mono uppercase tracking-[0.15em]"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          {showCompact
+            ? `Vue condensée — ${compactHeaders.length} / ${data.headers.length} colonnes`
+            : `${data.headers.length} colonnes — scroll horizontal pour tout voir`}
+        </p>
+        {extraHeaders.length > 0 && (
+          <button
+            onClick={() => setCompactMode((v) => !v)}
+            className="px-3 py-1 text-[11px] transition-colors cursor-pointer rounded-md"
+            style={{
+              border: "1px solid var(--line)",
+              color: "var(--muted-foreground)",
+            }}
+          >
+            {compactMode ? "Toutes les colonnes" : "Vue condensée"}
+          </button>
+        )}
+      </div>
+
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm" style={{ minWidth: data.headers.length > 8 ? `${data.headers.length * 140}px` : undefined }}>
+      <div
+        className="overflow-x-auto rounded-md"
+        style={{
+          border: "1px solid var(--line)",
+          background: "var(--card)",
+        }}
+      >
+        <table
+          className="w-full text-[13px]"
+          style={{
+            minWidth:
+              visibleHeaders.length > 8 ? `${visibleHeaders.length * 140}px` : undefined,
+          }}
+        >
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              {data.headers.map((header, colIdx) => (
+            <tr style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
+              {visibleHeaders.map((header, colIdx) => (
                 <th
                   key={header}
                   onClick={() => handleSort(header)}
-                  className={`cursor-pointer whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-700 ${
-                    colIdx === 0 ? "sticky left-0 z-10 bg-slate-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]" : ""
-                  }`}
+                  className="cursor-pointer whitespace-nowrap px-4 py-3 text-left font-mono text-[9.5px] uppercase tracking-[0.15em] font-semibold transition-colors"
+                  style={{
+                    color: "var(--muted-foreground)",
+                    position: colIdx === 0 ? "sticky" : undefined,
+                    left: colIdx === 0 ? 0 : undefined,
+                    zIndex: colIdx === 0 ? 10 : undefined,
+                    background: colIdx === 0 ? "var(--paper)" : undefined,
+                  }}
                 >
                   <div className="flex items-center gap-1.5">
                     {header}
                     {sortCol === header ? (
                       sortDir === "asc" ? (
-                        <ChevronUp className="h-3 w-3 text-[#1e3a5f]" />
+                        <ChevronUp className="h-3 w-3" style={{ color: "var(--gold)" }} />
                       ) : (
-                        <ChevronDown className="h-3 w-3 text-[#1e3a5f]" />
+                        <ChevronDown className="h-3 w-3" style={{ color: "var(--gold)" }} />
                       )
                     ) : (
-                      <ChevronDown className="h-3 w-3 text-slate-300" />
+                      <ChevronDown
+                        className="h-3 w-3"
+                        style={{ color: "var(--muted-foreground)", opacity: 0.3 }}
+                      />
                     )}
                   </div>
                 </th>
               ))}
+              {showCompact && (
+                <th
+                  className="w-20 px-2 py-3 text-right font-mono text-[9.5px] uppercase tracking-[0.15em] font-semibold"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Détail
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row, i) => (
-              <tr
-                key={i}
-                className={`border-b border-slate-100 transition-colors hover:bg-slate-50 ${
-                  i % 2 === 0 ? "bg-white" : "bg-slate-25"
-                }`}
-              >
-                {data.headers.map((header, colIdx) => {
-                  const value = row[header] || "";
-                  const isPertinence = header.toLowerCase().includes("pertinence");
-                  const isFirstCol = colIdx === 0;
-                  const bgClass = i % 2 === 0 ? "bg-white" : "bg-slate-25";
+            {filtered.map((row, i) => {
+              const isExpanded = expandedRows.has(i);
+              // Pertinence row highlight (left border)
+              const pertCol = data.headers.find((h) => h.toLowerCase().includes("pertinence"));
+              const pertValue = pertCol ? (row[pertCol] || "").toLowerCase() : "";
+              const leftBorderColor =
+                pertValue.includes("favorable") && !pertValue.includes("defavorable") && !pertValue.includes("défavorable")
+                  ? EMERALD
+                  : pertValue.includes("defavorable") || pertValue.includes("défavorable")
+                    ? BORDEAUX
+                    : pertValue.includes("nuanc")
+                      ? AMBER
+                      : "transparent";
+              return (
+                <React.Fragment key={i}>
+                  <tr
+                    className="transition-colors"
+                    style={{
+                      borderBottom: "1px solid var(--line-soft)",
+                      borderLeft: `3px solid ${leftBorderColor}`,
+                    }}
+                  >
+                    {visibleHeaders.map((header, colIdx) => {
+                      const value = row[header] || "";
+                      const isPertinence = header.toLowerCase().includes("pertinence");
+                      const isFirstCol = colIdx === 0;
+                      const isRef = /decision|référence|reference/i.test(header);
+                      const isNum = header === "N°" || header.toLowerCase().includes("n°");
 
-                  return (
-                    <td
-                      key={header}
-                      className={`whitespace-nowrap px-4 py-3 text-slate-700 ${
-                        isFirstCol ? `sticky left-0 z-10 ${bgClass} shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]` : ""
-                      }`}
-                    >
-                      {isPertinence ? (
-                        <div className="flex items-center gap-1.5">
-                          {pertinenceIcon(value)}
-                          <span
-                            className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                            style={{
-                              color: pertinenceColor(value),
-                              backgroundColor: pertinenceColor(value) + "10",
-                            }}
-                          >
-                            {value}
-                          </span>
+                      return (
+                        <td
+                          key={header}
+                          className="whitespace-nowrap px-4 py-3"
+                          style={{
+                            position: isFirstCol ? "sticky" : undefined,
+                            left: isFirstCol ? 0 : undefined,
+                            zIndex: isFirstCol ? 10 : undefined,
+                            background: isFirstCol ? "var(--card)" : undefined,
+                            color: "var(--ink)",
+                          }}
+                        >
+                          {isPertinence ? (
+                            <div className="flex items-center gap-1.5">
+                              {pertinenceIcon(value)}
+                              <span
+                                className="font-mono text-[10.5px] uppercase tracking-[0.05em] font-semibold px-2 py-0.5 rounded"
+                                style={{
+                                  color: pertinenceColor(value),
+                                  backgroundColor: `color-mix(in srgb, ${pertinenceColor(value)} 10%, transparent)`,
+                                }}
+                              >
+                                {value}
+                              </span>
+                            </div>
+                          ) : isNum ? (
+                            <span
+                              className="font-mono text-[10.5px] tabular-nums"
+                              style={{ color: "var(--gold)" }}
+                            >
+                              {value}
+                            </span>
+                          ) : isRef ? (
+                            <span
+                              className="font-serif text-[13px] font-medium"
+                            >
+                              {value}
+                            </span>
+                          ) : (
+                            <span
+                              style={{ color: "var(--muted-foreground)" }}
+                              className="text-[12px]"
+                            >
+                              {value}
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    {showCompact && (
+                      <td className="px-2 py-3 text-right">
+                        <button
+                          onClick={() => toggleRow(i)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[11px] cursor-pointer rounded-md transition-colors"
+                          style={{
+                            border: "1px solid var(--line)",
+                            color: "var(--muted-foreground)",
+                            background: "var(--card)",
+                          }}
+                          aria-expanded={isExpanded}
+                        >
+                          {isExpanded ? (
+                            <>
+                              <ChevronUp className="h-3 w-3" />
+                              Fermer
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-3 w-3" />
+                              Voir
+                            </>
+                          )}
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                  {showCompact && isExpanded && (
+                    <tr style={{ borderBottom: "1px solid var(--line-soft)" }}>
+                      <td
+                        colSpan={visibleHeaders.length + 1}
+                        className="px-4 py-3"
+                        style={{ background: "var(--paper)" }}
+                      >
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {extraHeaders.map((h) => {
+                            const v = row[h];
+                            if (!v) return null;
+                            return (
+                              <div
+                                key={h}
+                                className="px-3 py-2 rounded-md"
+                                style={{
+                                  background: "var(--card)",
+                                  border: "1px solid var(--line-soft)",
+                                }}
+                              >
+                                <div
+                                  className="font-mono text-[10px] uppercase tracking-[0.15em]"
+                                  style={{ color: "var(--muted-foreground)" }}
+                                >
+                                  {h}
+                                </div>
+                                <div
+                                  className="mt-0.5 text-[12px]"
+                                  style={{ color: "var(--ink)" }}
+                                >
+                                  {v}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ) : (
-                        <span className={header.toLowerCase() === "decision" || header === "N°" ? "font-mono text-xs" : ""}>
-                          {value}
-                        </span>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={data.headers.length}
-                  className="px-4 py-8 text-center text-sm text-slate-400"
+                  colSpan={visibleHeaders.length + (showCompact ? 1 : 0)}
+                  className="px-4 py-8 text-center text-[13px]"
+                  style={{ color: "var(--muted-foreground)" }}
                 >
-                  Aucune decision ne correspond aux criteres.
+                  Aucune décision ne correspond aux critères.
                 </td>
               </tr>
             )}
@@ -290,61 +500,109 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
       </div>
 
       {/* Count */}
-      <p className="text-xs text-slate-400">
-        {filtered.length} decision{filtered.length > 1 ? "s" : ""} affichee{filtered.length > 1 ? "s" : ""}
+      <p
+        className="font-mono text-[11px] uppercase tracking-[0.15em]"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        {filtered.length} décision{filtered.length > 1 ? "s" : ""} affichée{filtered.length > 1 ? "s" : ""}
         {filtered.length !== data.rows.length && ` sur ${data.rows.length}`}
       </p>
 
-      {/* Synthesis blocks */}
+      {/* Synthesis blocks — filets éditoriaux */}
       {(data.synthese || data.periode || data.facteursDeterminants || data.interpretation) && (
-        <div className="space-y-3">
+        <div
+          className="space-y-5 pt-5"
+          style={{ borderTop: "1px solid var(--line)" }}
+        >
           {data.synthese && (
-            <div className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-[#1e3a5f]" />
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Synthese</p>
-                <p className="text-sm leading-relaxed text-slate-700">{data.synthese}</p>
-              </div>
-            </div>
+            <SynthesisBlock label="Synthèse" value={data.synthese} />
           )}
           {data.periode && (
-            <div className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <Calendar className="mt-0.5 h-4 w-4 shrink-0" style={{ color: GOLD }} />
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Periode couverte</p>
-                <p className="text-sm leading-relaxed text-slate-700">{data.periode}</p>
-              </div>
-            </div>
+            <SynthesisBlock label="Période couverte" value={data.periode} />
           )}
           {data.facteursDeterminants && (
-            <div className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <Filter className="mt-0.5 h-4 w-4 shrink-0" style={{ color: EMERALD }} />
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Facteurs determinants</p>
-                <p className="text-sm leading-relaxed text-slate-700">{data.facteursDeterminants}</p>
-              </div>
-            </div>
+            <SynthesisBlock
+              label="Facteurs déterminants"
+              value={data.facteursDeterminants}
+            />
           )}
           {data.interpretation && (
-            <div className="flex gap-3 rounded-xl border p-4" style={{ borderColor: GOLD + "40", backgroundColor: GOLD + "06" }}>
-              <Info className="mt-0.5 h-4 w-4 shrink-0" style={{ color: GOLD }} />
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: GOLD }}>
-                  Ce que cela signifie pour votre dossier
-                </p>
-                <p className="text-sm leading-relaxed text-slate-700">{data.interpretation}</p>
-              </div>
-            </div>
+            <SynthesisBlock
+              label="Ce que cela signifie pour votre dossier"
+              value={data.interpretation}
+              emphasized
+            />
           )}
         </div>
       )}
 
       {/* Disclaimer */}
-      <p className="text-[10px] text-slate-400 leading-relaxed italic">
-        Ce tableau est genere automatiquement a partir des decisions de justice identifiees lors de l&apos;analyse.
-        Les sources proviennent de la base Judilibre (Cour de cassation) et/ou des connaissances jurisprudentielles
-        consolidees du modele. Ces resultats constituent une aide a la decision strategique et ne sauraient
-        se substituer a l&apos;analyse juridique du conseil.
+      <p
+        className="text-[10.5px] leading-relaxed italic"
+        style={{ color: "var(--muted-foreground)", opacity: 0.8 }}
+      >
+        Ce tableau est généré automatiquement à partir des décisions identifiées lors de l&apos;analyse
+        (Judilibre et connaissances jurisprudentielles consolidées). Il constitue une aide à la décision
+        stratégique et ne saurait se substituer à l&apos;analyse juridique du conseil.
+      </p>
+    </div>
+  );
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+function StatChip({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <div
+        className="font-mono text-[22px] tabular-nums font-semibold"
+        style={{ color }}
+      >
+        {value}
+      </div>
+      <div
+        className="font-mono text-[10px] uppercase tracking-[0.15em]"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function SynthesisBlock({
+  label,
+  value,
+  emphasized = false,
+}: {
+  label: string;
+  value: string;
+  emphasized?: boolean;
+}) {
+  return (
+    <div
+      className="pl-4"
+      style={{ borderLeft: `2px solid ${emphasized ? "var(--gold)" : "var(--line)"}` }}
+    >
+      <div
+        className="font-mono text-[9.5px] uppercase tracking-[0.2em] mb-1.5"
+        style={{ color: emphasized ? "var(--gold)" : "var(--muted-foreground)" }}
+      >
+        {label}
+      </div>
+      <p
+        className="text-[13.5px] leading-[1.65]"
+        style={{ color: "var(--ink)" }}
+      >
+        {value}
       </p>
     </div>
   );

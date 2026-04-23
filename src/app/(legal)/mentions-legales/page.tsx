@@ -1,6 +1,6 @@
 export default function MentionsLegalesPage() {
   return (
-    <article className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h1:text-[#1e3a5f] prose-h2:text-[#1e3a5f] prose-a:text-[#1e3a5f]">
+    <article className="legal-prose">
       <h1>Mentions légales</h1>
       <p className="lead">
         Conformément aux dispositions des articles 6-III et 19 de la loi

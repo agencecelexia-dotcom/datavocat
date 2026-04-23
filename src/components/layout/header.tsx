@@ -1,59 +1,66 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Menu, Scale, LogOut, Moon, Sun, ChevronDown, Settings } from "lucide-react";
+import { Menu, LogOut, Moon, Sun, Palette, ChevronDown, Settings, HelpCircle } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileNav } from "./mobile-nav";
 import { createClient } from "@/lib/supabase/client";
+import { scheduleTour } from "@/hooks/use-product-tour";
+import { useTheme, type DatavocatTheme } from "@/components/theme/theme-provider";
+import { LogoMark } from "@/components/brand/logo";
 
 interface HeaderProps {
   userEmail?: string | null;
   userName?: string | null;
 }
 
+const THEME_LABELS: Record<DatavocatTheme, string> = {
+  greffe: "Greffe",
+  jurimetrie: "Nuit",
+  palais: "Palais",
+};
+
+function pathToBreadcrumb(pathname: string): { section: string; current: string } {
+  if (pathname.startsWith("/historique")) {
+    return { section: "Espace de travail", current: "Historique" };
+  }
+  if (pathname.startsWith("/comparateur")) {
+    return { section: "Espace de travail", current: "Comparateur" };
+  }
+  if (pathname.startsWith("/parametres")) {
+    return { section: "Compte", current: "Paramètres" };
+  }
+  if (pathname.startsWith("/rapport")) {
+    return { section: "Rapports", current: "Rapport" };
+  }
+  return { section: "Espace de travail", current: "Nouvelle analyse" };
+}
+
 export function Header({ userEmail, userName }: HeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { theme, setTheme, cycleTheme } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const themeRef = useRef<HTMLDivElement>(null);
 
+  // Close popovers on click outside
   useEffect(() => {
-    const stored = localStorage.getItem("datavocat_theme");
-    if (stored === "dark") {
-      document.documentElement.classList.add("dark");
-      setIsDark(true);
-    } else if (stored === "light") {
-      document.documentElement.classList.remove("dark");
-      setIsDark(false);
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      document.documentElement.classList.add("dark");
-      setIsDark(true);
-    }
-  }, []);
-
-  const toggleTheme = useCallback(() => {
-    const newDark = !isDark;
-    setIsDark(newDark);
-    if (newDark) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("datavocat_theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("datavocat_theme", "light");
-    }
-  }, [isDark]);
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (dropdownOpen && !dropdownRef.current?.contains(target)) setDropdownOpen(false);
+      if (themeMenuOpen && !themeRef.current?.contains(target)) setThemeMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dropdownOpen, themeMenuOpen]);
 
   const isDemo = !userEmail;
-
   const initials = userName
-    ? userName
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
+    ? userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "DM";
 
   const handleSignOut = async () => {
@@ -62,91 +69,269 @@ export function Header({ userEmail, userName }: HeaderProps) {
     router.push("/login");
   };
 
+  const { section, current } = pathToBreadcrumb(pathname);
+  const isNight = theme === "jurimetrie";
+
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border/60 bg-background/80 px-4 backdrop-blur-sm lg:px-6">
+    <header
+      className="h-14 flex items-center justify-between px-5 lg:px-8"
+      style={{
+        borderBottom: "1px solid var(--line)",
+        background: "var(--bg)",
+      }}
+    >
+      {/* Left: mobile menu + logo OR breadcrumb on desktop */}
       <div className="flex items-center gap-3">
         <Sheet>
           <SheetTrigger>
-            <Button variant="ghost" size="icon" className="lg:hidden cursor-pointer h-9 w-9 transition-all duration-200 hover:bg-accent">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden cursor-pointer h-9 w-9 transition-all duration-200 hover:bg-accent"
+            >
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[260px] border-r border-border/40 bg-[#0c1929] p-0 sm:w-[280px]">
-            <div className="flex h-16 items-center gap-3 px-6">
-              <Scale className="h-5 w-5 text-[#c9a96e]" />
-              <span className="font-serif text-lg text-white">Datavocat</span>
+          <SheetContent
+            side="left"
+            className="w-[260px] p-0 sm:w-[280px]"
+            style={{ background: "var(--sidebar)", borderRight: "1px solid var(--sidebar-border)" }}
+          >
+            <div className="flex items-center gap-2.5 px-5 pt-6 pb-5">
+              <LogoMark size={26} tone="light" />
+              <div>
+                <div
+                  className="font-serif text-[15px] font-medium leading-none"
+                  style={{ letterSpacing: "-0.01em" }}
+                >
+                  Datavocat
+                </div>
+                <div
+                  className="font-mono text-[9px] uppercase tracking-[0.22em] mt-1"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Jurimétrie
+                </div>
+              </div>
             </div>
             <MobileNav />
           </SheetContent>
         </Sheet>
-        <h1 className="font-serif text-lg lg:hidden text-foreground">Datavocat</h1>
+
+        {/* Mobile: logo inline */}
+        <div className="lg:hidden flex items-center gap-2">
+          <LogoMark size={26} tone={isNight ? "dark" : "light"} />
+          <div
+            className="font-serif text-[15px] font-medium"
+            style={{ letterSpacing: "-0.01em" }}
+          >
+            Datavocat
+          </div>
+        </div>
+
+        {/* Desktop: breadcrumb */}
+        <div
+          className="hidden lg:flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.15em]"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          <span>§ 1</span>
+          <span style={{ opacity: 0.4 }}>/</span>
+          <span>{section}</span>
+          <span style={{ opacity: 0.4 }}>/</span>
+          <span style={{ color: "var(--ink)" }}>{current}</span>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          aria-label={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground cursor-pointer transition-all duration-200 hover:bg-accent hover:text-foreground sm:h-8 sm:w-8"
-        >
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </button>
+        {/* Theme picker */}
+        <div className="relative" ref={themeRef}>
+          <button
+            onClick={() => setThemeMenuOpen((v) => !v)}
+            aria-label="Thème"
+            title={`Thème : ${THEME_LABELS[theme]}`}
+            className="flex h-9 w-9 items-center justify-center rounded-md cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            {theme === "jurimetrie" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+          {themeMenuOpen && (
+            <div
+              className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-md"
+              style={{
+                background: "var(--card)",
+                border: "1px solid var(--line)",
+                boxShadow: "0 12px 32px rgba(0,0,0,0.08)",
+              }}
+            >
+              <div
+                className="px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em]"
+                style={{
+                  color: "var(--muted-foreground)",
+                  borderBottom: "1px solid var(--line)",
+                }}
+              >
+                Thème
+              </div>
+              {(Object.keys(THEME_LABELS) as DatavocatTheme[]).map((key) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setTheme(key);
+                    setThemeMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] cursor-pointer transition-colors"
+                  style={{
+                    background: theme === key ? "var(--paper)" : "transparent",
+                    color: theme === key ? "var(--ink)" : "var(--muted-foreground)",
+                  }}
+                >
+                  <Palette
+                    className="h-3 w-3"
+                    style={{ color: theme === key ? "var(--gold)" : "var(--muted-foreground)" }}
+                  />
+                  <span className="font-medium">{THEME_LABELS[key]}</span>
+                  {theme === key && (
+                    <span
+                      className="ml-auto font-mono text-[9px]"
+                      style={{ color: "var(--gold)" }}
+                    >
+                      ✓
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {isDemo && (
-          <span className="rounded-full border border-[#c9a96e]/20 bg-[#c9a96e]/5 px-2.5 py-1 text-[11px] font-semibold text-[#c9a96e]">
-            Demo
+          <span
+            className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.15em]"
+            style={{
+              border: "1px solid color-mix(in srgb, var(--gold) 30%, transparent)",
+              background: "color-mix(in srgb, var(--gold) 10%, transparent)",
+              color: "var(--gold)",
+            }}
+          >
+            Démo
           </span>
         )}
 
-        {/* User menu */}
+        {/* User pill */}
         <div className="relative" ref={dropdownRef} data-tour="user-menu">
           <button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-all duration-200 hover:bg-accent"
+            onClick={() => setDropdownOpen((v) => !v)}
+            className="hidden md:flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
+            style={{ border: "1px solid var(--line)" }}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1e3a5f] text-xs font-bold text-white">
+            <div
+              className="w-6 h-6 rounded-md flex items-center justify-center font-mono text-[10px] font-bold text-white"
+              style={{ background: "var(--navy)" }}
+            >
               {initials}
             </div>
-            <span className="hidden max-w-[120px] truncate text-sm font-medium text-foreground md:inline">
-              {userName || userEmail || "Demo"}
+            <span
+              className="text-[12px] font-medium"
+              style={{ color: "var(--ink)" }}
+            >
+              {userName || userEmail?.split("@")[0] || "Me. Dupuis"}
             </span>
-            <ChevronDown className={`hidden h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 md:inline ${dropdownOpen ? "rotate-180" : ""}`} />
+            <ChevronDown
+              className={`h-3 w-3 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+              style={{ color: "var(--muted-foreground)" }}
+            />
+          </button>
+          <button
+            onClick={() => setDropdownOpen((v) => !v)}
+            className="md:hidden flex h-9 w-9 items-center justify-center rounded-md cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
+            style={{ border: "1px solid var(--line)" }}
+          >
+            <div
+              className="w-6 h-6 rounded-md flex items-center justify-center font-mono text-[10px] font-bold text-white"
+              style={{ background: "var(--navy)" }}
+            >
+              {initials}
+            </div>
           </button>
 
           {dropdownOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setDropdownOpen(false)}
-              />
-              <div className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-border/60 bg-card shadow-xl shadow-black/5 animate-fade-in-up sm:w-60" style={{ animationDuration: "0.15s" }}>
-                {userEmail && (
-                  <div className="border-b border-border/40 px-4 py-3">
-                    <p className="text-sm font-semibold text-foreground">{userName}</p>
-                    <p className="text-xs text-muted-foreground">{userEmail}</p>
-                  </div>
-                )}
-                <div className="p-1.5">
-                  <button
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      router.push("/parametres");
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground cursor-pointer transition-all duration-200 hover:bg-accent hover:text-foreground"
+            <div
+              className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-md"
+              style={{
+                background: "var(--card)",
+                border: "1px solid var(--line)",
+                boxShadow: "0 12px 32px rgba(0,0,0,0.08)",
+              }}
+            >
+              {userEmail && (
+                <div
+                  className="px-4 py-3"
+                  style={{ borderBottom: "1px solid var(--line)" }}
+                >
+                  <p
+                    className="text-sm font-semibold"
+                    style={{ color: "var(--ink)" }}
                   >
-                    <Settings className="h-4 w-4" />
-                    Paramètres
-                  </button>
+                    {userName || userEmail.split("@")[0]}
+                  </p>
+                  <p
+                    className="text-xs font-mono truncate"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    {userEmail}
+                  </p>
+                </div>
+              )}
+              <div className="p-1.5">
+                <button
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    cycleTheme();
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[12.5px] cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  <Palette className="h-3.5 w-3.5" />
+                  <span>Thème</span>
+                  <span className="ml-auto font-mono text-[10px]">
+                    {THEME_LABELS[theme]}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    scheduleTour();
+                    router.push("/");
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[12.5px] cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  <span>Refaire la visite guidée</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    router.push("/parametres");
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[12.5px] cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  <span>Paramètres</span>
+                </button>
+                {userEmail && (
                   <button
                     onClick={handleSignOut}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground cursor-pointer transition-all duration-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[12.5px] cursor-pointer transition-colors"
+                    style={{ color: "var(--bordeaux)" }}
                   >
-                    <LogOut className="h-4 w-4" />
-                    Déconnexion
+                    <LogOut className="h-3.5 w-3.5" />
+                    <span>Déconnexion</span>
                   </button>
-                </div>
+                )}
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>

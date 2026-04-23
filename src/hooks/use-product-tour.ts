@@ -49,7 +49,7 @@ const TOUR_STEPS: TourStep[] = [
     target: "clarify-buttons",
     title: "2. Repondez aux questions",
     description:
-      "L'IA affine l'analyse. Repondez aux questions puis cliquez 'Lancer l'analyse' ou 'Passer et analyser'.",
+      "L'IA affine l'analyse. Certaines questions acceptent plusieurs reponses (cochez-en plusieurs). Puis cliquez 'Lancer l'analyse' ou 'Passer'.",
     waitFor: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
     skipIf: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
     noOverlay: true,
@@ -59,49 +59,65 @@ const TOUR_STEPS: TourStep[] = [
     target: "analyzing-screen",
     title: "3. Analyse en cours",
     description:
-      "Recherche dans 500 000+ decisions. Patientez 30 a 60 secondes.",
+      "Recherche dans Judilibre + data.gouv.fr puis redaction par l'IA. Les etapes s'eclairent au fur et a mesure, avec un decompte en temps reel.",
     waitFor: '[data-tour-phase="done"]',
     skipIf: '[data-tour-phase="done"]',
     waitHint: "Veuillez patienter...",
   },
   {
-    target: "tour-view-tabs",
-    title: "4. Explorez les vues",
+    target: "fiabilite-badge",
+    title: "4. Indice de fiabilite",
     description:
-      "Cliquez sur l'onglet Dashboard pour voir les graphiques et KPIs.",
+      "Cet indice evalue la qualite des sources. Cliquez sur le (i) pour voir les 7 criteres du calcul.",
+    showButton: true,
+    buttonLabel: "Compris",
+  },
+  {
+    target: "tour-view-tabs",
+    title: "5. Explorez les vues",
+    description:
+      "Cliquez sur l'onglet Dashboard pour voir les graphiques, le taux de succes et le risque d'echec en miroir.",
     waitFor: '[data-tour-active-view="dashboard"]',
   },
   {
     target: "tour-view-tabs",
-    title: "5. Decouvrez les sources",
+    title: "6. Filtrez les decisions",
     description:
-      "Maintenant cliquez sur l'onglet Sources pour voir les decisions citees.",
+      "Passez sur l'onglet Tableau puis filtrez par Favorables / Defavorables / Nuancees pour trier les preuves pertinentes.",
+    waitFor: '[data-tour-active-view="tableau"]',
+  },
+  {
+    target: "tour-view-tabs",
+    title: "7. Decouvrez les sources",
+    description:
+      "Maintenant cliquez sur l'onglet Sources pour voir les decisions citees, avec liens vers Legifrance ou Judilibre selon la reference.",
     waitFor: '[data-tour-active-view="sources"]',
   },
   {
     target: "tour-export-buttons",
-    title: "6. Exportez votre travail",
+    title: "8. Exportez votre travail",
     description:
-      "Vous pouvez exporter en PDF ou DOCX a tout moment. Passons a la suite.",
+      "Quatre formats disponibles : PDF, DOCX (rapport complet), CSV (tableau de preuve), JSON (analyse complete pour outils externes).",
     showButton: true,
     buttonLabel: "Suivant",
   },
   {
     target: "nav-historique",
-    title: "7. Historique",
+    title: "9. Historique",
     description:
       "Cliquez ici pour retrouver toutes vos analyses sauvegardees.",
     position: "right",
   },
   {
     target: "user-menu",
-    title: "8. Parametres",
+    title: "10. Parametres",
     description:
       "Cliquez pour acceder a vos parametres. Relancez ce tutoriel depuis Parametres > Aide & Tutoriel.",
   },
 ];
 
 const LAUNCH_KEY = "datavocat_launch_tour";
+const SEEN_KEY = "datavocat_tour_seen";
 
 // Module-level flag: survives React Strict Mode effect double-firing.
 // The first effect run reads+removes localStorage and sets this flag.
@@ -119,6 +135,12 @@ export function useProductTour() {
     if (val) {
       localStorage.removeItem(LAUNCH_KEY);
       _pendingLaunch = true;
+    }
+    // Auto-démarrage à la toute première visite (pas encore vu).
+    const alreadySeen = localStorage.getItem(SEEN_KEY);
+    if (!alreadySeen && !val) {
+      _pendingLaunch = true;
+      localStorage.setItem(SEEN_KEY, "true");
     }
     if (_pendingLaunch) {
       const timer = setTimeout(() => {

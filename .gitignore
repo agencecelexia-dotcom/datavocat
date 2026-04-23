@@ -49,3 +49,6 @@ next-env.d.ts
 # Local temp
 .claude/
 supabase/.temp/
+
+# Design sources (Claude Design exports — kept local only)
+.design/

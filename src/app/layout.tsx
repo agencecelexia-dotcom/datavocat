@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Inter, DM_Serif_Display, JetBrains_Mono } from "next/font/google";
+import { Inter, Fraunces, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -9,21 +10,29 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const dmSerif = DM_Serif_Display({
+const fraunces = Fraunces({
   variable: "--font-serif",
+  subsets: ["latin"],
+  axes: ["opsz"],
+});
+
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-display",
   weight: "400",
+  style: ["normal", "italic"],
   subsets: ["latin"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
+  weight: ["400", "500", "600"],
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Datavocat — Analyse Jurimetrique",
+  title: "Datavocat — Analyse Jurimétrique",
   description:
-    "Plateforme d'analyse jurimetrique assistee par IA pour avocats francais",
+    "Plateforme d'analyse jurimétrique assistée par IA pour avocats français",
 };
 
 export default function RootLayout({
@@ -32,14 +41,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${dmSerif.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${inter.variable} ${fraunces.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} font-sans antialiased theme-greffe`}
       >
-        <TooltipProvider>
-          {children}
-          <Toaster />
-        </TooltipProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            {children}
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

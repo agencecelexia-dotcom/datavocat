@@ -1,36 +1,25 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
-  Scale,
   Loader2,
   Sparkles,
-  BarChart3,
-  Presentation,
-  MessageCircleQuestion,
   ArrowRight,
-  SkipForward,
-  FileText,
   FileDown,
+  FileJson,
+  Sheet,
   Search,
   Database,
   Brain,
-  ExternalLink,
-  BookOpen,
   Table,
   ShieldCheck,
-  ShieldAlert,
-  ShieldX,
   CheckCircle2,
 } from "lucide-react";
 import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
 import { TOUR_QUERY } from "@/hooks/use-product-tour";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
-import { AnalysisSlides } from "@/components/analysis/slides";
 import { AnalysisChat } from "@/components/analysis/chat";
 import { SourcesAnnex } from "@/components/analysis/sources-annex";
 import { EvidenceTable } from "@/components/analysis/evidence-table";
@@ -41,10 +30,28 @@ interface ClarifyQuestion {
   id: string;
   question: string;
   type: "text" | "choice";
+  multiSelect?: boolean;
   choices?: string[];
 }
 
 type Phase = "input" | "clarify" | "analyzing" | "done";
+
+interface AnalysisMeta {
+  analyzedCount: number;
+  totalFound: number;
+  oldestDate: string | null;
+  freshestDate: string | null;
+}
+
+type StreamStepKey = "judilibre" | "datagouv" | "claude";
+type StreamStepState = "pending" | "active" | "done";
+type StreamSteps = Record<StreamStepKey, StreamStepState>;
+
+const DEFAULT_STREAM_STEPS: StreamSteps = {
+  judilibre: "active",
+  datagouv: "pending",
+  claude: "pending",
+};
 
 const LAWYER_JOKES = [
   "Pourquoi les avocats ne vont jamais a la plage ? Parce qu'ils ont peur que les chats les prennent pour du sable mouvant.",
@@ -73,12 +80,15 @@ export default function AnalyzePage() {
   const [activeView, setActiveView] = useState<
     "text" | "dashboard" | "sources" | "tableau"
   >("text");
-  const [showSources, setShowSources] = useState(false);
   const responseRef = useRef<HTMLDivElement>(null);
 
   // Clarification state
   const [questions, setQuestions] = useState<ClarifyQuestion[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
+
+  // Streaming metadata (transparence + étapes loader)
+  const [analysisMeta, setAnalysisMeta] = useState<AnalysisMeta | null>(null);
+  const [streamSteps, setStreamSteps] = useState<StreamSteps>(DEFAULT_STREAM_STEPS);
 
   const parsedData = useMemo(() => {
     if (!response || phase !== "done") return null;
@@ -147,13 +157,14 @@ export default function AnalyzePage() {
 
   const buildEnrichedQuery = () => {
     let enriched = query.trim();
-    const answeredQuestions = questions.filter(
-      (q) => answers[q.id] && answers[q.id].trim()
+    const answeredQuestions = questions.filter((q) =>
+      (answers[q.id] || []).some((v) => v.trim())
     );
     if (answeredQuestions.length > 0) {
       enriched += "\n\nPRECISIONS COMPLEMENTAIRES :";
       for (const q of answeredQuestions) {
-        enriched += `\n- ${q.question} -> ${answers[q.id].trim()}`;
+        const values = (answers[q.id] || []).map((v) => v.trim()).filter(Boolean);
+        enriched += `\n- ${q.question} -> ${values.join(" ; ")}`;
       }
     }
     return enriched;
@@ -165,7 +176,9 @@ export default function AnalyzePage() {
     setResponse("");
     setAnalysisId(null);
     setActiveView("text");
-    setShowSources(false);
+    setAnalysisMeta(null);
+    setStreamSteps({ ...DEFAULT_STREAM_STEPS });
+    const analysisStartedAt = Date.now();
 
     try {
       const res = await fetch("/api/analyze", {
@@ -184,21 +197,62 @@ export default function AnalyzePage() {
       const id = res.headers.get("X-Analysis-Id");
       if (id) setAnalysisId(id);
 
+      // Métadonnées d'analyse (volumétrie + période)
+      const analyzed = parseInt(res.headers.get("X-Decisions-Analyzed") || "0", 10);
+      const totalFound = parseInt(res.headers.get("X-Decisions-Found") || "0", 10);
+      const oldest = res.headers.get("X-Decisions-Oldest") || null;
+      const freshest = res.headers.get("X-Decisions-Freshest") || null;
+      setAnalysisMeta({ analyzedCount: analyzed, totalFound, oldestDate: oldest, freshestDate: freshest });
+
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
-      let text = "";
+      let buffer = "";
+      let cleanText = "";
+
+      // Intercepte les lignes [STEP:...] pour piloter les étapes du loader.
+      const stepPattern = /\[STEP:([^\]]+)\]/g;
+      const applyStep = (raw: string) => {
+        const parts = raw.split(":");
+        const key = parts[0] as StreamStepKey;
+        const state = parts[1];
+        if (key === "judilibre" && state === "done") {
+          setStreamSteps((s) => ({ ...s, judilibre: "done", datagouv: "active" }));
+        } else if (key === "datagouv" && state === "done") {
+          setStreamSteps((s) => ({ ...s, datagouv: "done", claude: "active" }));
+        } else if (key === "claude" && state === "start") {
+          setStreamSteps((s) => ({ ...s, claude: "active" }));
+        } else if (key === "claude" && state === "done") {
+          setStreamSteps((s) => ({ ...s, claude: "done" }));
+        }
+      };
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          text += decoder.decode(value, { stream: true });
-          setResponse(text);
+          buffer += decoder.decode(value, { stream: true });
+
+          // Extraire les [STEP:] au fil de l'eau et garder le reste
+          let match: RegExpExecArray | null;
+          let lastIndex = 0;
+          let stripped = "";
+          stepPattern.lastIndex = 0;
+          while ((match = stepPattern.exec(buffer)) !== null) {
+            stripped += buffer.slice(lastIndex, match.index);
+            applyStep(match[1]);
+            lastIndex = match.index + match[0].length;
+          }
+          stripped += buffer.slice(lastIndex);
+
+          // Conserve le texte propre progressif (sans les balises ni leurs newlines suivants)
+          cleanText = stripped.replace(/\n\[STEP:[^\]]+\]\n?/g, "").replace(/^\[STEP:[^\]]+\]\n?/g, "");
+          setResponse(cleanText);
         }
       }
     } catch {
       setResponse("Erreur de connexion. Vérifiez votre connexion internet.");
     } finally {
+      recordAnalysisDuration(Date.now() - analysisStartedAt);
       setLoading(false);
       setPhase("done");
     }
@@ -212,15 +266,38 @@ export default function AnalyzePage() {
     setQuestions([]);
     setAnswers({});
     setActiveView("text");
-    setShowSources(false);
   };
 
-  const setAnswer = (id: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [id]: value }));
+  const setSingleAnswer = (id: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [id]: value ? [value] : [] }));
   };
 
-  const handleExport = async (format: "pdf" | "docx") => {
-    if (!response) return;
+  const toggleMultiAnswer = (id: string, choice: string) => {
+    setAnswers((prev) => {
+      const current = prev[id] || [];
+      const next = current.includes(choice)
+        ? current.filter((v) => v !== choice)
+        : [...current, choice];
+      return { ...prev, [id]: next };
+    });
+  };
+
+  const setFreeFormAnswer = (id: string, value: string, choices: string[]) => {
+    setAnswers((prev) => {
+      const current = prev[id] || [];
+      // On conserve les choix pré-définis cochés et on remplace/ajoute la saisie libre.
+      const kept = current.filter((v) => choices.includes(v));
+      const next = value.trim() ? [...kept, value] : kept;
+      return { ...prev, [id]: next };
+    });
+  };
+
+  const handleExport = async (format: "pdf" | "docx" | "csv" | "json") => {
+    if (!response) {
+      toast.error("Aucune analyse à exporter");
+      return;
+    }
+    const loadingId = toast.loading(`Préparation de l'export ${format.toUpperCase()}…`);
     try {
       const res = await fetch(`/api/export/${format}`, {
         method: "POST",
@@ -232,17 +309,23 @@ export default function AnalyzePage() {
           parsed: parsedData,
         }),
       });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `datavocat-analyse.${format}`;
-        a.click();
-        URL.revokeObjectURL(url);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: `Erreur ${res.status}` }));
+        toast.error(`Export ${format.toUpperCase()} impossible : ${errBody.error || res.statusText}`, { id: loadingId });
+        console.error(`Export ${format} failed`, res.status, errBody);
+        return;
       }
-    } catch {
-      // silent fail
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `datavocat-analyse.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Export ${format.toUpperCase()} téléchargé`, { id: loadingId });
+    } catch (err) {
+      toast.error(`Export ${format.toUpperCase()} indisponible. Réessayez plus tard.`, { id: loadingId });
+      console.error(`Export ${format} threw`, err);
     }
   };
 
@@ -252,492 +335,754 @@ export default function AnalyzePage() {
     "Mon client locataire d'un bail commercial a Paris se voit refuser le renouvellement par le bailleur. Le bail dure depuis 12 ans. Quelles indemnites d'eviction peut-il esperer ?",
   ];
 
-  const answeredCount = questions.filter(
-    (q) => answers[q.id] && answers[q.id].trim()
+  const answeredCount = questions.filter((q) =>
+    (answers[q.id] || []).some((v) => v.trim())
   ).length;
 
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col" data-tour-phase={phase} data-tour-active-view={activeView} data-tour="tour-page">
+    <div className="flex h-full flex-col" data-tour-phase={phase} data-tour-active-view={activeView} data-tour="tour-page">
       {phase === "input" ? (
-        /* INPUT STATE — Premium Hero */
-        <div className="gradient-hero flex flex-1 flex-col items-center justify-center gap-8 px-4">
-          {/* Hero */}
-          <div className="animate-fade-in-up text-center">
-            <div className="mx-auto mb-5 flex h-14 w-14 animate-float items-center justify-center rounded-2xl bg-[#1e3a5f]/5 shadow-sm">
-              <Scale className="h-7 w-7 text-[#1e3a5f]" />
-            </div>
-            <h1 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl">
-              Analysez votre affaire
-            </h1>
-            <p className="mx-auto mt-3 max-w-lg text-base leading-relaxed text-muted-foreground">
-              Decrivez la situation juridique. L&apos;IA croise{" "}
-              <span className="font-medium text-foreground">500 000+ decisions</span>{" "}
-              pour produire statistiques et recommandations.
-            </p>
-          </div>
-
-          {/* Input card */}
-          <form onSubmit={handleSubmit} className="w-full max-w-3xl animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <div data-tour="query-input" className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card shadow-lg shadow-black/[0.03] transition-all duration-300 focus-within:border-[#1e3a5f]/20 focus-within:shadow-xl focus-within:shadow-[#1e3a5f]/[0.04]">
-              {/* Shimmer effect on focus */}
-              <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-focus-within:opacity-100 animate-shimmer" />
-
-              <Textarea
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Decrivez la situation juridique de votre client, le type de contentieux, les arguments envisages..."
-                className="relative z-10 min-h-[100px] resize-none border-0 bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed shadow-none ring-0 transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:border-0 sm:min-h-[140px] sm:px-5 sm:pt-5 sm:text-[15px]"
-                disabled={loading}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                    handleSubmit(e);
-                  }
-                }}
-              />
-              <div className="relative z-10 flex items-center justify-end border-t border-border/30 px-3 py-2.5 sm:justify-between sm:px-4 sm:py-3">
-                <div className="hidden items-center gap-3 sm:flex">
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
-                    <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Ctrl</kbd>
-                    <span>+</span>
-                    <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Entrée</kbd>
-                  </span>
-                </div>
-                <Button
-                  data-tour="analyze-button"
-                  type="submit"
-                  className="cursor-pointer gap-2 bg-[#1e3a5f] px-5 text-sm font-semibold text-white shadow-md shadow-[#1e3a5f]/20 transition-all duration-300 hover:bg-[#162d4a] hover:shadow-lg hover:shadow-[#1e3a5f]/25 hover:-translate-y-px disabled:opacity-40"
-                  disabled={!query.trim() || loading}
-                >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Analyser
-                    </>
-                  )}
-                </Button>
+        /* ═══ SAISINE — Hero éditorial Greffe ═══ */
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-[780px] px-6 lg:px-10 py-16 lg:py-24">
+            {/* Eyebrow */}
+            <div className="mb-5 animate-fade-in-up">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.22em]" style={{ color: "var(--gold)" }}>
+                  § Nouvelle analyse
+                </span>
+                <span className="h-px flex-1" style={{ background: "var(--line)" }} />
               </div>
             </div>
-          </form>
 
-          {/* Examples */}
-          <div data-tour="examples" className="w-full max-w-3xl space-y-3 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-              Exemples de demandes
-            </p>
-            <div className="grid gap-2 md:grid-cols-3">
-              {examples.map((example, i) => (
-                <button
-                  key={i}
-                  onClick={() => setQuery(example)}
-                  className="group/ex cursor-pointer rounded-xl border border-border/40 bg-card p-3 text-left text-xs leading-relaxed text-muted-foreground transition-all duration-300 hover:border-[#1e3a5f]/15 hover:bg-card hover:shadow-lg hover:shadow-black/[0.03] hover:-translate-y-1 sm:p-4 sm:text-[13px]"
+            {/* Hero */}
+            <div className="mb-10 animate-fade-in-up d-1">
+              <h1 className="font-serif text-[44px] leading-[0.98] font-medium tracking-tight sm:text-[56px] lg:text-[68px]">
+                Analysez{" "}
+                <span className="dv-italic">votre affaire.</span>
+              </h1>
+              <p className="mt-5 text-[15px] leading-relaxed max-w-[560px]" style={{ color: "var(--muted-foreground)" }}>
+                Décrivez la situation juridique. L&apos;IA croise{" "}
+                <span className="font-semibold" style={{ color: "var(--ink)" }}>
+                  562 487 décisions
+                </span>{" "}
+                de Judilibre et data.gouv.fr pour produire statistiques, recommandations et sources vérifiables.
+              </p>
+            </div>
+
+            {/* Input card */}
+            <form onSubmit={handleSubmit} className="animate-fade-in-up d-2">
+              <div
+                data-tour="query-input"
+                className="relative overflow-hidden"
+                style={{
+                  border: "1px solid var(--line)",
+                  background: "var(--card)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <Textarea
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Mon client, salarié depuis 15 ans dans une entreprise de BTP, conteste un licenciement pour faute grave…"
+                  className="min-h-[140px] w-full resize-none border-0 bg-transparent px-5 py-5 text-[15px] leading-[1.7] shadow-none ring-0 placeholder:text-[color:var(--muted-foreground)]/50 focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:border-0"
+                  disabled={loading}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      handleSubmit(e);
+                    }
+                  }}
+                />
+                <div
+                  className="flex items-center justify-between px-4 py-3"
+                  style={{ borderTop: "1px solid var(--line-soft)" }}
                 >
-                  <span className="line-clamp-3">{example}</span>
-                  <span className="mt-2 flex items-center gap-1 text-xs font-medium text-[#c9a96e] opacity-0 transition-opacity duration-200 group-hover/ex:opacity-100">
-                    <ArrowRight className="h-3 w-3" />
-                    Utiliser
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Trust badges */}
-          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground/50 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
-            <span className="flex items-center gap-1.5">
-              <Database className="h-3.5 w-3.5" />
-              Judilibre + data.gouv.fr
-            </span>
-            <span className="h-3 w-px bg-border" />
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Donnees chiffrees
-            </span>
-            <span className="h-3 w-px bg-border" />
-            <span className="flex items-center gap-1.5">
-              <Brain className="h-3.5 w-3.5" />
-              IA Claude
-            </span>
-          </div>
-
-        </div>
-      ) : phase === "clarify" && loading ? (
-        /* ═══ LOADING CLARIFICATION QUESTIONS ═══ */
-        <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4">
-          <div className="relative">
-            <div className="h-16 w-16 animate-spin rounded-full border-4 border-[#1e3a5f]/10 border-t-[#c9a96e]" style={{ animationDuration: "2s" }} />
-            <MessageCircleQuestion className="absolute inset-0 m-auto h-6 w-6 text-[#1e3a5f]" />
-          </div>
-          <div className="text-center">
-            <h2 className="font-serif text-xl text-[#1e3a5f]">
-              Preparation des questions
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              L&apos;IA analyse votre demande pour poser les bonnes questions...
-            </p>
-          </div>
-          <Card className="w-full max-w-lg border-border/40 bg-card p-4 shadow-sm">
-            <p className="text-sm leading-relaxed text-muted-foreground line-clamp-3">{query}</p>
-          </Card>
-        </div>
-      ) : phase === "clarify" && !loading ? (
-        /* ═══ CLARIFICATION STATE ═══ */
-        <div data-tour="clarify-section" className="flex flex-1 flex-col gap-6 overflow-y-auto py-6">
-          <Card className="shrink-0 border-border/60 bg-card p-4 shadow-sm">
-            <p className="text-sm leading-relaxed">{query}</p>
-          </Card>
-
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-primary">
-              <MessageCircleQuestion className="h-5 w-5" />
-              <h2 className="font-serif text-xl">
-                Precisions pour affiner l&apos;analyse
-              </h2>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Repondez aux questions ci-dessous pour une analyse plus precise.
-              Vous pouvez aussi passer directement.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {questions.map((q, idx) => (
-              <Card key={q.id} className="border-border/40 bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md">
-                <label className="mb-3 block text-sm font-medium leading-relaxed">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1e3a5f] text-xs font-bold text-white">
-                    {idx + 1}
-                  </span>
-                  {q.question}
-                </label>
-                {q.type === "choice" && q.choices ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {q.choices.map((choice) => (
-                      <button
-                        key={choice}
-                        onClick={() => setAnswer(q.id, choice)}
-                        className={`cursor-pointer rounded-full border px-4 py-1.5 text-sm transition-all duration-200 ${
-                          answers[q.id] === choice
-                            ? "border-[#1e3a5f] bg-[#1e3a5f]/10 font-medium text-[#1e3a5f] shadow-sm"
-                            : "border-border text-muted-foreground hover:border-[#1e3a5f]/40 hover:text-foreground"
-                        }`}
-                      >
-                        {choice}
-                      </button>
-                    ))}
-                    {answers[q.id] &&
-                      !q.choices.includes(answers[q.id]) && (
-                        <span className="rounded-full border border-[#1e3a5f] bg-[#1e3a5f]/10 px-4 py-1.5 text-sm font-medium text-[#1e3a5f]">
-                          {answers[q.id]}
-                        </span>
-                      )}
-                    <Input
-                      placeholder="Autre..."
-                      className="mt-2 max-w-xs transition-all duration-200 focus:border-[#1e3a5f]"
-                      value={
-                        q.choices.includes(answers[q.id] || "")
-                          ? ""
-                          : answers[q.id] || ""
-                      }
-                      onChange={(e) => setAnswer(q.id, e.target.value)}
-                    />
+                  <div className="hidden sm:flex items-center gap-2 text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+                    <kbd
+                      className="font-mono text-[10px] px-1.5 py-0.5 rounded"
+                      style={{
+                        border: "1px solid var(--line)",
+                        background: "var(--paper)",
+                      }}
+                    >
+                      ⌘↵
+                    </kbd>
+                    <span>pour lancer</span>
                   </div>
-                ) : (
-                  <Input
-                    placeholder="Votre reponse..."
-                    className="mt-2 transition-all duration-200 focus:border-[#1e3a5f]"
-                    value={answers[q.id] || ""}
-                    onChange={(e) => setAnswer(q.id, e.target.value)}
-                  />
-                )}
-              </Card>
-            ))}
-          </div>
-
-          <div data-tour="clarify-buttons" className="flex shrink-0 items-center justify-between border-t border-border/40 pt-4">
-            <Button
-              variant="ghost"
-              className="cursor-pointer gap-2 text-muted-foreground transition-all duration-200"
-              onClick={handleSkipClarification}
-            >
-              <SkipForward className="h-4 w-4" />
-              Passer et analyser
-            </Button>
-            <Button
-              className="cursor-pointer gap-2 bg-[#c9a96e] text-white transition-all duration-200 hover:bg-[#b8944f] hover:shadow-md"
-              onClick={handleSubmitAnswers}
-              disabled={answeredCount === 0}
-            >
-              Lancer l&apos;analyse
-              {answeredCount > 0 && (
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">
-                  {answeredCount}/{questions.length}
-                </span>
-              )}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        /* ANALYZING + DONE STATE */
-        <div className="flex flex-1 flex-col gap-4 overflow-hidden py-4">
-          {/* Phase step indicators — minimal pill style */}
-          <div className="shrink-0">
-            <div className="flex items-center justify-center gap-1">
-              {[
-                { label: "Saisie", done: true },
-                { label: "Clarification", done: phase === "analyzing" || phase === "done" },
-                { label: "Analyse", done: phase === "done", active: phase === "analyzing" },
-                { label: "Resultats", done: false, active: phase === "done" },
-              ].map((step, i, arr) => (
-                <div key={step.label} className="flex items-center">
-                  <div
-                    className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium transition-all duration-300 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs ${
-                      step.done
-                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
-                        : step.active
-                          ? "bg-[#1e3a5f] text-white shadow-md shadow-[#1e3a5f]/20"
-                          : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {step.done ? (
-                      <CheckCircle2 className="h-3 w-3" />
-                    ) : step.active ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : null}
-                    {step.label}
-                  </div>
-                  {i < arr.length - 1 && (
-                    <div className={`mx-0.5 h-px w-3 transition-all duration-300 sm:mx-1 sm:w-6 ${step.done ? "bg-emerald-300 dark:bg-emerald-700" : "bg-border"}`} />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* User query card */}
-          <Card className="shrink-0 border-border/40 border-l-4 border-l-[#1e3a5f] bg-card p-4 shadow-sm">
-            <p className="text-sm leading-relaxed">{query}</p>
-            {questions.length > 0 &&
-              Object.keys(answers).some((k) => answers[k]?.trim()) && (
-                <div className="mt-2 border-t border-border/30 pt-2">
-                  {questions
-                    .filter((q) => answers[q.id]?.trim())
-                    .map((q) => (
-                      <p
-                        key={q.id}
-                        className="text-xs text-muted-foreground"
-                      >
-                        <span className="font-medium">{q.question}</span>{" "}
-                        &rarr; {answers[q.id]}
-                      </p>
-                    ))}
-                </div>
-              )}
-          </Card>
-
-          {/* Source count + Fiabilite + View toggle */}
-          {phase === "done" && parsedData && (
-            <div className="flex shrink-0 flex-wrap items-center gap-3">
-              {/* Sources & fiabilite badges */}
-              <SourcesBadge data={parsedData} onClick={() => setShowSources(!showSources)} />
-              <FiabiliteBadge fiabilite={parsedData.fiabilite} />
-
-              <div className="flex-1" />
-
-              {/* View tabs - refined pill style */}
-              <div data-tour="tour-view-tabs" className="flex gap-0.5 rounded-xl border border-border/40 bg-muted/50 p-0.5">
-                {[
-                  {
-                    key: "text" as const,
-                    label: "Rapport",
-                    icon: FileText,
-                  },
-                  {
-                    key: "dashboard" as const,
-                    label: "Dashboard",
-                    icon: BarChart3,
-                  },
-                  {
-                    key: "tableau" as const,
-                    label: "Tableau",
-                    icon: Table,
-                  },
-                  {
-                    key: "sources" as const,
-                    label: "Sources",
-                    icon: BookOpen,
-                  },
-                ].map((tab) => (
                   <button
-                    key={tab.key}
-                    onClick={() => setActiveView(tab.key)}
-                    className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all duration-200 sm:px-3.5 sm:py-1.5 ${
-                      activeView === tab.key
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
+                    data-tour="analyze-button"
+                    type="submit"
+                    disabled={!query.trim() || loading}
+                    className="group flex items-center gap-2 px-5 py-2.5 rounded-md text-[13px] font-semibold text-white transition-all disabled:opacity-40 cursor-pointer"
+                    style={{ background: "var(--ink)" }}
                   >
-                    <tab.icon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-                    <span className="hidden sm:inline">{tab.label}</span>
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <span>Analyser</span>
+                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* Examples */}
+            <div data-tour="examples" className="mt-8 animate-fade-in-up d-3">
+              <div className="text-[12px] mb-3" style={{ color: "var(--muted-foreground)" }}>
+                Exemples de saisine
+              </div>
+              <div className="space-y-2">
+                {examples.map((example, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setQuery(example)}
+                    className="group w-full text-left p-3.5 rounded-md transition-colors cursor-pointer"
+                    style={{
+                      border: "1px solid var(--line)",
+                      background: "transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--paper)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <p className="text-[13px] leading-[1.55]" style={{ color: "var(--ink)" }}>
+                      {example}
+                    </p>
                   </button>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Sources panel (collapsible) */}
-          {showSources && parsedData && parsedData.sources.length > 0 && (
-            <SourcesPanel sources={parsedData.sources} />
-          )}
-
-          {/* Content area — artifact-style container */}
-          <div
-            ref={responseRef}
-            className="flex-1 overflow-y-auto rounded-2xl border border-border/30 bg-card shadow-lg shadow-black/[0.03]"
-          >
-            {/* Artifact header bar */}
-            {phase === "done" && (
-              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/30 bg-card/95 px-3 py-2 backdrop-blur-sm sm:px-5 sm:py-2.5">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <div className="flex h-5 w-5 items-center justify-center rounded bg-[#1e3a5f]/10">
-                    {activeView === "text" ? <FileText className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "dashboard" ? <BarChart3 className="h-3 w-3 text-[#1e3a5f]" /> : activeView === "sources" ? <BookOpen className="h-3 w-3 text-[#1e3a5f]" /> : <Table className="h-3 w-3 text-[#1e3a5f]" />}
-                  </div>
-                  <span className="hidden font-medium text-foreground sm:inline">
-                    {activeView === "text" ? "Rapport d'analyse" : activeView === "dashboard" ? "Dashboard jurimetrique" : activeView === "sources" ? "Annexe des sources" : "Tableau de preuve"}
-                  </span>
-                  <span className="hidden text-muted-foreground/50 sm:inline">|</span>
-                  <span className="hidden sm:inline">Datavocat</span>
+            {/* Trust line */}
+            <div
+              className="mt-10 flex flex-wrap items-center gap-4 text-[11px] font-mono uppercase tracking-[0.15em] animate-fade-in-up d-4"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              <span className="flex items-center gap-1.5">
+                <Database className="h-3 w-3" />
+                Judilibre + data.gouv.fr
+              </span>
+              <span className="h-3 w-px" style={{ background: "var(--line)" }} />
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3" />
+                Données chiffrées
+              </span>
+              <span className="h-3 w-px" style={{ background: "var(--line)" }} />
+              <span className="flex items-center gap-1.5">
+                <Brain className="h-3 w-3" />
+                IA Claude Sonnet 4
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : phase === "clarify" && loading ? (
+        /* ═══ Préparation des questions — loader minimal ═══ */
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-[780px] px-6 lg:px-10 py-20">
+            <div className="flex flex-col items-center text-center">
+              <div
+                className="font-mono text-[10px] uppercase tracking-[0.22em] flex items-center gap-2 mb-6"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                  style={{ background: "var(--gold)" }}
+                />
+                § Préparation des questions
+              </div>
+              <h2
+                className="font-serif text-[36px] font-medium tracking-tight"
+                style={{ color: "var(--ink)" }}
+              >
+                L&apos;IA <span className="dv-italic">analyse</span> votre saisine.
+              </h2>
+              <p className="mt-3 text-[14px]" style={{ color: "var(--muted-foreground)" }}>
+                Identification des zones d&apos;ambiguïté — quelques secondes.
+              </p>
+              <div
+                className="mt-10 pl-4 max-w-xl w-full text-left"
+                style={{ borderLeft: "2px solid var(--gold)" }}
+              >
+                <div
+                  className="font-mono text-[10px] uppercase tracking-[0.18em] mb-2"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Saisine
                 </div>
-                <div data-tour="tour-export-buttons" className="flex items-center gap-1.5">
-                  <CopyMarkdown content={response} />
-                  <button
-                    onClick={() => handleExport("pdf")}
-                    className="flex h-7 items-center gap-1.5 rounded-md border border-border/40 bg-background px-2.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent hover:text-foreground cursor-pointer"
+                <p className="text-[14px] leading-[1.65]" style={{ color: "var(--ink)" }}>
+                  {query}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : phase === "clarify" && !loading ? (
+        /* ═══ Clarification — style éditorial Greffe ═══ */
+        <div data-tour="clarify-section" className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-[780px] px-6 lg:px-10 py-14">
+            {/* Saisine echo */}
+            <div
+              className="mb-10 pl-4"
+              style={{ borderLeft: "2px solid var(--gold)" }}
+            >
+              <div
+                className="font-mono text-[10px] uppercase tracking-[0.18em] mb-1.5"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Saisine
+              </div>
+              <p className="text-[14px] leading-[1.65]" style={{ color: "var(--ink)" }}>
+                {query}
+              </p>
+            </div>
+
+            {/* Heading */}
+            <h2
+              className="font-serif text-[36px] font-medium tracking-tight mb-3"
+              style={{ color: "var(--ink)" }}
+            >
+              Quelques <span className="dv-italic">précisions.</span>
+            </h2>
+            <p
+              className="text-[14.5px] mb-8 leading-relaxed"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              L&apos;IA a identifié {questions.length} zone{questions.length > 1 ? "s" : ""} d&apos;ambiguïté. Chaque réponse affine la précision statistique.
+            </p>
+
+            {/* Progression bar */}
+            <div className="mb-10">
+              <div
+                className="mb-1.5 flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.15em]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                <span>Progression</span>
+                <span className="tabular-nums">
+                  {String(answeredCount).padStart(2, "0")} / {String(questions.length).padStart(2, "0")}
+                </span>
+              </div>
+              <div
+                className="h-[2px] w-full relative"
+                style={{ background: "var(--line)" }}
+              >
+                <div
+                  className="absolute inset-y-0 left-0 transition-all duration-500"
+                  style={{
+                    width: `${questions.length > 0 ? (answeredCount / questions.length) * 100 : 0}%`,
+                    background: "var(--gold)",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Questions */}
+            <div className="space-y-8">
+              {questions.map((q, idx) => {
+                const selected = answers[q.id] || [];
+                const choices = q.choices || [];
+                const freeFormValue = selected.find((v) => !choices.includes(v)) || "";
+                const isMulti = q.multiSelect === true;
+                return (
+                  <div key={q.id}>
+                    <div className="flex items-baseline gap-3 mb-3">
+                      <span
+                        className="font-mono text-[11px] tabular-nums shrink-0"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <label
+                        className="text-[14.5px] font-medium leading-[1.5]"
+                        style={{ color: "var(--ink)" }}
+                      >
+                        {q.question}
+                        {q.type === "choice" && isMulti && (
+                          <span
+                            className="ml-2 text-[12px] font-normal italic"
+                            style={{ color: "var(--muted-foreground)" }}
+                          >
+                            (plusieurs choix possibles)
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                    {q.type === "choice" && choices.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 pl-7">
+                        {choices.map((choice) => {
+                          const isSelected = selected.includes(choice);
+                          return (
+                            <button
+                              key={choice}
+                              onClick={() =>
+                                isMulti
+                                  ? toggleMultiAnswer(q.id, choice)
+                                  : setSingleAnswer(q.id, isSelected ? "" : choice)
+                              }
+                              className="px-3.5 py-1.5 text-[13px] rounded-full transition-colors cursor-pointer"
+                              style={{
+                                background: isSelected ? "var(--ink)" : "transparent",
+                                color: isSelected ? "#fff" : "var(--muted-foreground)",
+                                border: `1px solid ${isSelected ? "var(--ink)" : "var(--line)"}`,
+                                fontWeight: isSelected ? 600 : 400,
+                              }}
+                            >
+                              {isSelected && isMulti && <span className="mr-1">✓</span>}
+                              {choice}
+                            </button>
+                          );
+                        })}
+                        <input
+                          placeholder="Autre…"
+                          className="px-3.5 py-1.5 text-[13px] bg-transparent outline-none rounded-full"
+                          style={{ border: "1px solid var(--line)", color: "var(--ink)" }}
+                          value={freeFormValue}
+                          onChange={(e) =>
+                            isMulti
+                              ? setFreeFormAnswer(q.id, e.target.value, choices)
+                              : setSingleAnswer(q.id, e.target.value)
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        placeholder="Votre réponse…"
+                        className="ml-7 px-0 py-1.5 text-[14px] bg-transparent outline-none w-[calc(100%-1.75rem)]"
+                        style={{ borderBottom: "1px solid var(--line)", color: "var(--ink)" }}
+                        value={selected[0] || ""}
+                        onChange={(e) => setSingleAnswer(q.id, e.target.value)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Actions */}
+            <div
+              data-tour="clarify-buttons"
+              className="mt-12 flex items-center justify-between pt-6"
+              style={{ borderTop: "1px solid var(--line)" }}
+            >
+              <button
+                onClick={handleSkipClarification}
+                className="text-[13px] underline underline-offset-4 cursor-pointer"
+                style={{
+                  color: "var(--muted-foreground)",
+                  textDecorationColor: "var(--line)",
+                }}
+              >
+                Passer et analyser
+              </button>
+              <button
+                onClick={handleSubmitAnswers}
+                disabled={answeredCount === 0}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-md text-[13px] font-semibold text-white disabled:opacity-40 cursor-pointer"
+                style={{ background: "var(--ink)" }}
+              >
+                <span>Lancer l&apos;analyse</span>
+                {answeredCount > 0 && (
+                  <span className="font-mono text-[11px] tabular-nums opacity-70">
+                    {answeredCount}/{questions.length}
+                  </span>
+                )}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : phase === "analyzing" ? (
+        /* ═══ ANALYSE EN COURS ═══ */
+        <div data-tour="analyzing-screen" className="flex-1">
+          <AnalyzingScreen steps={streamSteps} meta={analysisMeta} />
+        </div>
+      ) : (
+        /* ═══ RESULTS — rapport d'analyse éditorial ═══ */
+        <div className="flex-1 overflow-y-auto" ref={responseRef}>
+          <div className="mx-auto max-w-[1040px] px-6 lg:px-10 py-10">
+            {/* Title block */}
+            {parsedData && (
+              <div className="mb-8">
+                <div
+                  className="font-mono text-[10px] uppercase tracking-[0.22em] mb-3 flex flex-wrap items-center gap-x-3 gap-y-1"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  <span style={{ color: "var(--gold)" }}>§ Rapport d&apos;analyse</span>
+                  <span>·</span>
+                  <span>
+                    {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                  </span>
+                  {analysisId && (
+                    <>
+                      <span>·</span>
+                      <span>Dossier № {analysisId.slice(0, 8).toUpperCase()}</span>
+                    </>
+                  )}
+                </div>
+                <h1 className="font-serif text-[32px] sm:text-[40px] lg:text-[44px] leading-[1.05] font-medium tracking-tight">
+                  <ResultsTitle query={query} />
+                </h1>
+              </div>
+            )}
+
+            {/* Headline stat + gauge */}
+            {parsedData && (
+              <div
+                className="mb-10 pb-10"
+                style={{ borderBottom: "1px solid var(--line)" }}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-10 items-center">
+                  <div>
+                    <div
+                      className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      Taux de succès estimé
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <div
+                        className="font-serif font-medium tabular-nums"
+                        style={{
+                          fontSize: "88px",
+                          color: "var(--ink)",
+                          letterSpacing: "-0.02em",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {parsedData.tauxSuccesGlobal ?? "—"}
+                      </div>
+                      <div
+                        className="font-serif text-[32px]"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
+                        %
+                      </div>
+                    </div>
+                    <div
+                      className="mt-3 text-[12px]"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      Sur {parsedData.echantillon ?? analysisMeta?.analyzedCount ?? "—"} décisions analysées ·{" "}
+                      {parsedData.sourceCount} sources citées
+                      {analysisMeta?.freshestDate && ` · jusqu'au ${analysisMeta.freshestDate}`}
+                    </div>
+                  </div>
+                  <div
+                    className="lg:pl-10 lg:border-l"
+                    style={{ borderColor: "var(--line)" }}
                   >
-                    <FileDown className="h-3 w-3" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={() => handleExport("docx")}
-                    className="flex h-7 items-center gap-1.5 rounded-md border border-border/40 bg-background px-2.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent hover:text-foreground cursor-pointer"
-                  >
-                    <FileDown className="h-3 w-3" />
-                    DOCX
-                  </button>
+                    <FiabiliteBar fiabilite={parsedData.fiabilite} />
+                    <div
+                      className="mt-3 text-[12px]"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      Indice de fiabilité{" "}
+                      <span
+                        className="font-medium"
+                        style={{ color: "var(--ink)" }}
+                      >
+                        {parsedData.fiabilite.label.toLowerCase()}
+                      </span>{" "}
+                      — calculé sur la cohérence et l&apos;autorité des sources.
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Loading screen with lawyer jokes — hides streaming text */}
-            {phase === "analyzing" && (
-              <div data-tour="analyzing-screen"><AnalyzingScreen /></div>
+            {/* Tabs + exports */}
+            {parsedData && (
+              <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+                <div data-tour="tour-view-tabs" className="flex items-center gap-1">
+                  {[
+                    { key: "text" as const, label: "Rapport" },
+                    { key: "dashboard" as const, label: "Chiffres" },
+                    { key: "sources" as const, label: "Sources", count: parsedData.sourceCount },
+                    { key: "tableau" as const, label: "Tableau" },
+                  ].map((t) => {
+                    const active = activeView === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => setActiveView(t.key)}
+                        className="px-3 py-1.5 text-[13px] transition-all cursor-pointer"
+                        style={{
+                          color: active ? "var(--ink)" : "var(--muted-foreground)",
+                          fontWeight: active ? 500 : 400,
+                          borderBottom: active ? "2px solid var(--gold)" : "2px solid transparent",
+                        }}
+                      >
+                        {t.label}
+                        {typeof t.count === "number" && (
+                          <span className="ml-1" style={{ color: "var(--muted-foreground)" }}>
+                            ({t.count})
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div data-tour="tour-export-buttons" className="flex items-center gap-1.5">
+                  <CopyMarkdown content={response} />
+                  <ExportButton icon={FileDown} label="PDF" onClick={() => handleExport("pdf")} />
+                  <ExportButton icon={FileDown} label="DOCX" onClick={() => handleExport("docx")} />
+                  <ExportButton icon={Sheet} label="CSV" onClick={() => handleExport("csv")} title="Exporter le tableau de preuve en CSV" />
+                  <ExportButton icon={FileJson} label="JSON" onClick={() => handleExport("json")} title="Exporter l'analyse complète en JSON" />
+                </div>
+              </div>
             )}
 
-            {/* Text view — premium document rendering */}
-            {activeView === "text" && phase === "done" && response && (
-              <div className="animate-fade-in-up px-4 py-4 sm:px-6 sm:py-6 lg:px-12">
+            {/* Content area */}
+            {activeView === "text" && response && (
+              <div className="animate-fade-in-up">
                 <div
-                  className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h2:text-xl prose-h2:text-[#1e3a5f] prose-h3:text-base prose-h3:text-foreground prose-strong:text-foreground prose-a:text-[#1e3a5f] prose-a:no-underline hover:prose-a:underline"
-                  dangerouslySetInnerHTML={{
-                    __html: formatMarkdownSafe(response),
-                  }}
+                  className="prose-legal max-w-none"
+                  dangerouslySetInnerHTML={{ __html: formatMarkdownSafe(response) }}
                 />
               </div>
             )}
 
-            {/* Dashboard view */}
-            {activeView === "dashboard" && phase === "done" && parsedData && (
-              <div className="animate-fade-in-up p-3 sm:p-6">
-                <AnalysisDashboard data={parsedData} />
+            {activeView === "dashboard" && parsedData && (
+              <div className="animate-fade-in-up">
+                <AnalysisDashboard data={parsedData} meta={analysisMeta} />
               </div>
             )}
 
-            {/* Evidence table view */}
-            {activeView === "tableau" && phase === "done" && parsedData && parsedData.evidenceTable && (
-              <div className="animate-fade-in-up p-3 sm:p-6">
+            {activeView === "tableau" && parsedData && parsedData.evidenceTable && (
+              <div className="animate-fade-in-up">
                 <EvidenceTable data={parsedData.evidenceTable} />
               </div>
             )}
-            {activeView === "tableau" && phase === "done" && parsedData && !parsedData.evidenceTable && (
-              <div className="flex flex-1 items-center justify-center p-12 text-center">
+            {activeView === "tableau" && parsedData && !parsedData.evidenceTable && (
+              <div className="flex items-center justify-center p-12 text-center">
                 <div>
-                  <Table className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-                  <p className="text-sm text-slate-500">Aucun tableau de preuve disponible pour cette analyse.</p>
-                  <p className="mt-1 text-xs text-slate-400">Le tableau est genere automatiquement lors de l&apos;analyse.</p>
+                  <Table className="mx-auto h-10 w-10 mb-3" style={{ color: "var(--muted-foreground)" }} />
+                  <p className="text-[14px]" style={{ color: "var(--muted-foreground)" }}>
+                    Aucun tableau de preuve disponible pour cette analyse.
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* Sources annex view */}
-            {activeView === "sources" && phase === "done" && parsedData && (
-              <div className="animate-fade-in-up p-3 sm:p-6">
+            {activeView === "sources" && parsedData && (
+              <div className="animate-fade-in-up">
                 <SourcesAnnex data={parsedData} />
               </div>
             )}
-          </div>
 
-          {/* Follow-up chat */}
-          {phase === "done" && response && (
-            <AnalysisChat analysisContext={response} query={query} />
-          )}
-
-          {/* Suggested follow-up + actions merged */}
-          {phase === "done" && (
-            <div className="shrink-0 space-y-3">
-              {/* Suggested follow-up questions */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground/60">Approfondir :</span>
-                {[
-                  "Et si on changeait de juridiction ?",
-                  "Quels sont les risques en appel ?",
-                  "Comment renforcer cet argument ?",
-                ].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => {
-                      const enriched = query.trim() + "\n\nQUESTION COMPLEMENTAIRE : " + suggestion;
-                      launchAnalysis(enriched);
-                    }}
-                    className="cursor-pointer rounded-full border border-border/40 bg-card px-3.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all duration-200 hover:border-[#1e3a5f]/20 hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+            {/* Follow-up chat */}
+            {phase === "done" && response && (
+              <div className="mt-10 pt-6" style={{ borderTop: "1px solid var(--line)" }}>
+                <AnalysisChat analysisContext={response} query={query} />
               </div>
-              {/* New analysis button */}
-              <Button
-                onClick={handleNewAnalysis}
-                variant="outline"
-                size="sm"
-                className="cursor-pointer gap-2 border-border/40 text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground"
+            )}
+
+            {/* Suggestions + nouvelle analyse */}
+            {phase === "done" && (
+              <div
+                className="mt-8 pt-6 flex flex-wrap items-center justify-between gap-4"
+                style={{ borderTop: "1px solid var(--line)" }}
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                Nouvelle analyse
-              </Button>
-            </div>
-          )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-[0.15em]"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Approfondir
+                  </span>
+                  {[
+                    "Et si on changeait de juridiction ?",
+                    "Quels sont les risques en appel ?",
+                    "Comment renforcer cet argument ?",
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => {
+                        const enriched =
+                          query.trim() + "\n\nQUESTION COMPLEMENTAIRE : " + suggestion;
+                        launchAnalysis(enriched);
+                      }}
+                      className="px-3 py-1.5 text-[12px] rounded-full transition-colors cursor-pointer"
+                      style={{
+                        border: "1px solid var(--line)",
+                        color: "var(--muted-foreground)",
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleNewAnalysis}
+                  className="flex items-center gap-2 px-4 py-2 text-[12.5px] font-medium rounded-md text-white cursor-pointer"
+                  style={{ background: "var(--ink)" }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Nouvelle analyse
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-/* ═══ ANALYZING SCREEN (lawyer jokes) ═══ */
-function AnalyzingScreen() {
+/* ═══ Helpers Greffe ═══ */
+
+function ExportButton({
+  icon: Icon,
+  label,
+  onClick,
+  title,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+  title?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] rounded-md cursor-pointer transition-colors"
+      style={{
+        border: "1px solid var(--line)",
+        color: "var(--muted-foreground)",
+        background: "transparent",
+      }}
+    >
+      <Icon className="h-3 w-3" />
+      {label}
+    </button>
+  );
+}
+
+/**
+ * Titre du rapport : retire une mention de juridiction de la query pour
+ * l'italiciser en gold à la façon "Licenciement pour faute grave, *CPH de Paris*".
+ */
+function ResultsTitle({ query }: { query: string }) {
+  const clean = query.trim();
+  if (!clean) return <span>Analyse jurimétrique</span>;
+  const trimmed = clean.length > 120 ? clean.slice(0, 120) + "…" : clean;
+  const juriRegex = /(CPH(?:\s+de)?\s+[A-Z][a-zà-ÿ]+|Cour\s+d['e]appel(?:\s+de)?\s+[A-Z][a-zà-ÿ]+|Tribunal\s+\w+\s+(?:de\s+)?[A-Z][a-zà-ÿ]+|Cour\s+de\s+cassation)/i;
+  const match = trimmed.match(juriRegex);
+  if (match && match.index !== undefined) {
+    const before = trimmed.slice(0, match.index).replace(/[,.]?\s*$/, "");
+    const after = trimmed.slice(match.index + match[0].length).replace(/^[,.]?\s*/, "");
+    return (
+      <>
+        {before}
+        {before && ", "}
+        <span className="dv-italic">{match[0]}</span>
+        {after && <>, {after}</>}
+      </>
+    );
+  }
+  return <span>{trimmed}</span>;
+}
+
+/**
+ * Jauge fiabilité — barre segmentée (style Greffe, remplace le SVG 3D).
+ */
+function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] }) {
+  const score = fiabilite.score;
+  return (
+    <div className="w-full">
+      <div className="flex items-baseline justify-between mb-2">
+        <div
+          className="font-mono text-[10px] uppercase tracking-[0.22em]"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          Indice de fiabilité
+        </div>
+        <div
+          className="font-mono text-[22px] tabular-nums font-semibold"
+          style={{ color: "var(--gold)" }}
+        >
+          {score}
+          <span
+            className="text-[13px]"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            /100
+          </span>
+        </div>
+      </div>
+      <div
+        className="relative h-[8px] rounded-full overflow-hidden"
+        style={{ background: "var(--paper-2)" }}
+      >
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bar-fill"
+          style={{
+            width: `${score}%`,
+            background: `linear-gradient(90deg, color-mix(in srgb, var(--gold) 70%, transparent), var(--gold))`,
+          }}
+        />
+        {[25, 50, 75].map((t) => (
+          <div
+            key={t}
+            className="absolute top-0 bottom-0 w-px"
+            style={{ left: `${t}%`, background: "rgba(255,255,255,0.4)" }}
+          />
+        ))}
+      </div>
+      <div
+        className="flex justify-between mt-1.5 font-mono text-[9px] tabular-nums"
+        style={{ color: "var(--muted-foreground)", opacity: 0.6 }}
+      >
+        <span>0</span>
+        <span>25</span>
+        <span>50</span>
+        <span>75</span>
+        <span>100</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══ ANALYZING SCREEN (lawyer jokes + steps réels + décompte dynamique) ═══ */
+
+// Durée moyenne (ms) d'une analyse, calibrée par la moyenne des 5 dernières
+// sessions réussies stockées dans localStorage (fallback 48 s).
+const DEFAULT_ANALYSIS_MS = 48000;
+const STORAGE_KEY_DURATIONS = "datavocat.analysis.durations";
+
+function readAverageDurationMs(): number {
+  if (typeof window === "undefined") return DEFAULT_ANALYSIS_MS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY_DURATIONS);
+    if (!raw) return DEFAULT_ANALYSIS_MS;
+    const arr = JSON.parse(raw) as number[];
+    if (!Array.isArray(arr) || arr.length === 0) return DEFAULT_ANALYSIS_MS;
+    const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+    return Math.max(20000, Math.min(120000, Math.round(avg)));
+  } catch {
+    return DEFAULT_ANALYSIS_MS;
+  }
+}
+
+function AnalyzingScreen({
+  steps,
+  meta,
+}: {
+  steps: StreamSteps;
+  meta: AnalysisMeta | null;
+}) {
   const [jokeIndex, setJokeIndex] = useState(() =>
     Math.floor(Math.random() * LAWYER_JOKES.length)
   );
-  const [stepIndex, setStepIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const [fadeIn, setFadeIn] = useState(true);
-
-  const steps = [
-    { icon: Search, text: "Recherche dans Judilibre (Cour de cassation)...", duration: 8000 },
-    { icon: Database, text: "Interrogation de data.gouv.fr...", duration: 5000 },
-    { icon: Brain, text: "Analyse des decisions trouvees...", duration: 10000 },
-    { icon: Scale, text: "Redaction du rapport strategique...", duration: 25000 },
-  ];
+  const totalMs = useMemo(() => readAverageDurationMs(), []);
 
   // Cycle through jokes every 8 seconds with fade animation
   useEffect(() => {
@@ -751,266 +1096,178 @@ function AnalyzingScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Progress through steps
+  // Elapsed timer (drives progress + decompte)
   useEffect(() => {
-    const stepTimers = steps.map((step, i) => {
-      const delay = steps.slice(0, i).reduce((sum, s) => sum + s.duration, 0);
-      return setTimeout(() => setStepIndex(i), delay);
-    });
-    return () => stepTimers.forEach(clearTimeout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Smooth progress bar
-  useEffect(() => {
+    const startedAt = Date.now();
     const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 95) return 95; // never reach 100 until done
-        return prev + 0.3;
-      });
-    }, 200);
+      setElapsedMs(Date.now() - startedAt);
+    }, 250);
     return () => clearInterval(interval);
   }, []);
 
+  const progress = Math.min(95, (elapsedMs / totalMs) * 100);
+  const remainingSec = Math.max(1, Math.round((totalMs - elapsedMs) / 1000));
+
+  const stepConfig: Array<{
+    key: StreamStepKey;
+    label: string;
+    detail: string;
+  }> = [
+    {
+      key: "judilibre",
+      label: "Recherche Judilibre",
+      detail:
+        meta && meta.analyzedCount > 0
+          ? `${meta.analyzedCount} / ${meta.totalFound} décisions`
+          : "480 312 arrêts",
+    },
+    {
+      key: "datagouv",
+      label: "Interrogation data.gouv.fr",
+      detail: "82 175 décisions",
+    },
+    {
+      key: "claude",
+      label: "Analyse jurimétrique & rédaction",
+      detail: "Motifs · solutions · synthèse",
+    },
+  ];
+
   return (
-    <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-5 px-4 py-6 sm:min-h-[400px] sm:gap-8 sm:py-8">
-      {/* Animated scale icon */}
-      <div className="relative">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-[#1e3a5f]/10 border-t-[#c9a96e] sm:h-20 sm:w-20" style={{ animationDuration: "3s" }} />
-        <Scale className="absolute inset-0 m-auto h-6 w-6 text-[#1e3a5f] sm:h-8 sm:w-8" />
-      </div>
-
-      <div className="text-center">
-        <h2 className="font-serif text-xl text-[#1e3a5f] sm:text-2xl">
-          Analyse en cours
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Cela peut prendre 30 a 60 secondes
-        </p>
-      </div>
-
-      {/* Progress bar */}
-      <div className="w-full max-w-md">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-[#1e3a5f]/10">
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto max-w-[720px] px-6 lg:px-10 py-20">
+        {/* Big progress */}
+        <div className="flex flex-col items-center text-center mb-12">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#1e3a5f] to-[#c9a96e] transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Step indicators */}
-      <div className="w-full max-w-sm space-y-3">
-        {steps.map((step, i) => {
-          const isDone = i < stepIndex;
-          const isActive = i === stepIndex;
-          return (
-            <div
-              key={i}
-              className={`flex items-center gap-3 text-sm transition-all duration-500 ${
-                isDone
-                  ? "text-[#2d6a4f]"
-                  : isActive
-                    ? "text-[#1e3a5f] font-medium"
-                    : "text-muted-foreground/40"
-              }`}
+            className="font-mono text-[10px] uppercase tracking-[0.22em] mb-4 flex items-center gap-2"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full animate-pulse"
+              style={{ background: "var(--gold)" }}
+            />
+            Analyse en cours
+          </div>
+          <div
+            className="font-serif font-medium leading-none tabular-nums"
+            style={{
+              fontSize: "96px",
+              color: "var(--ink)",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {Math.round(progress)}
+            <span
+              className="text-[40px]"
+              style={{ color: "var(--muted-foreground)" }}
             >
-              {isDone ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-[#2d6a4f]" />
-              ) : isActive ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-              ) : (
-                <step.icon className="h-4 w-4 shrink-0" />
-              )}
-              <span>{step.text}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Lawyer joke */}
-      <div className="w-full max-w-lg rounded-xl border border-[#c9a96e]/20 bg-[#c9a96e]/5 p-3 sm:p-5">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#c9a96e]">
-          Le saviez-vous ?
-        </p>
-        <p
-          className={`text-sm italic leading-relaxed text-[#1e3a5f]/80 transition-opacity duration-400 ${
-            fadeIn ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          &laquo; {LAWYER_JOKES[jokeIndex]} &raquo;
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/* ═══ SOURCES BADGE ═══ */
-function SourcesBadge({
-  data,
-  onClick,
-}: {
-  data: ParsedAnalysis;
-  onClick: () => void;
-}) {
-  const count = data.sourceCount;
-  return (
-    <button
-      onClick={onClick}
-      title={`${count} decision${count !== 1 ? "s" : ""} de justice identifiee${count !== 1 ? "s" : ""} avec reference verifiable (ECLI, n° de pourvoi ou reference Cass.). Cliquez pour afficher le detail.`}
-      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 px-3.5 py-1.5 text-sm font-medium text-[#1e3a5f] transition-all duration-200 hover:bg-[#1e3a5f]/10 hover:shadow-sm"
-    >
-      <BookOpen className="h-4 w-4" />
-      <span>
-        {count} source{count !== 1 ? "s" : ""}
-      </span>
-      {count > 0 && (
-        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-      )}
-    </button>
-  );
-}
-
-/* ═══ FIABILITE BADGE ═══ */
-function FiabiliteBadge({
-  fiabilite,
-}: {
-  fiabilite: ParsedAnalysis["fiabilite"];
-}) {
-  const config: Record<
-    string,
-    { bg: string; text: string; icon: typeof ShieldCheck }
-  > = {
-    "Tres eleve": {
-      bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
-      text: "text-emerald-700 dark:text-emerald-400",
-      icon: ShieldCheck,
-    },
-    Eleve: {
-      bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
-      text: "text-emerald-700 dark:text-emerald-400",
-      icon: ShieldCheck,
-    },
-    Moyen: {
-      bg: "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
-      text: "text-amber-700 dark:text-amber-400",
-      icon: ShieldAlert,
-    },
-    Faible: {
-      bg: "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
-      text: "text-rose-700 dark:text-rose-400",
-      icon: ShieldX,
-    },
-    "Tres faible": {
-      bg: "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
-      text: "text-rose-700 dark:text-rose-400",
-      icon: ShieldX,
-    },
-  };
-
-  const c = config[fiabilite.label] || config["Faible"];
-  const Icon = c.icon;
-
-  const barColor = fiabilite.score >= 60 ? "#2d6a4f" : fiabilite.score >= 40 ? "#ca6702" : "#9b2226";
-
-  return (
-    <div
-      className={`group relative inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium ${c.bg} ${c.text}`}
-    >
-      <Icon className="h-4 w-4" />
-      <span>
-        Indice de fiabilite : {fiabilite.label} ({fiabilite.score}/100)
-      </span>
-      {/* Detailed tooltip on hover */}
-      <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 hidden w-96 rounded-xl border bg-card p-4 text-xs text-foreground shadow-xl group-hover:block">
-        <p className="font-serif font-semibold text-sm mb-1">Indice de fiabilite de l&apos;analyse</p>
-        <p className="text-muted-foreground mb-3 leading-relaxed">
-          Cet indice mesure la qualite et la verificabilite des donnees utilisees.
-          Plus les sources sont nombreuses, recentes et verifiables, plus l&apos;indice est eleve.
-        </p>
-
-        {/* Global bar */}
-        <div className="mb-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
+              %
+            </span>
+          </div>
           <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${fiabilite.score}%`, backgroundColor: barColor }}
-          />
+            className="mt-6 w-full max-w-[420px] h-[2px] relative"
+            style={{ background: "var(--line)" }}
+          >
+            <div
+              className="absolute inset-y-0 left-0 transition-all duration-300"
+              style={{ width: `${progress}%`, background: "var(--gold)" }}
+            />
+          </div>
+          <div
+            className="mt-3 text-[12px]"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Estimation restante : <span className="tabular-nums">{remainingSec}s</span>
+          </div>
         </div>
 
-        {/* Factor breakdown */}
-        {fiabilite.factors && fiabilite.factors.length > 0 && (
-          <div className="space-y-2.5">
-            {fiabilite.factors.map((factor, i) => (
-              <div key={i}>
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold flex items-center gap-1.5">
-                    <span className={factor.impact === "positive" ? "text-emerald-600" : factor.impact === "negative" ? "text-rose-600" : "text-amber-600"}>
-                      {factor.impact === "positive" ? "+" : factor.impact === "negative" ? "−" : "~"}
-                    </span>
-                    {factor.name}
-                  </span>
-                  {factor.maxScore > 0 && (
-                    <span className="text-muted-foreground">{factor.score}/{factor.maxScore}</span>
+        {/* Steps — driven by real SSE events */}
+        <div className="space-y-0">
+          {stepConfig.map((step) => {
+            const state = steps[step.key];
+            const isDone = state === "done";
+            const isActive = state === "active";
+            return (
+              <div key={step.key} className="flex items-center gap-4">
+                <div className="shrink-0 w-5 h-5 flex items-center justify-center">
+                  {isDone ? (
+                    <CheckCircle2
+                      className="h-[14px] w-[14px]"
+                      style={{ color: "var(--gold)" }}
+                    />
+                  ) : isActive ? (
+                    <div
+                      className="w-3 h-3 rounded-full border-2 border-t-transparent animate-spin"
+                      style={{ borderColor: "var(--gold)", borderTopColor: "transparent" }}
+                    />
+                  ) : (
+                    <div
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: "var(--line)" }}
+                    />
                   )}
                 </div>
-                <p className="text-muted-foreground mt-0.5 leading-relaxed">{factor.description}</p>
+                <div
+                  className="flex-1 flex items-baseline justify-between gap-3 py-3"
+                  style={{ borderBottom: "1px solid var(--line-soft)" }}
+                >
+                  <span
+                    className="text-[14px]"
+                    style={{
+                      color: isDone || isActive ? "var(--ink)" : "var(--muted-foreground)",
+                      fontWeight: isActive ? 500 : 400,
+                    }}
+                  >
+                    {step.label}
+                  </span>
+                  <span
+                    className="text-[12px] font-mono tabular-nums"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    {step.detail}
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
 
-        <p className="mt-3 pt-2 border-t text-[10px] text-muted-foreground/60 italic leading-relaxed">
-          L&apos;indice de fiabilite est un indicateur automatise. Il ne garantit pas l&apos;exactitude
-          des resultats mais evalue la qualite des sources mobilisees.
-        </p>
+        {/* Lawyer joke */}
+        <div
+          className="mt-12 pl-4"
+          style={{ borderLeft: "2px solid var(--gold)" }}
+        >
+          <div
+            className="font-mono text-[9px] uppercase tracking-[0.22em] mb-2"
+            style={{ color: "var(--gold)" }}
+          >
+            Le saviez-vous
+          </div>
+          <p
+            className={`font-serif text-[16px] italic leading-relaxed transition-opacity duration-400 ${
+              fadeIn ? "opacity-100" : "opacity-0"
+            }`}
+            style={{ color: "var(--ink)" }}
+          >
+            « {LAWYER_JOKES[jokeIndex]} »
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
-/* ═══ SOURCES PANEL ═══ */
-function SourcesPanel({
-  sources,
-}: {
-  sources: ParsedAnalysis["sources"];
-}) {
-  return (
-    <Card className="shrink-0 border-[#1e3a5f]/20 bg-[#1e3a5f]/[0.02] p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <BookOpen className="h-4 w-4 text-primary" />
-        <h3 className="font-serif text-sm font-semibold text-primary">
-          Sources de jurisprudence ({sources.length})
-        </h3>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {sources.map((source, i) => (
-          <a
-            key={i}
-            href={source.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex cursor-pointer items-start gap-3 rounded-lg border border-border/40 bg-white p-3 transition-all duration-200 hover:border-[#1e3a5f]/40 hover:shadow-md hover:-translate-y-0.5"
-          >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-              {i + 1}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-foreground group-hover:text-primary">
-                {source.reference}
-              </p>
-              {(source.chamber || source.date) && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {[source.chamber, source.date, source.solution]
-                    .filter(Boolean)
-                    .join(" — ")}
-                </p>
-              )}
-            </div>
-            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-primary" />
-          </a>
-        ))}
-      </div>
-    </Card>
-  );
+export function recordAnalysisDuration(ms: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY_DURATIONS);
+    const arr = raw ? (JSON.parse(raw) as number[]) : [];
+    arr.push(ms);
+    while (arr.length > 5) arr.shift();
+    window.localStorage.setItem(STORAGE_KEY_DURATIONS, JSON.stringify(arr));
+  } catch {
+    // best-effort
+  }
 }
+
 

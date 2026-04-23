@@ -68,12 +68,12 @@ export async function POST(request: NextRequest) {
 
   // Search Judilibre for BOTH strategies in parallel
   const [judilibreA, judilibreB] = await Promise.all([
-    searchJudilibreForAnalysis(`${context} ${strategyA}`.slice(0, 300)).catch(
-      () => "API Judilibre indisponible pour la strategie A."
-    ),
-    searchJudilibreForAnalysis(`${context} ${strategyB}`.slice(0, 300)).catch(
-      () => "API Judilibre indisponible pour la strategie B."
-    ),
+    searchJudilibreForAnalysis(`${context} ${strategyA}`.slice(0, 300))
+      .then((r) => r.context)
+      .catch(() => "API Judilibre indisponible pour la strategie A."),
+    searchJudilibreForAnalysis(`${context} ${strategyB}`.slice(0, 300))
+      .then((r) => r.context)
+      .catch(() => "API Judilibre indisponible pour la strategie B."),
   ]);
 
   const anthropic = getAnthropicClient();

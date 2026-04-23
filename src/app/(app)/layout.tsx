@@ -19,15 +19,13 @@ export default async function AppLayout({
     user?.user_metadata?.full_name ?? user?.email ?? null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg)" }}>
       <Sidebar />
       <CommandPalette />
       <ProductTour />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header userEmail={userEmail} userName={userName} />
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-2 sm:p-4 lg:p-6">{children}</div>
-        </main>
+        <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
       </div>
     </div>
   );

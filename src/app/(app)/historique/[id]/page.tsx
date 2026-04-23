@@ -3,34 +3,24 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Loader2,
-  FileText,
-  BarChart3,
-  Presentation,
   FileDown,
-  BookOpen,
+  FileJson,
+  Sheet,
   Table,
-  ExternalLink,
-  ShieldCheck,
-  ShieldAlert,
-  ShieldX,
-  CheckCircle2,
   Gavel,
   ChevronDown,
   ChevronUp,
   Save,
+  CheckCircle2,
 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { AnalysisChat } from "@/components/analysis/chat";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
-import { AnalysisSlides } from "@/components/analysis/slides";
 import { EvidenceTable } from "@/components/analysis/evidence-table";
+import { SourcesAnnex } from "@/components/analysis/sources-annex";
 import { formatMarkdownSafe } from "@/lib/format-markdown";
 import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
 import { CopyMarkdown } from "@/components/ui/copy-markdown";
@@ -46,13 +36,78 @@ interface Analysis {
   jugement_resultat: "favorable" | "partiellement_favorable" | "defavorable" | null;
 }
 
+function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] }) {
+  const score = fiabilite.score;
+  return (
+    <div className="w-full">
+      <div className="flex items-baseline justify-between mb-2">
+        <div
+          className="font-mono text-[10px] uppercase tracking-[0.22em]"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          Indice de fiabilité
+        </div>
+        <div
+          className="font-mono text-[22px] tabular-nums font-semibold"
+          style={{ color: "var(--gold)" }}
+        >
+          {score}
+          <span
+            className="text-[13px]"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            /100
+          </span>
+        </div>
+      </div>
+      <div
+        className="relative h-[8px] rounded-full overflow-hidden"
+        style={{ background: "var(--paper-2)" }}
+      >
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{
+            width: `${score}%`,
+            background: `linear-gradient(90deg, color-mix(in srgb, var(--gold) 70%, transparent), var(--gold))`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ExportButton({
+  icon: Icon,
+  label,
+  onClick,
+  title,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+  title?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] rounded-md cursor-pointer transition-colors"
+      style={{
+        border: "1px solid var(--line)",
+        color: "var(--muted-foreground)",
+      }}
+    >
+      <Icon className="h-3 w-3" />
+      {label}
+    </button>
+  );
+}
+
 export default function AnalysisDetailPage() {
   const { id } = useParams();
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState<"text" | "dashboard" | "tableau">("text");
-  const [showSources, setShowSources] = useState(false);
-  // Jugement final state
+  const [activeView, setActiveView] = useState<"text" | "dashboard" | "sources" | "tableau">("text");
   const [jugementOpen, setJugementOpen] = useState(false);
   const [jugementFinal, setJugementFinal] = useState("");
   const [jugementDate, setJugementDate] = useState("");
@@ -79,8 +134,12 @@ export default function AnalysisDetailPage() {
     return parseAnalysisResponse(analysis.response);
   }, [analysis]);
 
-  const handleExport = async (format: "pdf" | "docx") => {
-    if (!analysis?.response) return;
+  const handleExport = async (format: "pdf" | "docx" | "csv" | "json") => {
+    if (!analysis?.response) {
+      toast.error("Aucune analyse à exporter");
+      return;
+    }
+    const loadingId = toast.loading(`Préparation de l'export ${format.toUpperCase()}…`);
     try {
       const res = await fetch(`/api/export/${format}`, {
         method: "POST",
@@ -92,17 +151,23 @@ export default function AnalysisDetailPage() {
           parsed: parsedData,
         }),
       });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `datavocat-analyse.${format}`;
-        a.click();
-        URL.revokeObjectURL(url);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: `Erreur ${res.status}` }));
+        toast.error(`Export ${format.toUpperCase()} impossible : ${errBody.error || res.statusText}`, { id: loadingId });
+        console.error(`Export ${format} failed`, res.status, errBody);
+        return;
       }
-    } catch {
-      // silently fail
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `datavocat-analyse.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Export ${format.toUpperCase()} téléchargé`, { id: loadingId });
+    } catch (err) {
+      toast.error(`Export ${format.toUpperCase()} indisponible.`, { id: loadingId });
+      console.error(`Export ${format} threw`, err);
     }
   };
 
@@ -132,458 +197,375 @@ export default function AnalysisDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex-1 flex items-center justify-center p-12">
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--muted-foreground)" }} />
       </div>
     );
   }
 
   if (!analysis) {
-    return <p className="text-muted-foreground">Analyse non trouvée.</p>;
+    return (
+      <div className="flex-1 flex items-center justify-center p-12 text-center">
+        <p style={{ color: "var(--muted-foreground)" }}>Analyse non trouvée.</p>
+      </div>
+    );
   }
 
+  const title = (analysis.query || "").slice(0, 120);
+  const createdAt = new Date(analysis.created_at).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col gap-4">
-      {/* Back + query header */}
-      <div className="flex items-start gap-3">
-        <Link href="/historique">
-          <Button variant="ghost" size="sm" className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Historique
-          </Button>
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto max-w-[1040px] px-6 lg:px-10 py-8">
+        {/* Back */}
+        <Link
+          href="/historique"
+          className="inline-flex items-center gap-1.5 text-[12px] mb-6 transition-colors cursor-pointer"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Retour à l&apos;historique
         </Link>
-      </div>
 
-      <Card className="bg-muted/50 p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Demande</p>
-            <p className="mt-1 text-sm">{analysis.query}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {new Date(analysis.created_at).toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
+        {/* Title block */}
+        <div className="mb-8">
+          <div
+            className="font-mono text-[10px] uppercase tracking-[0.22em] mb-3 flex flex-wrap items-center gap-x-3 gap-y-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            <span style={{ color: "var(--gold)" }}>§ Rapport d&apos;analyse</span>
+            <span>·</span>
+            <span>{createdAt}</span>
+            <span>·</span>
+            <span>Dossier № {analysis.id.slice(0, 8).toUpperCase()}</span>
           </div>
+          <h1 className="font-serif text-[28px] sm:text-[36px] leading-[1.05] font-medium tracking-tight">
+            {title}
+            {(analysis.query || "").length > 120 && "…"}
+          </h1>
         </div>
-      </Card>
 
-      {/* Source count + Fiabilité + View toggle */}
-      {parsedData && (
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <SourcesBadge data={parsedData} onClick={() => setShowSources(!showSources)} />
-          <FiabiliteBadge fiabilite={parsedData.fiabilite} />
-
-          <div className="flex-1" />
-
-          {/* View tabs */}
-          <div className="flex gap-0.5 rounded-xl border border-border/40 bg-muted/50 p-0.5">
-            {([
-              { key: "text" as const, label: "Rapport", icon: FileText },
-              { key: "dashboard" as const, label: "Dashboard", icon: BarChart3 },
-              { key: "tableau" as const, label: "Tableau", icon: Table },
-            ]).map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveView(tab.key)}
-                className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all duration-200 sm:px-3.5 sm:py-1.5 ${
-                  activeView === tab.key
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <tab.icon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Sources panel (collapsible) */}
-      {showSources && parsedData && parsedData.sources.length > 0 && (
-        <SourcesPanel sources={parsedData.sources} />
-      )}
-
-      {/* Content area */}
-      <div className="flex-1 overflow-y-auto rounded-2xl border border-border/30 bg-card shadow-lg shadow-black/[0.03]">
-        {/* Header bar with export */}
-        {analysis.response && analysis.status === "done" && (
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/30 bg-card/95 px-3 py-2 backdrop-blur-sm sm:px-5 sm:py-2.5">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="flex h-5 w-5 items-center justify-center rounded bg-[#1e3a5f]/10">
-                {activeView === "text" ? (
-                  <FileText className="h-3 w-3 text-[#1e3a5f]" />
-                ) : activeView === "dashboard" ? (
-                  <BarChart3 className="h-3 w-3 text-[#1e3a5f]" />
-                ) : (
-                  <Table className="h-3 w-3 text-[#1e3a5f]" />
-                )}
+        {/* Hero stat + fiabilité */}
+        {parsedData && (
+          <div
+            className="mb-10 pb-10"
+            style={{ borderBottom: "1px solid var(--line)" }}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-10 items-center">
+              <div>
+                <div
+                  className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Taux de succès estimé
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <div
+                    className="font-serif font-medium tabular-nums"
+                    style={{
+                      fontSize: "72px",
+                      color: "var(--ink)",
+                      letterSpacing: "-0.02em",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {parsedData.tauxSuccesGlobal ?? "—"}
+                  </div>
+                  <div
+                    className="font-serif text-[28px]"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    %
+                  </div>
+                </div>
+                <div
+                  className="mt-3 text-[12px]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Sur {parsedData.echantillon ?? "—"} décisions · {parsedData.sourceCount} sources citées
+                </div>
               </div>
-              <span className="font-medium text-foreground">
-                {activeView === "text"
-                  ? "Rapport d'analyse"
-                  : activeView === "dashboard"
-                    ? "Dashboard jurimetrique"
-                    : "Tableau de preuve"}
-              </span>
-              <span className="text-muted-foreground/50">|</span>
-              <span>Datavocat</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CopyMarkdown content={analysis.response} />
-              <button
-                onClick={() => handleExport("pdf")}
-                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-border/40 bg-background px-2.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
+              <div
+                className="lg:pl-10 lg:border-l"
+                style={{ borderColor: "var(--line)" }}
               >
-                <FileDown className="h-3 w-3" />
-                PDF
-              </button>
-              <button
-                onClick={() => handleExport("docx")}
-                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-border/40 bg-background px-2.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
-              >
-                <FileDown className="h-3 w-3" />
-                DOCX
-              </button>
+                <FiabiliteBar fiabilite={parsedData.fiabilite} />
+                <div
+                  className="mt-3 text-[12px]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Indice de fiabilité{" "}
+                  <span className="font-medium" style={{ color: "var(--ink)" }}>
+                    {parsedData.fiabilite.label.toLowerCase()}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Text view */}
+        {/* Tabs + exports */}
+        {parsedData && (
+          <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-1">
+              {[
+                { key: "text" as const, label: "Rapport" },
+                { key: "dashboard" as const, label: "Chiffres" },
+                { key: "sources" as const, label: "Sources", count: parsedData.sourceCount },
+                { key: "tableau" as const, label: "Tableau" },
+              ].map((t) => {
+                const active = activeView === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setActiveView(t.key)}
+                    className="px-3 py-1.5 text-[13px] transition-all cursor-pointer"
+                    style={{
+                      color: active ? "var(--ink)" : "var(--muted-foreground)",
+                      fontWeight: active ? 500 : 400,
+                      borderBottom: active ? "2px solid var(--gold)" : "2px solid transparent",
+                    }}
+                  >
+                    {t.label}
+                    {typeof t.count === "number" && (
+                      <span className="ml-1" style={{ color: "var(--muted-foreground)" }}>
+                        ({t.count})
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <CopyMarkdown content={analysis.response} />
+              <ExportButton icon={FileDown} label="PDF" onClick={() => handleExport("pdf")} />
+              <ExportButton icon={FileDown} label="DOCX" onClick={() => handleExport("docx")} />
+              <ExportButton icon={Sheet} label="CSV" onClick={() => handleExport("csv")} />
+              <ExportButton icon={FileJson} label="JSON" onClick={() => handleExport("json")} />
+            </div>
+          </div>
+        )}
+
+        {/* Content area */}
         {activeView === "text" && analysis.response ? (
-          <div className="animate-fade-in-up px-4 py-4 sm:px-6 sm:py-6 lg:px-12">
+          <div className="animate-fade-in-up">
             <div
-              className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h2:text-xl prose-h2:text-[#1e3a5f] prose-h3:text-base prose-h3:text-foreground prose-strong:text-foreground prose-a:text-[#1e3a5f] prose-a:no-underline hover:prose-a:underline"
-              dangerouslySetInnerHTML={{
-                __html: formatMarkdownSafe(analysis.response),
-              }}
+              className="prose-legal max-w-none"
+              dangerouslySetInnerHTML={{ __html: formatMarkdownSafe(analysis.response) }}
             />
           </div>
         ) : activeView === "dashboard" && parsedData ? (
-          <div className="animate-fade-in-up p-3 sm:p-6">
+          <div className="animate-fade-in-up">
             <AnalysisDashboard data={parsedData} />
           </div>
         ) : activeView === "tableau" && parsedData && parsedData.evidenceTable ? (
-          <div className="animate-fade-in-up p-3 sm:p-6">
+          <div className="animate-fade-in-up">
             <EvidenceTable data={parsedData.evidenceTable} />
           </div>
         ) : activeView === "tableau" && parsedData && !parsedData.evidenceTable ? (
           <div className="flex items-center justify-center p-12 text-center">
             <div>
-              <Table className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-              <p className="text-sm text-slate-500">Aucun tableau de preuve disponible pour cette analyse.</p>
+              <Table className="mx-auto h-10 w-10 mb-3" style={{ color: "var(--muted-foreground)" }} />
+              <p className="text-[13px]" style={{ color: "var(--muted-foreground)" }}>
+                Aucun tableau de preuve disponible.
+              </p>
             </div>
+          </div>
+        ) : activeView === "sources" && parsedData ? (
+          <div className="animate-fade-in-up">
+            <SourcesAnnex data={parsedData} />
           </div>
         ) : !analysis.response ? (
           <div className="flex items-center justify-center p-12">
-            <p className="text-muted-foreground">
+            <p style={{ color: "var(--muted-foreground)" }}>
               {analysis.status === "error"
                 ? "Erreur lors de l'analyse."
-                : "Analyse en cours..."}
+                : "Analyse en cours…"}
             </p>
           </div>
         ) : null}
-      </div>
 
-      {/* Jugement final section */}
-      {analysis.response && analysis.status === "done" && (
-        <Card className="border-border/40 shadow-sm">
-          {/* Header — collapsible */}
-          <button
-            onClick={() => setJugementOpen(!jugementOpen)}
-            className="flex w-full cursor-pointer items-center justify-between px-5 py-4 text-left"
+        {/* Jugement final */}
+        {analysis.response && analysis.status === "done" && (
+          <div
+            className="mt-10 pt-8"
+            style={{ borderTop: "1px solid var(--line)" }}
           >
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#c9a96e]/10">
-                <Gavel className="h-4 w-4 text-[#c9a96e]" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Jugement final</p>
-                <p className="text-xs text-muted-foreground">
-                  Comparez le résultat réel avec la prédiction
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {analysis.jugement_resultat && (
-                <Badge
-                  className={
-                    analysis.jugement_resultat === "favorable"
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                      : analysis.jugement_resultat === "partiellement_favorable"
-                        ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                        : "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
-                  }
-                >
-                  {analysis.jugement_resultat === "favorable"
-                    ? "Favorable"
-                    : analysis.jugement_resultat === "partiellement_favorable"
-                      ? "Partiellement favorable"
-                      : "Défavorable"}
-                </Badge>
-              )}
-              {jugementOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
-          </button>
-
-          {/* Collapsible content */}
-          {jugementOpen && (
-            <div className="space-y-4 border-t border-border/30 px-5 pb-5 pt-4">
-              {/* Comparison badge when judgment exists */}
-              {analysis.jugement_resultat && parsedData && (
-                <div className="flex items-center gap-3 rounded-lg border border-[#1e3a5f]/10 bg-[#1e3a5f]/[0.02] p-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium text-[#1e3a5f]">Résultat réel vs prédiction</span>
-                    <span className="text-muted-foreground">:</span>
-                    <Badge
-                      className={
-                        analysis.jugement_resultat === "favorable"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : analysis.jugement_resultat === "partiellement_favorable"
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-rose-50 text-rose-700"
-                      }
-                    >
-                      {analysis.jugement_resultat === "favorable"
-                        ? "Favorable"
-                        : analysis.jugement_resultat === "partiellement_favorable"
-                          ? "Partiellement favorable"
-                          : "Défavorable"}
-                    </Badge>
-                    {parsedData.fiabilite && (
-                      <>
-                        <span className="text-muted-foreground/50">|</span>
-                        <span className="text-xs text-muted-foreground">
-                          Fiabilité prédiction : {parsedData.fiabilite.label} ({parsedData.fiabilite.score}/100)
-                        </span>
-                      </>
-                    )}
+            <button
+              onClick={() => setJugementOpen(!jugementOpen)}
+              className="flex w-full items-center justify-between cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <Gavel className="h-4 w-4" style={{ color: "var(--gold)" }} />
+                <div className="text-left">
+                  <div
+                    className="font-mono text-[10px] uppercase tracking-[0.22em]"
+                    style={{ color: "var(--gold)" }}
+                  >
+                    § Jugement final
+                  </div>
+                  <div
+                    className="font-serif text-[20px] font-medium tracking-tight mt-0.5"
+                    style={{ color: "var(--ink)" }}
+                  >
+                    Comparez le résultat <span className="dv-italic">réel</span>
                   </div>
                 </div>
-              )}
-
-              {/* Result selector */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Résultat</label>
-                <div className="flex flex-wrap gap-2">
-                  {([
-                    { value: "favorable", label: "Favorable", color: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" },
-                    { value: "partiellement_favorable", label: "Partiellement favorable", color: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-400" },
-                    { value: "defavorable", label: "Défavorable", color: "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/30 dark:text-rose-400" },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setJugementResultat(jugementResultat === opt.value ? "" : opt.value)}
-                      className={`cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
-                        jugementResultat === opt.value
-                          ? opt.color + " shadow-sm"
-                          : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
               </div>
-
-              {/* Date */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">
-                  Date du jugement
-                </label>
-                <Input
-                  type="date"
-                  value={jugementDate}
-                  onChange={(e) => setJugementDate(e.target.value)}
-                  className="max-w-xs"
-                />
-              </div>
-
-              {/* Judgment text */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">
-                  Détails du jugement
-                </label>
-                <Textarea
-                  value={jugementFinal}
-                  onChange={(e) => setJugementFinal(e.target.value)}
-                  placeholder="Résumé du jugement rendu, points clés, montants, etc."
-                  rows={4}
-                  className="resize-none"
-                />
-              </div>
-
-              {/* Save button */}
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={handleSaveJugement}
-                  disabled={jugementSaving}
-                  className="cursor-pointer gap-2 bg-[#1e3a5f] text-white hover:bg-[#162d4a]"
-                >
-                  {jugementSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  Enregistrer le jugement
-                </Button>
-                {jugementSaved && (
-                  <span className="flex items-center gap-1.5 text-sm text-emerald-600">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Enregistré
+              <div className="flex items-center gap-2">
+                {analysis.jugement_resultat && (
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-[0.05em] font-semibold px-2 py-0.5 rounded"
+                    style={{
+                      color:
+                        analysis.jugement_resultat === "favorable"
+                          ? "var(--emerald, #2d6a4f)"
+                          : analysis.jugement_resultat === "partiellement_favorable"
+                            ? "var(--amber, #ca6702)"
+                            : "var(--bordeaux, #9b2226)",
+                      background: "color-mix(in srgb, currentColor 10%, transparent)",
+                    }}
+                  >
+                    {analysis.jugement_resultat === "favorable"
+                      ? "Favorable"
+                      : analysis.jugement_resultat === "partiellement_favorable"
+                        ? "Partiel"
+                        : "Défavorable"}
                   </span>
                 )}
+                {jugementOpen ? (
+                  <ChevronUp className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} />
+                ) : (
+                  <ChevronDown className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} />
+                )}
               </div>
-            </div>
-          )}
-        </Card>
-      )}
+            </button>
 
-      {/* Follow-up chat */}
-      {analysis.response && analysis.status === "done" && (
-        <AnalysisChat analysisContext={analysis.response} query={analysis.query} />
-      )}
-    </div>
-  );
-}
+            {jugementOpen && (
+              <div className="mt-6 space-y-5">
+                {/* Result selector */}
+                <div>
+                  <div
+                    className="font-mono text-[10px] uppercase tracking-[0.18em] mb-2"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    01 · Résultat
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { value: "favorable", label: "Favorable", color: "var(--emerald, #2d6a4f)" },
+                      { value: "partiellement_favorable", label: "Partiellement favorable", color: "var(--amber, #ca6702)" },
+                      { value: "defavorable", label: "Défavorable", color: "var(--bordeaux, #9b2226)" },
+                    ] as const).map((opt) => {
+                      const active = jugementResultat === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => setJugementResultat(active ? "" : opt.value)}
+                          className="px-3.5 py-1.5 text-[13px] rounded-full transition-colors cursor-pointer"
+                          style={{
+                            background: active ? opt.color : "transparent",
+                            color: active ? "#fff" : "var(--muted-foreground)",
+                            border: `1px solid ${active ? opt.color : "var(--line)"}`,
+                            fontWeight: active ? 600 : 400,
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-/* ═══ SOURCES BADGE ═══ */
-function SourcesBadge({
-  data,
-  onClick,
-}: {
-  data: ParsedAnalysis;
-  onClick: () => void;
-}) {
-  const count = data.sourceCount;
-  return (
-    <button
-      onClick={onClick}
-      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 px-3.5 py-1.5 text-sm font-medium text-[#1e3a5f] transition-all duration-200 hover:bg-[#1e3a5f]/10 hover:shadow-sm"
-    >
-      <BookOpen className="h-4 w-4" />
-      <span>
-        {count} source{count !== 1 ? "s" : ""}
-      </span>
-      {count > 0 && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
-    </button>
-  );
-}
+                {/* Date */}
+                <div>
+                  <div
+                    className="font-mono text-[10px] uppercase tracking-[0.18em] mb-2"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    02 · Date du jugement
+                  </div>
+                  <input
+                    type="date"
+                    value={jugementDate}
+                    onChange={(e) => setJugementDate(e.target.value)}
+                    className="px-3 py-2 text-[13px] bg-transparent outline-none rounded-md"
+                    style={{
+                      border: "1px solid var(--line)",
+                      background: "var(--card)",
+                      color: "var(--ink)",
+                    }}
+                  />
+                </div>
 
-/* ═══ FIABILITÉ BADGE ═══ */
-function FiabiliteBadge({
-  fiabilite,
-}: {
-  fiabilite: ParsedAnalysis["fiabilite"];
-}) {
-  const config: Record<string, { bg: string; text: string; icon: typeof ShieldCheck }> = {
-    "Tres eleve": {
-      bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
-      text: "text-emerald-700 dark:text-emerald-400",
-      icon: ShieldCheck,
-    },
-    Eleve: {
-      bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800",
-      text: "text-emerald-700 dark:text-emerald-400",
-      icon: ShieldCheck,
-    },
-    Moyen: {
-      bg: "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
-      text: "text-amber-700 dark:text-amber-400",
-      icon: ShieldAlert,
-    },
-    Faible: {
-      bg: "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
-      text: "text-rose-700 dark:text-rose-400",
-      icon: ShieldX,
-    },
-    "Tres faible": {
-      bg: "bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800",
-      text: "text-rose-700 dark:text-rose-400",
-      icon: ShieldX,
-    },
-  };
+                {/* Details */}
+                <div>
+                  <div
+                    className="font-mono text-[10px] uppercase tracking-[0.18em] mb-2"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    03 · Détails du jugement
+                  </div>
+                  <textarea
+                    value={jugementFinal}
+                    onChange={(e) => setJugementFinal(e.target.value)}
+                    placeholder="Résumé du jugement rendu, points clés, montants, etc."
+                    rows={4}
+                    className="w-full px-3 py-2 text-[13px] bg-transparent outline-none resize-none rounded-md"
+                    style={{
+                      border: "1px solid var(--line)",
+                      background: "var(--card)",
+                      color: "var(--ink)",
+                    }}
+                  />
+                </div>
 
-  const c = config[fiabilite.label] || config["Faible"];
-  const Icon = c.icon;
+                {/* Save button */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSaveJugement}
+                    disabled={jugementSaving}
+                    className="flex items-center gap-2 px-4 py-2 text-[12.5px] font-semibold text-white rounded-md cursor-pointer disabled:opacity-40"
+                    style={{ background: "var(--ink)" }}
+                  >
+                    {jugementSaving ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5" />
+                    )}
+                    Enregistrer le jugement
+                  </button>
+                  {jugementSaved && (
+                    <span
+                      className="flex items-center gap-1.5 text-[12px]"
+                      style={{ color: "var(--emerald, #2d6a4f)" }}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Enregistré
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
-  return (
-    <div
-      className={`group relative inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium ${c.bg} ${c.text}`}
-    >
-      <Icon className="h-4 w-4" />
-      <span>
-        Fiabilité : {fiabilite.label} ({fiabilite.score}/100)
-      </span>
-      <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 hidden w-72 rounded-lg border bg-card p-3 text-xs text-foreground shadow-lg group-hover:block">
-        <p className="font-medium">Détails du score de fiabilité</p>
-        <p className="mt-1 text-muted-foreground">{fiabilite.details}</p>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+        {/* Follow-up chat */}
+        {analysis.response && analysis.status === "done" && (
           <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${fiabilite.score}%`,
-              backgroundColor:
-                fiabilite.score >= 60
-                  ? "#2d6a4f"
-                  : fiabilite.score >= 40
-                    ? "#ca6702"
-                    : "#9b2226",
-            }}
-          />
-        </div>
+            className="mt-10 pt-6"
+            style={{ borderTop: "1px solid var(--line)" }}
+          >
+            <AnalysisChat analysisContext={analysis.response} query={analysis.query} />
+          </div>
+        )}
       </div>
     </div>
-  );
-}
-
-/* ═══ SOURCES PANEL ═══ */
-function SourcesPanel({ sources }: { sources: ParsedAnalysis["sources"] }) {
-  return (
-    <Card className="shrink-0 border-[#1e3a5f]/20 bg-[#1e3a5f]/[0.02] p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <BookOpen className="h-4 w-4 text-primary" />
-        <h3 className="font-serif text-sm font-semibold text-primary">
-          Sources de jurisprudence ({sources.length})
-        </h3>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {sources.map((source, i) => (
-          <a
-            key={i}
-            href={source.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex cursor-pointer items-start gap-3 rounded-lg border border-border/40 bg-white p-3 transition-all duration-200 hover:border-[#1e3a5f]/40 hover:shadow-md hover:-translate-y-0.5"
-          >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-              {i + 1}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-foreground group-hover:text-primary">
-                {source.reference}
-              </p>
-              {(source.chamber || source.date) && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {[source.chamber, source.date, source.solution]
-                    .filter(Boolean)
-                    .join(" — ")}
-                </p>
-              )}
-            </div>
-            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-primary" />
-          </a>
-        ))}
-      </div>
-    </Card>
   );
 }

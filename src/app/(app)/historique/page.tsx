@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Clock, FileText, Scale, ArrowRight, Gavel, ChevronRight, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Clock, ArrowRight, Gavel, Trash2, Sparkles } from "lucide-react";
 
 interface Analysis {
   id: string;
@@ -13,7 +12,6 @@ interface Analysis {
   jugement_resultat: "favorable" | "partiellement_favorable" | "defavorable" | null;
 }
 
-/** Strip enriched query parts (PRECISIONS COMPLEMENTAIRES, QUESTION COMPLEMENTAIRE) */
 function cleanQuery(query: string): string {
   return query
     .replace(/\n\nPRECISIONS COMPLEMENTAIRES\s*:[\s\S]*/i, "")
@@ -38,18 +36,30 @@ function formatTime(dateStr: string): string {
   });
 }
 
-function SkeletonRow({ delay }: { delay: number }) {
+function SkeletonRow() {
   return (
     <div
-      className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4"
-      style={{ animationDelay: `${delay}ms` }}
+      className="flex items-start gap-5 p-5"
+      style={{ borderBottom: "1px solid var(--line-soft)" }}
     >
-      <div className="h-9 w-9 shrink-0 animate-pulse rounded-lg bg-slate-100" />
+      <div
+        className="h-4 w-16 animate-pulse rounded"
+        style={{ background: "var(--paper)" }}
+      />
       <div className="min-w-0 flex-1 space-y-2">
-        <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
-        <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100" />
+        <div
+          className="h-4 w-2/3 animate-pulse rounded"
+          style={{ background: "var(--paper)" }}
+        />
+        <div
+          className="h-3 w-1/3 animate-pulse rounded"
+          style={{ background: "var(--paper)" }}
+        />
       </div>
-      <div className="h-6 w-16 animate-pulse rounded-full bg-slate-100" />
+      <div
+        className="h-6 w-20 animate-pulse rounded"
+        style={{ background: "var(--paper)" }}
+      />
     </div>
   );
 }
@@ -70,7 +80,7 @@ export default function HistoriquePage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer cette analyse ? Cette action est irreversible.")) return;
+    if (!confirm("Supprimer cette analyse ? Cette action est irréversible.")) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/analyses/${id}`, { method: "DELETE" });
@@ -85,140 +95,202 @@ export default function HistoriquePage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 px-2 sm:space-y-6 sm:px-4">
-      {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="font-serif text-2xl tracking-tight text-slate-900 sm:text-3xl">
-            Historique
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {loading
-              ? "Chargement..."
-              : `${analyses.length} analyse${analyses.length !== 1 ? "s" : ""}`}
-          </p>
-        </div>
-        <Link href="/">
-          <Button
-            size="sm"
-            className="cursor-pointer gap-1.5 bg-[#1e3a5f] text-white shadow-sm hover:bg-[#162d4a]"
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto max-w-[1100px] px-6 lg:px-10 py-10">
+        {/* Eyebrow */}
+        <div className="flex items-center gap-3 mb-6">
+          <span
+            className="font-mono text-[10px] uppercase tracking-[0.25em]"
+            style={{ color: "var(--gold)" }}
           >
+            § Historique
+          </span>
+          <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+          <span
+            className="font-mono text-[10px] tabular-nums"
+            style={{ color: "var(--muted-foreground)", opacity: 0.6 }}
+          >
+            {loading ? "…" : `${analyses.length} analyse${analyses.length !== 1 ? "s" : ""}`}
+          </span>
+        </div>
+
+        {/* Title */}
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <h1 className="font-serif text-[36px] lg:text-[40px] font-medium tracking-tight">
+              Vos <span className="dv-italic">analyses</span> précédentes
+            </h1>
+            <p
+              className="mt-2 text-[14px]"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              Toutes vos saisines et rapports — archivés, chiffrés, exportables à tout moment.
+            </p>
+          </div>
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-4 py-2 text-[12.5px] font-medium rounded-md text-white cursor-pointer"
+            style={{ background: "var(--ink)" }}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Nouvelle analyse</span>
             <span className="sm:hidden">Nouveau</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
-        </Link>
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[...Array(5)].map((_, i) => (
-            <SkeletonRow key={i} delay={i * 60} />
-          ))}
-        </div>
-      ) : analyses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1e3a5f]/5">
-            <Scale className="h-6 w-6 text-[#1e3a5f]/30" />
-          </div>
-          <p className="text-lg font-semibold text-slate-800">
-            Aucune analyse
-          </p>
-          <p className="mt-1 max-w-sm text-sm text-slate-500">
-            Lancez votre premiere analyse jurimetrique pour voir l&apos;historique ici.
-          </p>
-          <Link href="/" className="mt-5">
-            <Button className="cursor-pointer gap-2 bg-[#1e3a5f] text-white hover:bg-[#162d4a]">
-              Nouvelle analyse
-              <ArrowRight className="h-4 w-4" />
-            </Button>
           </Link>
         </div>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          {analyses.map((a, i) => (
-            <div
-              key={a.id}
-              className={`group flex items-center gap-2 px-3 py-3 transition-colors duration-150 hover:bg-slate-50 sm:gap-4 sm:px-5 sm:py-3.5 ${
-                i > 0 ? "border-t border-slate-100" : ""
-              }`}
+
+        {loading ? (
+          <div
+            className="overflow-hidden rounded-md"
+            style={{
+              border: "1px solid var(--line)",
+              background: "var(--card)",
+            }}
+          >
+            {[...Array(5)].map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+        ) : analyses.length === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center py-20 text-center rounded-md"
+            style={{ border: "1px dashed var(--line)" }}
+          >
+            <p
+              className="font-serif text-[22px] font-medium"
+              style={{ color: "var(--ink)" }}
             >
-              {/* Link area (icon + content + badges + chevron) */}
-              <Link
-                href={`/historique/${a.id}`}
-                className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4"
+              Aucune <span className="dv-italic">analyse</span> encore.
+            </p>
+            <p
+              className="mt-2 max-w-sm text-[13px]"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              Lancez votre première analyse jurimétrique pour voir l&apos;historique ici.
+            </p>
+            <Link
+              href="/"
+              className="mt-6 flex items-center gap-2 px-5 py-2.5 text-[13px] font-semibold text-white rounded-md cursor-pointer"
+              style={{ background: "var(--ink)" }}
+            >
+              Nouvelle analyse
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {analyses.map((a, i) => (
+              <div
+                key={a.id}
+                className="group relative flex items-start gap-5 p-5 rounded-md transition-all"
+                style={{
+                  border: "1px solid var(--line)",
+                  background: "var(--card)",
+                }}
               >
-                {/* Icon */}
-                <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1e3a5f]/5 transition-colors group-hover:bg-[#1e3a5f]/10 sm:flex">
-                  <FileText className="h-4 w-4 text-[#1e3a5f]/60" />
-                </div>
-
-                {/* Content */}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-800 group-hover:text-[#1e3a5f]">
-                    {cleanQuery(a.query)}
-                  </p>
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                    <Clock className="h-3 w-3" />
-                    <span>{formatDate(a.created_at)}</span>
-                    <span className="text-slate-300">&middot;</span>
-                    <span>{formatTime(a.created_at)}</span>
-                  </div>
-                </div>
-
-                {/* Badges */}
-                <div className="hidden shrink-0 items-center gap-2 sm:flex">
-                  {a.jugement_resultat && (
-                    <span
-                      className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                        a.jugement_resultat === "favorable"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : a.jugement_resultat === "partiellement_favorable"
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-rose-50 text-rose-700"
-                      }`}
+                <Link
+                  href={`/historique/${a.id}`}
+                  className="flex flex-1 items-start gap-5 min-w-0"
+                >
+                  {/* Numéro + date */}
+                  <div className="shrink-0">
+                    <div
+                      className="font-mono text-[9px] uppercase tracking-wider"
+                      style={{ color: "var(--muted-foreground)" }}
                     >
-                      <Gavel className="h-3 w-3" />
-                      {a.jugement_resultat === "favorable"
-                        ? "Favorable"
-                        : a.jugement_resultat === "partiellement_favorable"
-                          ? "Partiel"
-                          : "Defavorable"}
-                    </span>
-                  )}
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                      a.status === "done"
-                        ? "bg-emerald-50 text-emerald-600"
+                      № {String(analyses.length - i).padStart(3, "0")}
+                    </div>
+                    <div
+                      className="font-mono text-[10.5px] tabular-nums mt-0.5 flex items-center gap-1"
+                      style={{ color: "var(--muted-foreground)", opacity: 0.7 }}
+                    >
+                      <Clock className="h-3 w-3" />
+                      {formatDate(a.created_at)}
+                    </div>
+                    <div
+                      className="font-mono text-[10px] tabular-nums"
+                      style={{ color: "var(--muted-foreground)", opacity: 0.5 }}
+                    >
+                      {formatTime(a.created_at)}
+                    </div>
+                  </div>
+
+                  {/* Title + snippet */}
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className="font-serif text-[16px] font-medium leading-tight line-clamp-2"
+                      style={{ color: "var(--ink)" }}
+                    >
+                      {cleanQuery(a.query)}
+                    </div>
+                  </div>
+
+                  {/* Status + jugement */}
+                  <div className="shrink-0 flex items-center gap-3 text-right">
+                    {a.jugement_resultat && (
+                      <span
+                        className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.05em] font-semibold px-2 py-0.5 rounded"
+                        style={{
+                          color:
+                            a.jugement_resultat === "favorable"
+                              ? "var(--emerald, #2d6a4f)"
+                              : a.jugement_resultat === "partiellement_favorable"
+                                ? "var(--amber, #ca6702)"
+                                : "var(--bordeaux, #9b2226)",
+                          background: "color-mix(in srgb, currentColor 10%, transparent)",
+                        }}
+                      >
+                        <Gavel className="h-3 w-3" />
+                        {a.jugement_resultat === "favorable"
+                          ? "Favorable"
+                          : a.jugement_resultat === "partiellement_favorable"
+                            ? "Partiel"
+                            : "Défavorable"}
+                      </span>
+                    )}
+                    <span
+                      className="font-mono text-[9px] uppercase tracking-[0.15em] px-2 py-0.5 rounded"
+                      style={{
+                        color:
+                          a.status === "done"
+                            ? "var(--emerald, #2d6a4f)"
+                            : a.status === "error"
+                              ? "var(--bordeaux, #9b2226)"
+                              : "var(--muted-foreground)",
+                        background: "var(--paper)",
+                      }}
+                    >
+                      {a.status === "done"
+                        ? "Terminé"
                         : a.status === "error"
-                          ? "bg-rose-50 text-rose-600"
-                          : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {a.status === "done"
-                      ? "Termine"
-                      : a.status === "error"
-                        ? "Erreur"
-                        : "En cours"}
-                  </span>
-                </div>
+                          ? "Erreur"
+                          : "En cours"}
+                    </span>
+                    <ArrowRight
+                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
+                      style={{ color: "var(--muted-foreground)" }}
+                    />
+                  </div>
+                </Link>
 
-                <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-400" />
-              </Link>
-
-              {/* Delete button */}
-              <button
-                onClick={() => handleDelete(a.id)}
-                disabled={deleting === a.id}
-                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-300 opacity-100 transition-all hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100"
-                title="Supprimer"
-              >
-                <Trash2 className={`h-3.5 w-3.5 ${deleting === a.id ? "animate-pulse" : ""}`} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+                {/* Delete button */}
+                <button
+                  onClick={() => handleDelete(a.id)}
+                  disabled={deleting === a.id}
+                  className="shrink-0 flex h-8 w-8 items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                  style={{
+                    color: "var(--muted-foreground)",
+                  }}
+                  title="Supprimer"
+                >
+                  <Trash2
+                    className={`h-3.5 w-3.5 ${deleting === a.id ? "animate-pulse" : ""}`}
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

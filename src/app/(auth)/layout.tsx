@@ -1,14 +1,6 @@
 import Link from "next/link";
-import {
-  Scale,
-  Shield,
-  Gavel,
-  Search,
-  BarChart3,
-  Target,
-  FileText,
-  Database,
-} from "lucide-react";
+import { Shield, Gavel, Search, BarChart3, Target, FileText, Database } from "lucide-react";
+import { LogoMark, LogoWordmark } from "@/components/brand/logo";
 
 export default function AuthLayout({
   children,
@@ -16,78 +8,101 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
-      {/* Left panel — branding + marketing */}
-      <div className="relative hidden w-[520px] shrink-0 overflow-y-auto lg:flex lg:flex-col xl:w-[580px]">
-        {/* Deep navy gradient background */}
-        <div className="absolute inset-0 gradient-navy" />
-        <div className="noise absolute inset-0" />
-        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-[#c9a96e]/10 blur-3xl" />
-        <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-[#1e3a5f]/30 blur-3xl" />
-
-        <div className="relative z-10 flex h-full flex-col justify-between p-8 xl:p-10">
+    <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
+      {/* Left panel — branding + marketing (style dark éditorial) */}
+      <div
+        className="relative hidden w-[520px] shrink-0 overflow-y-auto lg:flex lg:flex-col xl:w-[580px]"
+        style={{ background: "#0b1220" }}
+      >
+        <div className="relative z-10 flex h-full flex-col justify-between p-10 xl:p-12">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#c9a96e]/15 backdrop-blur-sm">
-              <Scale className="h-5 w-5 text-[#c9a96e]" />
+          <div className="flex items-center gap-2.5">
+            <LogoMark size={30} tone="dark" />
+            <div>
+              <div
+                className="font-serif text-[18px] font-medium leading-none text-white"
+                style={{ letterSpacing: "-0.01em" }}
+              >
+                Datavocat
+              </div>
+              <div className="font-mono text-[9px] uppercase tracking-[0.22em] mt-1 text-white/50">
+                Jurimétrie
+              </div>
             </div>
-            <span className="font-serif text-2xl tracking-tight text-white">
-              Datavocat
-            </span>
           </div>
 
           {/* Slogan + value prop */}
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div>
-              <h2 className="font-serif text-3xl leading-tight text-white xl:text-[2.5rem] xl:leading-[1.15]">
-                Plaidez avec
-                <span className="block text-[#c9a96e]">
-                  la force des donnees.
+              <div className="font-mono text-[10px] uppercase tracking-[0.25em] mb-4 text-[#c9a96e]">
+                § Jurimétrie · 562 487 décisions
+              </div>
+              <h2 className="font-serif text-[44px] leading-[1.05] font-medium text-white">
+                Plaidez avec la{" "}
+                <span
+                  className="italic"
+                  style={{
+                    fontFamily: "var(--font-display), 'Instrument Serif', Georgia, serif",
+                    color: "#c9a96e",
+                    fontWeight: 400,
+                  }}
+                >
+                  force des données.
                 </span>
               </h2>
-              <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-slate-400">
-                Analysez 500 000+ decisions de justice en quelques secondes.
-                Obtenez statistiques, tendances et recommandations strategiques
-                pour chaque dossier.
+              <p className="mt-5 max-w-sm text-[14.5px] leading-relaxed text-white/60">
+                Analysez la jurisprudence en quelques secondes. Statistiques, tendances et recommandations stratégiques pour chaque dossier.
               </p>
             </div>
 
-            {/* 4 etapes — compact */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* 4 étapes — éditorial, filets au lieu de cards */}
+            <div className="space-y-3">
               {[
-                { icon: Search, label: "Recherche intelligente" },
-                { icon: BarChart3, label: "Statistiques en temps reel" },
-                { icon: Target, label: "Recommandations IA" },
-                { icon: FileText, label: "Export PDF & DOCX" },
-              ].map((item, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2.5 rounded-lg bg-white/[0.05] px-3.5 py-2.5 backdrop-blur-sm"
-                >
-                  <item.icon className="h-4 w-4 shrink-0 text-[#c9a96e]" />
-                  <span className="text-[13px] font-medium text-slate-300">
-                    {item.label}
-                  </span>
-                </div>
-              ))}
+                { icon: Search, label: "Recherche intelligente", detail: "Moteur Judilibre + data.gouv.fr" },
+                { icon: BarChart3, label: "Statistiques en temps réel", detail: "Taux de succès par argument & juridiction" },
+                { icon: Target, label: "Recommandations stratégiques", detail: "Fondées sur la jurisprudence réelle" },
+                { icon: FileText, label: "Export multi-format", detail: "PDF, DOCX, CSV, JSON" },
+              ].map((item, i) => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 py-2"
+                    style={{
+                      borderBottom:
+                        i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                    }}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0 text-[#c9a96e]" />
+                    <div className="flex-1">
+                      <div className="text-[13px] font-medium text-white/90">
+                        {item.label}
+                      </div>
+                      <div className="text-[11px] text-white/50 mt-0.5">
+                        {item.detail}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {/* Trust badges */}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-3 text-[10.5px] font-mono uppercase tracking-[0.15em] text-white/40">
             <span className="flex items-center gap-1.5">
               <Database className="h-3 w-3" />
               Judilibre + data.gouv.fr
             </span>
-            <span className="h-3 w-px bg-slate-700" />
+            <span className="h-3 w-px bg-white/20" />
             <span className="flex items-center gap-1.5">
               <Shield className="h-3 w-3" />
               Conforme RGPD
             </span>
-            <span className="h-3 w-px bg-slate-700" />
+            <span className="h-3 w-px bg-white/20" />
             <span className="flex items-center gap-1.5">
               <Gavel className="h-3 w-3" />
-              Heberge en France
+              Hébergé en France
             </span>
           </div>
         </div>
@@ -95,17 +110,14 @@ export default function AuthLayout({
 
       {/* Right panel — form */}
       <div className="flex flex-1 flex-col">
-        {/* Mobile logo + mini marketing */}
+        {/* Mobile logo */}
         <div className="px-6 pt-6 lg:hidden">
-          <div className="flex items-center gap-2.5">
-            <Scale className="h-6 w-6 text-[#1e3a5f]" />
-            <span className="font-serif text-xl text-[#1e3a5f]">
-              Datavocat
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            L&apos;intelligence jurimetrique au service de votre strategie.
-            Analysez 500 000+ decisions en quelques secondes.
+          <LogoWordmark tone="light" />
+          <p
+            className="mt-3 text-[13px]"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            L&apos;intelligence jurimétrique au service de votre stratégie.
           </p>
         </div>
 
@@ -114,21 +126,27 @@ export default function AuthLayout({
         </div>
 
         {/* Footer */}
-        <div className="flex flex-wrap items-center justify-center gap-4 border-t border-border/40 px-6 py-4 text-xs text-muted-foreground sm:gap-6">
-          <span>Datavocat &copy; 2026</span>
-          <span className="hidden h-3 w-px bg-border sm:block" />
+        <div
+          className="flex flex-wrap items-center justify-center gap-4 px-6 py-4 text-[11px] font-mono uppercase tracking-[0.12em] sm:gap-6"
+          style={{
+            borderTop: "1px solid var(--line)",
+            color: "var(--muted-foreground)",
+          }}
+        >
+          <span>Datavocat © 2026</span>
+          <span className="hidden h-3 w-px sm:block" style={{ background: "var(--line)" }} />
           <Link
             href="/cgu"
-            className="transition-colors hover:text-foreground"
+            className="transition-colors hover:text-[color:var(--ink)]"
           >
-            Conditions d&apos;utilisation
+            CGU
           </Link>
-          <span className="hidden h-3 w-px bg-border sm:block" />
+          <span className="hidden h-3 w-px sm:block" style={{ background: "var(--line)" }} />
           <Link
             href="/confidentialite"
-            className="transition-colors hover:text-foreground"
+            className="transition-colors hover:text-[color:var(--ink)]"
           >
-            Politique de confidentialite
+            Confidentialité
           </Link>
         </div>
       </div>

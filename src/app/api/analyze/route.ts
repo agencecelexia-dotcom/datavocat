@@ -64,10 +64,19 @@ export async function POST(request: NextRequest) {
   }
 
   // Search both sources in parallel with timeouts
-  const [judilibreContext, datagouvContext] = await Promise.all([
+  const emptyJudilibre = {
+    context: "",
+    analyzedCount: 0,
+    totalFound: 0,
+    oldestDate: null as string | null,
+    freshestDate: null as string | null,
+  };
+  const [judilibreResult, datagouvContext] = await Promise.all([
     Promise.race([
-      searchJudilibreForAnalysis(query).catch(() => ""),
-      new Promise<string>((resolve) => setTimeout(() => resolve(""), 12000)),
+      searchJudilibreForAnalysis(query).catch(() => emptyJudilibre),
+      new Promise<typeof emptyJudilibre>((resolve) =>
+        setTimeout(() => resolve(emptyJudilibre), 12000)
+      ),
     ]),
     Promise.race([
       searchJusticeDatasets(query).catch(() => ""),
@@ -75,6 +84,7 @@ export async function POST(request: NextRequest) {
     ]),
   ]);
 
+  const judilibreContext = judilibreResult.context;
   const hasJudilibre =
     judilibreContext.includes("JUDILIBRE") &&
     judilibreContext.includes("decisions trouvees");
@@ -88,7 +98,7 @@ export async function POST(request: NextRequest) {
   if (hasDatagouv) sourceBlock += `\n${datagouvContext}\n`;
 
   const sourceInstruction = hasJudilibre
-    ? `Des decisions Judilibre sont fournies ci-dessous (${judilibreContext.split("---").length - 1} decisions reelles verifiables). Analyse-les en priorite. Complete avec tes connaissances.`
+    ? `Des decisions Judilibre sont fournies ci-dessous (${judilibreResult.analyzedCount} decisions reelles verifiables sur ${judilibreResult.totalFound} trouvees au total). Analyse-les en priorite. Complete avec tes connaissances.`
     : "IMPORTANT : L'API Judilibre n'a pas retourne de resultats pour cette recherche. Tu DOIS quand meme fournir une analyse COMPLETE et DETAILLEE basee sur tes connaissances approfondies de la jurisprudence francaise. Tu connais des milliers d'arrets — mobilise-les. Cite les arrets de principe, les tendances, les statistiques documentees. Ne dis PAS que tu n'as pas de donnees — tu en as dans tes connaissances.";
 
   const userMessage = `DEMANDE DE L'AVOCAT :
@@ -103,14 +113,19 @@ IMPORTANT : cite un MAXIMUM de sources pertinentes. Analyse TOUTES les decisions
 
 PRIORITE ABSOLUE — TABLEAU DE PREUVE STATISTIQUE :
 Le tableau de preuve est la section LA PLUS IMPORTANTE. Il doit :
-1. Contenir MINIMUM 20 decisions (vise 25-30)
+1. Contenir MINIMUM 25 decisions (vise 40-50)
 2. Avoir MINIMUM 18 colonnes dont 12+ colonnes de FACTEURS JURIDIQUES DECISIFS
 3. Chaque colonne = un facteur qui influence l'issue du litige (ex: "Procedure respectee", "Cause reelle et serieuse", "Indemnite", "Forclusion", etc.)
 4. PAS de colonnes generiques inutiles — chaque colonne doit avoir une VALEUR JURIDIQUE DECISIVE
 5. Le tableau doit EXPLIQUER et JUSTIFIER les statistiques avancees (pourquoi X% de succes)
 6. Privilegier les decisions RECENTES (moins de 5 ans)
 7. Ne JAMAIS fabriquer de fausses decisions
-Sois EXHAUSTIF dans le tableau — c'est la preuve statistique pour l'avocat.`;
+Sois EXHAUSTIF dans le tableau — c'est la preuve statistique pour l'avocat.
+
+RAPPEL ABSOLU — ARTICLE 33 LOI n° 2019-222 :
+- NE NOMME AUCUN magistrat, juge, president, rapporteur, conseiller.
+- Si les sources Judilibre contiennent des noms, ils doivent etre remplaces par "[magistrat anonymise]" avant toute citation.
+- Seules les juridictions (lieu, chambre, ressort) peuvent etre identifiees.`;
 
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",
@@ -125,6 +140,20 @@ Sois EXHAUSTIF dans le tableau — c'est la preuve statistique pour l'avocat.`;
   const readableStream = new ReadableStream({
     async start(controller) {
       try {
+        // Préludes d'étapes — le front les intercepte pour animer le loader.
+        // Chaque ligne commence par "[STEP:" et finit par "]\n".
+        controller.enqueue(
+          encoder.encode(
+            `[STEP:judilibre:done count=${judilibreResult.analyzedCount} total=${judilibreResult.totalFound}]\n`
+          )
+        );
+        controller.enqueue(
+          encoder.encode(
+            `[STEP:datagouv:done has=${hasDatagouv ? 1 : 0}]\n`
+          )
+        );
+        controller.enqueue(encoder.encode("[STEP:claude:start]\n"));
+
         for await (const event of stream) {
           if (
             event.type === "content_block_delta" &&
@@ -136,7 +165,9 @@ Sois EXHAUSTIF dans le tableau — c'est la preuve statistique pour l'avocat.`;
           }
         }
 
-        // Save completed response
+        controller.enqueue(encoder.encode("\n[STEP:claude:done]\n"));
+
+        // Save completed response (sans les balises [STEP:])
         if (id) {
           await supabase
             .from("analyses")
@@ -163,6 +194,10 @@ Sois EXHAUSTIF dans le tableau — c'est la preuve statistique pour l'avocat.`;
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "X-Analysis-Id": id || "",
+      "X-Decisions-Analyzed": String(judilibreResult.analyzedCount),
+      "X-Decisions-Found": String(judilibreResult.totalFound),
+      "X-Decisions-Oldest": judilibreResult.oldestDate || "",
+      "X-Decisions-Freshest": judilibreResult.freshestDate || "",
     },
   });
 }

@@ -1,6 +1,6 @@
 export default function CGUPage() {
   return (
-    <article className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-serif prose-h1:text-[#1e3a5f] prose-h2:text-[#1e3a5f] prose-h3:text-[#1e3a5f] prose-a:text-[#1e3a5f]">
+    <article className="legal-prose">
       <h1>Conditions générales d&apos;utilisation</h1>
       <p className="lead">
         Les présentes conditions générales d&apos;utilisation (CGU) régissent

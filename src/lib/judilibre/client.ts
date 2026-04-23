@@ -12,6 +12,32 @@
 
 const JUDILIBRE_BASE = "https://api.piste.gouv.fr/cassation/judilibre/v1.0";
 
+/** Nombre maximum de décisions injectées dans le contexte Claude par analyse. */
+export const JUDILIBRE_MAX_CONTEXT = 100;
+
+/** Fenêtre de fraîcheur en années : on récupère prioritairement les décisions des N dernières années. */
+export const JUDILIBRE_FRESHNESS_YEARS = 5;
+
+/**
+ * Masque les noms de magistrats identifiables dans un texte brut Judilibre,
+ * en conformité avec l'article 33 de la loi n° 2019-222.
+ */
+export function stripMagistratNames(text: string): string {
+  if (!text) return text;
+  let out = text;
+  // Titres suivis d'un nom propre (M. Dupont, Mme. Martin, Monsieur Durand…)
+  out = out.replace(
+    /\b(M\.|Mme\.?|Mlle\.?|Monsieur|Madame)\s+[A-ZÀ-ÿ][a-zà-ÿ'’-]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ'’-]+)?/g,
+    "[magistrat anonymisé]"
+  );
+  // Fonctions juridictionnelles suivies d'un nom propre
+  out = out.replace(
+    /\b(Président(?:e)?|Rapporteur(?:e)?|Conseiller(?:ère)?|Avocat(?:e)? général(?:e)?|Greffier(?:e)?|Procureur(?:e)?)\s*[:—–-]?\s*[A-ZÀ-ÿ][a-zà-ÿ'’-]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ'’-]+)?/g,
+    "$1 [anonymisé]"
+  );
+  return out;
+}
+
 function getHeaders(): Record<string, string> {
   const keyId = process.env.PISTE_KEY_ID;
   if (!keyId) {
@@ -268,6 +294,19 @@ function detectChamber(query: string): string[] | undefined {
   return undefined; // No filter = search all chambers
 }
 
+export interface JudilibreAnalysisContext {
+  /** Bloc texte à injecter dans le prompt Claude. */
+  context: string;
+  /** Nombre de décisions effectivement passées à Claude (après dédup + slice). */
+  analyzedCount: number;
+  /** Nombre total de décisions remontées par Judilibre sur cette requête (estimation). */
+  totalFound: number;
+  /** Date la plus ancienne du corpus analysé (YYYY-MM-DD) ou null. */
+  oldestDate: string | null;
+  /** Date la plus récente du corpus analysé (YYYY-MM-DD) ou null. */
+  freshestDate: string | null;
+}
+
 /**
  * Search and format results for injection into Claude analysis context.
  * Uses multi-strategy search: extracts keywords, runs parallel searches,
@@ -275,26 +314,50 @@ function detectChamber(query: string): string[] | undefined {
  */
 export async function searchJudilibreForAnalysis(
   userQuery: string
-): Promise<string> {
+): Promise<JudilibreAnalysisContext> {
   const keyId = process.env.PISTE_KEY_ID;
   if (!keyId) {
-    return "API Judilibre non configuree (PISTE_KEY_ID manquant). Pour activer : inscription gratuite sur https://piste.gouv.fr puis ajouter PISTE_KEY_ID.";
+    return {
+      context:
+        "API Judilibre non configuree (PISTE_KEY_ID manquant). Pour activer : inscription gratuite sur https://piste.gouv.fr puis ajouter PISTE_KEY_ID.",
+      analyzedCount: 0,
+      totalFound: 0,
+      oldestDate: null,
+      freshestDate: null,
+    };
   }
 
   try {
     const searchQueries = extractSearchQueries(userQuery);
     const chamber = detectChamber(userQuery);
 
-    // Run all search strategies in parallel
+    // Fenêtre de fraîcheur : 5 ans par défaut pour capter les décisions 2024-2025
+    // et au-delà, tout en gardant la possibilité d'élargir par requête.
+    const now = new Date();
+    const dateEnd = now.toISOString().slice(0, 10);
+    const dateStartRecent = new Date(
+      now.getFullYear() - JUDILIBRE_FRESHNESS_YEARS,
+      now.getMonth(),
+      now.getDate()
+    )
+      .toISOString()
+      .slice(0, 10);
+
+    // Run all search strategies in parallel, priorité aux 5 dernières années.
     const searchPromises = searchQueries.map((q) =>
       searchJudilibre({
         query: q,
         operator: "or",
         sort: "score",
         order: "desc",
-        pageSize: 30,
+        pageSize: 40,
         chamber,
-      }).catch(() => ({ results: [], total: 0, query: q } as JudilibreSearchResult))
+        dateStart: dateStartRecent,
+        dateEnd,
+      }).catch(
+        () =>
+          ({ results: [], total: 0, query: q } as JudilibreSearchResult)
+      )
     );
 
     // Also run a broad search with OR on the full query (truncated)
@@ -304,8 +367,13 @@ export async function searchJudilibreForAnalysis(
         operator: "or",
         sort: "score",
         order: "desc",
-        pageSize: 30,
-      }).catch(() => ({ results: [], total: 0, query: userQuery } as JudilibreSearchResult))
+        pageSize: 40,
+        dateStart: dateStartRecent,
+        dateEnd,
+      }).catch(
+        () =>
+          ({ results: [], total: 0, query: userQuery } as JudilibreSearchResult)
+      )
     );
 
     const allResults = await Promise.all(searchPromises);
@@ -322,6 +390,35 @@ export async function searchJudilibreForAnalysis(
         if (!seenEcli.has(key)) {
           seenEcli.add(key);
           uniqueDecisions.push(dec);
+        }
+      }
+    }
+
+    // Fallback élargi : si trop peu de décisions dans la fenêtre récente,
+    // on refait un passage sans filtre de date pour capter les arrêts de principe.
+    if (uniqueDecisions.length < JUDILIBRE_MAX_CONTEXT / 2) {
+      const fallbackPromises = searchQueries.map((q) =>
+        searchJudilibre({
+          query: q,
+          operator: "or",
+          sort: "score",
+          order: "desc",
+          pageSize: 40,
+          chamber,
+        }).catch(
+          () =>
+            ({ results: [], total: 0, query: q } as JudilibreSearchResult)
+        )
+      );
+      const fallback = await Promise.all(fallbackPromises);
+      for (const result of fallback) {
+        totalAcrossSearches = Math.max(totalAcrossSearches, result.total);
+        for (const dec of result.results) {
+          const key = dec.ecli || dec.id;
+          if (!seenEcli.has(key)) {
+            seenEcli.add(key);
+            uniqueDecisions.push(dec);
+          }
         }
       }
     }
@@ -358,20 +455,39 @@ export async function searchJudilibreForAnalysis(
     }
 
     if (uniqueDecisions.length === 0) {
-      return `Judilibre : aucune decision trouvee. Recherches tentees : ${searchQueries.join(" | ")}`;
+      return {
+        context: `Judilibre : aucune decision trouvee. Recherches tentees : ${searchQueries.join(" | ")}`,
+        analyzedCount: 0,
+        totalFound: totalAcrossSearches,
+        oldestDate: null,
+        freshestDate: null,
+      };
     }
 
-    // Take the top 60 unique decisions for richer statistical analysis
-    const topDecisions = uniqueDecisions.slice(0, 60);
+    // Take the top JUDILIBRE_MAX_CONTEXT unique decisions for richer statistical analysis
+    const topDecisions = uniqueDecisions.slice(0, JUDILIBRE_MAX_CONTEXT);
+    const dates = topDecisions.map((d) => d.date).filter(Boolean).sort();
 
-    return formatJudilibreResults({
-      results: topDecisions,
-      total: totalAcrossSearches,
-      query: searchQueries.join(" + "),
-    });
+    return {
+      context: formatJudilibreResults({
+        results: topDecisions,
+        total: totalAcrossSearches,
+        query: searchQueries.join(" + "),
+      }),
+      analyzedCount: topDecisions.length,
+      totalFound: totalAcrossSearches,
+      oldestDate: dates[0] ?? null,
+      freshestDate: dates[dates.length - 1] ?? null,
+    };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erreur inconnue";
-    return `Erreur Judilibre : ${msg}`;
+    return {
+      context: `Erreur Judilibre : ${msg}`,
+      analyzedCount: 0,
+      totalFound: 0,
+      oldestDate: null,
+      freshestDate: null,
+    };
   }
 }
 
@@ -406,7 +522,7 @@ function formatJudilibreResults(result: JudilibreSearchResult): string {
       context += `Themes: ${dec.themes.slice(0, 5).join(", ")}\n`;
     }
     if (dec.sommaire) {
-      context += `Sommaire: ${dec.sommaire.slice(0, 400)}\n`;
+      context += `Sommaire: ${stripMagistratNames(dec.sommaire.slice(0, 400))}\n`;
     }
     if (dec.titrage && dec.titrage.length > 0) {
       context += `Titrage: ${dec.titrage.join(" > ")}\n`;
@@ -420,13 +536,13 @@ function formatJudilibreResults(result: JudilibreSearchResult): string {
         .map((h) => h.replace(/<\/?em>/g, ""))
         .join(" [...] ");
       if (excerpts) {
-        context += `Extraits pertinents: ${excerpts.slice(0, 600)}\n`;
+        context += `Extraits pertinents: ${stripMagistratNames(excerpts.slice(0, 600))}\n`;
       }
     }
 
     // Full text excerpt as fallback
     if (!dec.highlights && dec.text) {
-      context += `Extrait: ${dec.text.slice(0, 400)}...\n`;
+      context += `Extrait: ${stripMagistratNames(dec.text.slice(0, 400))}...\n`;
     }
 
     context += "\n";

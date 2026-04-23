@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthContext } from "@/lib/supabase/auth-helper";
+import type { ParsedAnalysis } from "@/lib/parse-analysis";
 import {
   Document,
   Packer,
@@ -17,6 +18,8 @@ import {
 
 export const maxDuration = 30;
 
+const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024; // 5 Mo
+
 export async function POST(request: NextRequest) {
   const auth = await getAuthContext();
   if (!auth) {
@@ -25,15 +28,36 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const { query, response, parsed } = await request.json();
+  let query: string;
+  let response: string;
+  let parsed: ParsedAnalysis | null | undefined;
+  try {
+    const body = await request.json();
+    query = body.query;
+    response = body.response;
+    parsed = body.parsed;
+  } catch {
+    return new Response(JSON.stringify({ error: "JSON invalide" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
-  if (!response) {
+  if (!response || typeof response !== "string") {
     return new Response(JSON.stringify({ error: "response requis" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
 
+  if (response.length > MAX_PAYLOAD_SIZE) {
+    return new Response(
+      JSON.stringify({ error: "L'analyse est trop volumineuse pour être exportée en DOCX." }),
+      { status: 413, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  try {
   const children: (Paragraph | Table)[] = [];
 
   // Cover page
@@ -354,17 +378,25 @@ export async function POST(request: NextRequest) {
     ],
   });
 
-  const buffer = await Packer.toBuffer(doc);
-  const uint8 = new Uint8Array(buffer);
+    const buffer = await Packer.toBuffer(doc);
+    const uint8 = new Uint8Array(buffer);
 
-  return new Response(uint8.buffer as ArrayBuffer, {
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition":
-        'attachment; filename="datavocat-analyse.docx"',
-    },
-  });
+    return new Response(uint8.buffer as ArrayBuffer, {
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Content-Disposition":
+          'attachment; filename="datavocat-analyse.docx"',
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    console.error("DOCX export failed", err);
+    return new Response(
+      JSON.stringify({ error: `Échec de la génération DOCX : ${message}` }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 }
 
 function parseInlineFormatting(text: string): TextRun[] {

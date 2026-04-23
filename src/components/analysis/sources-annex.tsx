@@ -8,18 +8,25 @@ import {
   CheckCircle2,
   XCircle,
   MinusCircle,
-  BookOpen,
   Filter,
   Search,
 } from "lucide-react";
 import type { ParsedAnalysis, DetailedSource } from "@/lib/parse-analysis";
 
-const NAVY = "#1e3a5f";
+const EMERALD = "var(--emerald, #2d6a4f)";
+const BORDEAUX = "var(--bordeaux, #9b2226)";
+const AMBER = "var(--amber, #ca6702)";
 
 function PertinenceBadge({ value }: { value: DetailedSource["pertinence"] }) {
   if (value === "favorable") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+      <span
+        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.05em] font-semibold px-2 py-0.5 rounded"
+        style={{
+          color: EMERALD,
+          background: "color-mix(in srgb, var(--emerald, #2d6a4f) 10%, transparent)",
+        }}
+      >
         <CheckCircle2 className="h-3 w-3" />
         Favorable
       </span>
@@ -27,15 +34,27 @@ function PertinenceBadge({ value }: { value: DetailedSource["pertinence"] }) {
   }
   if (value === "defavorable") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+      <span
+        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.05em] font-semibold px-2 py-0.5 rounded"
+        style={{
+          color: BORDEAUX,
+          background: "color-mix(in srgb, var(--bordeaux, #9b2226) 10%, transparent)",
+        }}
+      >
         <XCircle className="h-3 w-3" />
-        Defavorable
+        Défavorable
       </span>
     );
   }
   if (value === "neutre") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+      <span
+        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.05em] font-semibold px-2 py-0.5 rounded"
+        style={{
+          color: "var(--muted-foreground)",
+          background: "var(--paper)",
+        }}
+      >
         <MinusCircle className="h-3 w-3" />
         Neutre
       </span>
@@ -48,11 +67,12 @@ function SourceBadge({ value }: { value: string }) {
   const isJudilibre = value.toLowerCase().includes("judilibre");
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-        isJudilibre
-          ? "border-blue-200 bg-blue-50 text-blue-700"
-          : "border-amber-200 bg-amber-50 text-amber-700"
-      }`}
+      className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.05em] font-medium px-2 py-0.5 rounded"
+      style={{
+        border: "1px solid var(--line)",
+        background: "var(--paper)",
+        color: isJudilibre ? "var(--navy)" : AMBER,
+      }}
     >
       {isJudilibre ? "Judilibre" : "Connaissance"}
     </span>
@@ -70,32 +90,52 @@ function SourceRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const leftBorderColor =
+    source.pertinence === "favorable"
+      ? EMERALD
+      : source.pertinence === "defavorable"
+        ? BORDEAUX
+        : source.pertinence === "neutre"
+          ? "var(--muted-foreground)"
+          : "transparent";
+
   return (
     <div
-      className={`border-b border-slate-200 transition-colors duration-200 ${
-        expanded ? "bg-slate-50" : "hover:bg-slate-50/50"
-      }`}
+      className="transition-colors"
+      style={{
+        borderBottom: "1px solid var(--line-soft)",
+        borderLeft: `3px solid ${leftBorderColor}`,
+        background: expanded ? "var(--paper)" : "transparent",
+      }}
     >
-      {/* Main row */}
       <button
         onClick={onToggle}
-        className="flex w-full cursor-pointer items-center gap-2 px-3 py-3 text-left sm:gap-4 sm:px-5 sm:py-3.5"
+        className="flex w-full cursor-pointer items-start gap-3 px-3 py-3 text-left sm:gap-4 sm:px-5 sm:py-3.5"
       >
         {/* Index */}
         <div
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-          style={{ backgroundColor: NAVY }}
+          className="shrink-0 w-8 h-8 flex items-center justify-center font-mono text-[11px] font-semibold rounded"
+          style={{
+            background: "color-mix(in srgb, var(--gold) 10%, transparent)",
+            color: "var(--gold)",
+          }}
         >
-          {index + 1}
+          {String(index + 1).padStart(2, "0")}
         </div>
 
-        {/* Reference + date */}
+        {/* Reference + metadata */}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-slate-900">
+          <p
+            className="font-serif text-[13.5px] font-medium leading-tight"
+            style={{ color: "var(--ink)" }}
+          >
             {source.reference}
           </p>
           {(source.chambre || source.date || source.juridiction) && (
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p
+              className="mt-0.5 text-[11px]"
+              style={{ color: "var(--muted-foreground)" }}
+            >
               {[source.chambre, source.date, source.juridiction]
                 .filter(Boolean)
                 .join(" — ")}
@@ -104,108 +144,125 @@ function SourceRow({
         </div>
 
         {/* Badges */}
-        <div className="hidden items-center gap-2 sm:flex">
+        <div className="hidden items-center gap-2 sm:flex shrink-0">
           <PertinenceBadge value={source.pertinence} />
           {source.source && <SourceBadge value={source.source} />}
         </div>
 
         {/* Solution */}
         {source.solution && (
-          <span className="hidden rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700 lg:inline-block">
+          <span
+            className="hidden font-mono text-[10px] uppercase tracking-[0.05em] px-2 py-0.5 rounded lg:inline-block shrink-0"
+            style={{
+              background: "var(--paper)",
+              color: "var(--muted-foreground)",
+              border: "1px solid var(--line)",
+            }}
+          >
             {source.solution}
           </span>
         )}
 
-        {/* Expand icon */}
+        {/* Chevron */}
         {expanded ? (
-          <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+          <ChevronUp className="h-4 w-4 shrink-0 mt-1" style={{ color: "var(--muted-foreground)" }} />
         ) : (
-          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+          <ChevronDown className="h-4 w-4 shrink-0 mt-1" style={{ color: "var(--muted-foreground)" }} />
         )}
       </button>
 
-      {/* Expanded detail */}
       {expanded && (
-        <div className="animate-fade-in-up border-t border-slate-100 px-3 pb-3 pt-2.5 sm:px-5 sm:pb-4 sm:pt-3">
+        <div
+          className="animate-fade-in-up px-3 pb-4 sm:px-5 sm:pb-5"
+          style={{ borderTop: "1px solid var(--line-soft)" }}
+        >
           {/* Mobile badges */}
-          <div className="mb-3 flex flex-wrap items-center gap-2 sm:hidden">
+          <div className="mb-3 mt-3 flex flex-wrap items-center gap-2 sm:hidden">
             <PertinenceBadge value={source.pertinence} />
             {source.source && <SourceBadge value={source.source} />}
             {source.solution && (
-              <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.05em] px-2 py-0.5 rounded"
+                style={{
+                  background: "var(--paper)",
+                  color: "var(--muted-foreground)",
+                }}
+              >
                 {source.solution}
               </span>
             )}
           </div>
 
           {/* Detail grid */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {source.juridiction && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  Juridiction
-                </p>
-                <p className="mt-0.5 text-sm text-slate-800">
-                  {source.juridiction}
-                </p>
-              </div>
-            )}
-            {source.chambre && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  Chambre
-                </p>
-                <p className="mt-0.5 text-sm text-slate-800">
-                  {source.chambre}
-                </p>
-              </div>
-            )}
-            {source.date && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  Date
-                </p>
-                <p className="mt-0.5 text-sm text-slate-800">{source.date}</p>
-              </div>
-            )}
-            {source.solution && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  Solution
-                </p>
-                <p className="mt-0.5 text-sm text-slate-800">
-                  {source.solution}
-                </p>
-              </div>
-            )}
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <DetailField label="Juridiction" value={source.juridiction} />
+            <DetailField label="Chambre" value={source.chambre} />
+            <DetailField label="Date" value={source.date} />
+            <DetailField label="Solution" value={source.solution} />
           </div>
 
-          {/* Apport — the key value */}
+          {/* Apport */}
           {source.apport && (
-            <div className="mt-3 rounded-lg border border-[#c9a96e]/20 bg-[#c9a96e]/5 p-3.5">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[#c9a96e]">
+            <div
+              className="mt-3 pl-4"
+              style={{ borderLeft: "2px solid var(--gold)" }}
+            >
+              <div
+                className="font-mono text-[9.5px] uppercase tracking-[0.2em] mb-1"
+                style={{ color: "var(--gold)" }}
+              >
                 Apport pour le dossier
-              </p>
-              <p className="text-sm leading-relaxed text-slate-800">
+              </div>
+              <p
+                className="text-[13px] leading-relaxed"
+                style={{ color: "var(--ink)" }}
+              >
                 {source.apport}
               </p>
             </div>
           )}
 
-          {/* Link to Legifrance */}
+          {/* Link */}
           {source.url && (
             <a
               href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 px-3 py-1.5 text-xs font-medium text-[#1e3a5f] transition-all hover:bg-[#1e3a5f]/10"
+              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-medium rounded-md transition-colors"
+              style={{
+                border: "1px solid var(--line)",
+                color: "var(--ink)",
+                background: "var(--card)",
+              }}
             >
               <ExternalLink className="h-3 w-3" />
-              Consulter sur Judilibre
+              {source.url.includes("legifrance")
+                ? "Consulter sur Légifrance"
+                : "Consulter sur Judilibre"}
             </a>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <div>
+      <div
+        className="font-mono text-[9.5px] uppercase tracking-[0.15em]"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        {label}
+      </div>
+      <div
+        className="mt-0.5 text-[12.5px]"
+        style={{ color: "var(--ink)" }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -252,101 +309,121 @@ export function SourcesAnnex({ data }: { data: ParsedAnalysis }) {
   const neutreCount = detailedSources.filter((s) => s.pertinence === "neutre").length;
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* Header éditorial */}
       <div>
-        <h2 className="flex items-center gap-2.5 font-serif text-2xl text-slate-900">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1e3a5f]/10">
-            <BookOpen className="h-5 w-5 text-[#1e3a5f]" />
-          </div>
-          Annexe des sources
+        <div
+          className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
+          style={{ color: "var(--gold)" }}
+        >
+          § Annexe des sources
+        </div>
+        <h2 className="font-serif text-[28px] font-medium tracking-tight">
+          {detailedSources.length} décision{detailedSources.length !== 1 ? "s" : ""} <span className="dv-italic">citée{detailedSources.length !== 1 ? "s" : ""}.</span>
         </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          {detailedSources.length} decision{detailedSources.length !== 1 ? "s" : ""} citee{detailedSources.length !== 1 ? "s" : ""} dans l&apos;analyse — cliquez pour voir le detail
+        <p
+          className="mt-2 text-[13.5px] leading-relaxed max-w-2xl"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          Chaque entrée est identifiée par sa référence (ECLI, n° de pourvoi ou référence Cass.). Cliquez pour voir le détail complet et l&apos;apport pour votre dossier.
         </p>
       </div>
 
-      {/* Stats summary */}
-      {hasDetailed && (favorableCount > 0 || defavorableCount > 0) && (
-        <div className="flex flex-wrap gap-3">
+      {/* Stats chip line */}
+      {hasDetailed && (favorableCount > 0 || defavorableCount > 0 || neutreCount > 0) && (
+        <div
+          className="flex flex-wrap items-center gap-x-6 gap-y-2 py-3 pb-4"
+          style={{ borderBottom: "1px solid var(--line)" }}
+        >
+          <AnnexStatChip label="Total" value={detailedSources.length} color="var(--ink)" />
           {favorableCount > 0 && (
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-700">{favorableCount}</span>
-              <span className="text-xs text-emerald-600">favorable{favorableCount > 1 ? "s" : ""}</span>
-            </div>
+            <AnnexStatChip label="Favorables" value={favorableCount} color={EMERALD} />
           )}
           {defavorableCount > 0 && (
-            <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
-              <XCircle className="h-4 w-4 text-rose-600" />
-              <span className="text-sm font-semibold text-rose-700">{defavorableCount}</span>
-              <span className="text-xs text-rose-600">defavorable{defavorableCount > 1 ? "s" : ""}</span>
-            </div>
+            <AnnexStatChip label="Défavorables" value={defavorableCount} color={BORDEAUX} />
           )}
           {neutreCount > 0 && (
-            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <MinusCircle className="h-4 w-4 text-slate-500" />
-              <span className="text-sm font-semibold text-slate-600">{neutreCount}</span>
-              <span className="text-xs text-slate-500">neutre{neutreCount > 1 ? "s" : ""}</span>
-            </div>
+            <AnnexStatChip label="Neutres" value={neutreCount} color="var(--muted-foreground)" />
           )}
         </div>
       )}
 
-      {/* Filters + Search */}
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Search */}
         <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <Search
+            className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2"
+            style={{ color: "var(--muted-foreground)" }}
+          />
           <input
             type="text"
-            placeholder="Rechercher par reference, juridiction, contenu..."
+            placeholder="Rechercher par référence, juridiction, contenu…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#1e3a5f]/30 focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]/20"
+            className="w-full py-2 pl-9 pr-3 text-[12.5px] outline-none rounded-md"
+            style={{
+              border: "1px solid var(--line)",
+              background: "var(--card)",
+              color: "var(--ink)",
+            }}
           />
         </div>
 
-        {/* Filter pills */}
         {hasDetailed && (
           <div className="flex items-center gap-1.5">
-            <Filter className="h-3.5 w-3.5 text-slate-400" />
-            {(["all", "favorable", "defavorable", "neutre"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-200 ${
-                  filter === f
-                    ? f === "favorable"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : f === "defavorable"
-                        ? "bg-rose-100 text-rose-700"
-                        : f === "neutre"
-                          ? "bg-slate-200 text-slate-700"
-                          : "bg-[#1e3a5f] text-white"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-                }`}
-              >
-                {f === "all" ? "Toutes" : f.charAt(0).toUpperCase() + f.slice(1) + "s"}
-              </button>
-            ))}
+            <Filter className="h-3.5 w-3.5" style={{ color: "var(--muted-foreground)" }} />
+            {(["all", "favorable", "defavorable", "neutre"] as const).map((f) => {
+              const active = filter === f;
+              const label = f === "all" ? "Toutes" : f.charAt(0).toUpperCase() + f.slice(1) + "s";
+              return (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className="px-3 py-1 text-[11.5px] transition-colors cursor-pointer"
+                  style={{
+                    color: active ? "var(--ink)" : "var(--muted-foreground)",
+                    fontWeight: active ? 600 : 400,
+                    borderBottom: active ? "2px solid var(--gold)" : "2px solid transparent",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        {/* Table header */}
-        <div className="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:flex">
-          <div className="w-7" />
-          <div className="flex-1">Reference / Details</div>
-          <div className="hidden w-24 text-center sm:block">Pertinence</div>
-          <div className="hidden w-24 text-center sm:block">Source</div>
-          <div className="hidden w-20 text-center lg:block">Solution</div>
-          <div className="w-4" />
+      {/* Légende persistante */}
+      {hasDetailed && (
+        <div
+          className="rounded-md px-3 py-2 text-[11px] leading-relaxed"
+          style={{
+            border: "1px solid var(--line)",
+            background: "var(--paper)",
+            color: "var(--muted-foreground)",
+          }}
+        >
+          <span
+            className="font-mono uppercase tracking-[0.15em] text-[10px] mr-1.5"
+            style={{ color: "var(--ink)" }}
+          >
+            Légende&nbsp;:
+          </span>
+          <span style={{ color: EMERALD }}>Favorables</span> = issue favorable pour votre client,{" "}
+          <span style={{ color: BORDEAUX }}>Défavorables</span> = issue opposée,{" "}
+          <span>Neutres</span> = sans effet sur votre position.
         </div>
+      )}
 
-        {/* Rows */}
+      {/* List */}
+      <div
+        className="overflow-hidden rounded-md"
+        style={{
+          border: "1px solid var(--line)",
+          background: "var(--card)",
+        }}
+      >
         {filtered.length > 0 ? (
           filtered.map((source, i) => (
             <SourceRow
@@ -358,16 +435,49 @@ export function SourcesAnnex({ data }: { data: ParsedAnalysis }) {
             />
           ))
         ) : (
-          <div className="px-5 py-10 text-center text-sm text-slate-500">
+          <div
+            className="px-5 py-10 text-center text-[13px]"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             Aucune source ne correspond aux filtres.
           </div>
         )}
       </div>
 
       {/* Footer note */}
-      <p className="text-xs italic text-slate-400">
-        Les liens renvoient vers Judilibre (Cour de cassation). Verifiez systematiquement les decisions avant toute utilisation dans un acte de procedure.
+      <p
+        className="text-[10.5px] italic"
+        style={{ color: "var(--muted-foreground)", opacity: 0.8 }}
+      >
+        Les liens renvoient vers Légifrance ou Judilibre (Cour de cassation). Vérifiez systématiquement les décisions avant toute utilisation dans un acte de procédure.
       </p>
+    </div>
+  );
+}
+
+function AnnexStatChip({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <div
+        className="font-mono text-[20px] tabular-nums font-semibold"
+        style={{ color }}
+      >
+        {value}
+      </div>
+      <div
+        className="font-mono text-[10px] uppercase tracking-[0.15em]"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        {label}
+      </div>
     </div>
   );
 }
