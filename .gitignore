@@ -50,5 +50,6 @@ next-env.d.ts
 .claude/
 supabase/.temp/
 
-# Design sources (Claude Design exports — kept local only)
+# Design sources et dossier de tests PDF/DOCX
 .design/
+design/
