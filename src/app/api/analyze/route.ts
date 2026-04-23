@@ -101,35 +101,17 @@ export async function POST(request: NextRequest) {
   if (hasJudilibre) sourceBlock += `\n${judilibreContext}\n`;
   if (hasDatagouv) sourceBlock += `\n${datagouvContext}\n`;
 
+  // Les règles générales (tableau de preuve, article 33, structure, style)
+  // sont dans le system prompt caché. On garde uniquement le dynamique ici :
+  // query utilisateur + bloc Judilibre + signal de disponibilité des sources.
   const sourceInstruction = hasJudilibre
-    ? `Des decisions Judilibre sont fournies ci-dessous (${judilibreResult.analyzedCount} decisions reelles verifiables sur ${judilibreResult.totalFound} trouvees au total). Analyse-les en priorite. Complete avec tes connaissances.`
-    : "IMPORTANT : L'API Judilibre n'a pas retourne de resultats pour cette recherche. Tu DOIS quand meme fournir une analyse COMPLETE et DETAILLEE basee sur tes connaissances approfondies de la jurisprudence francaise. Tu connais des milliers d'arrets — mobilise-les. Cite les arrets de principe, les tendances, les statistiques documentees. Ne dis PAS que tu n'as pas de donnees — tu en as dans tes connaissances.";
+    ? `Des decisions Judilibre sont fournies ci-dessous (${judilibreResult.analyzedCount} decisions reelles verifiables sur ${judilibreResult.totalFound} trouvees au total). Analyse-les en priorite, complete avec tes connaissances.`
+    : "Aucune decision Judilibre disponible pour cette recherche. Fournis une analyse complete basee sur tes connaissances de la jurisprudence francaise (arrets de principe, tendances, statistiques documentees).";
 
   const userMessage = `DEMANDE DE L'AVOCAT :
 ${query}
 ${sourceBlock}
-═══ INSTRUCTIONS ═══
-${sourceInstruction}
-Analyse cette demande en suivant la structure definie dans ton systeme prompt.
-Fournis une analyse RICHE avec des statistiques, des decisions cles, et des points d'attention strategiques concrets (toujours au pluriel, formules comme des observations et non comme des conseils).
-Cite les references les plus precises possibles (ECLI, numeros de pourvoi, dates).
-IMPORTANT : cite un MAXIMUM de sources pertinentes. Analyse TOUTES les decisions Judilibre fournies ci-dessus et complete avec tes connaissances. Ne cite que des decisions reelles.
-
-PRIORITE ABSOLUE — TABLEAU DE PREUVE STATISTIQUE :
-Le tableau de preuve est la section LA PLUS IMPORTANTE. Il doit :
-1. Contenir MINIMUM 25 decisions (vise 40-50)
-2. Avoir MINIMUM 18 colonnes dont 12+ colonnes de FACTEURS JURIDIQUES DECISIFS
-3. Chaque colonne = un facteur qui influence l'issue du litige (ex: "Procedure respectee", "Cause reelle et serieuse", "Indemnite", "Forclusion", etc.)
-4. PAS de colonnes generiques inutiles — chaque colonne doit avoir une VALEUR JURIDIQUE DECISIVE
-5. Le tableau doit EXPLIQUER et JUSTIFIER les statistiques avancees (pourquoi X% de succes)
-6. Privilegier les decisions RECENTES (moins de 5 ans)
-7. Ne JAMAIS fabriquer de fausses decisions
-Sois EXHAUSTIF dans le tableau — c'est la preuve statistique pour l'avocat.
-
-RAPPEL ABSOLU — ARTICLE 33 LOI n° 2019-222 :
-- NE NOMME AUCUN magistrat, juge, president, rapporteur, conseiller.
-- Si les sources Judilibre contiennent des noms, ils doivent etre remplaces par "[magistrat anonymise]" avant toute citation.
-- Seules les juridictions (lieu, chambre, ressort) peuvent etre identifiees.`;
+${sourceInstruction}`;
 
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",

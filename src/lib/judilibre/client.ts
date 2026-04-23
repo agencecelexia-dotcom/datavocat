@@ -526,36 +526,38 @@ function formatJudilibreResults(result: JudilibreSearchResult): string {
     };
     const chamber = chamberNames[dec.chamber] || dec.chamber;
 
-    context += `--- ${jurisdiction}, ${chamber} — ${dec.date} ---\n`;
-    context += `Pourvoi(s): ${pourvois}\n`;
-    context += `ECLI: ${dec.ecli}\n`;
-    context += `Solution: ${dec.solution_alt || dec.solution}\n`;
+    // Format compact — une ligne par champ, pas d'étiquettes redondantes.
+    // Signal conservé : identification, solution, thèmes, sommaire, extraits.
+    const solution = (dec.solution_alt || dec.solution || "").trim();
+    context += `--- ${jurisdiction}, ${chamber} — ${dec.date} | ${dec.ecli} | Pourvoi ${pourvois} ---\n`;
+    if (solution) context += `Solution: ${solution}\n`;
 
     if (dec.themes && dec.themes.length > 0) {
-      context += `Themes: ${dec.themes.slice(0, 5).join(", ")}\n`;
+      context += `Themes: ${dec.themes.slice(0, 4).join(", ")}\n`;
     }
     if (dec.sommaire) {
-      context += `Sommaire: ${stripMagistratNames(dec.sommaire.slice(0, 400))}\n`;
+      context += `Sommaire: ${stripMagistratNames(dec.sommaire.slice(0, 280))}\n`;
     }
-    if (dec.titrage && dec.titrage.length > 0) {
-      context += `Titrage: ${dec.titrage.join(" > ")}\n`;
+    // Titrage seulement si pas déjà couvert par les thèmes
+    if (
+      dec.titrage &&
+      dec.titrage.length > 0 &&
+      (!dec.themes || dec.themes.length < 2)
+    ) {
+      context += `Titrage: ${dec.titrage.slice(0, 3).join(" > ")}\n`;
     }
 
-    // Highlights (search excerpts) are very useful for relevance
+    // Highlights — un seul extrait pertinent suffit (le plus discriminant).
     if (dec.highlights) {
-      const excerpts = Object.values(dec.highlights)
+      const excerpt = Object.values(dec.highlights)
         .flat()
-        .slice(0, 2)
-        .map((h) => h.replace(/<\/?em>/g, ""))
-        .join(" [...] ");
-      if (excerpts) {
-        context += `Extraits pertinents: ${stripMagistratNames(excerpts.slice(0, 600))}\n`;
+        .slice(0, 1)
+        .map((h) => h.replace(/<\/?em>/g, ""))[0];
+      if (excerpt) {
+        context += `Extrait: ${stripMagistratNames(excerpt.slice(0, 350))}\n`;
       }
-    }
-
-    // Full text excerpt as fallback
-    if (!dec.highlights && dec.text) {
-      context += `Extrait: ${stripMagistratNames(dec.text.slice(0, 400))}...\n`;
+    } else if (dec.text) {
+      context += `Extrait: ${stripMagistratNames(dec.text.slice(0, 250))}...\n`;
     }
 
     context += "\n";
