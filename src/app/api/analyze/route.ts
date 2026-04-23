@@ -113,8 +113,14 @@ ${query}
 ${sourceBlock}
 ${sourceInstruction}`;
 
+  // Sonnet par défaut pour l'analyse (tableau de preuve + raisonnement
+  // juridique profond). Peut être forcé sur Haiku 4.5 via env ANALYZE_MODEL
+  // pour tester une baisse de coût — rollback instantané en retirant l'env.
+  const ANALYZE_MODEL =
+    process.env.ANALYZE_MODEL || "claude-sonnet-4-20250514";
+
   const stream = await anthropic.messages.stream({
-    model: "claude-sonnet-4-20250514",
+    model: ANALYZE_MODEL,
     max_tokens: 32000,
     system: [
       {
@@ -177,7 +183,7 @@ ${sourceInstruction}`;
           await trackClaudeUsage({
             userId: user.id,
             userEmail: user.email || null,
-            model: "claude-sonnet-4-20250514",
+            model: ANALYZE_MODEL,
             operation: "analyze",
             inputTokens: usage.input_tokens,
             outputTokens: usage.output_tokens,
