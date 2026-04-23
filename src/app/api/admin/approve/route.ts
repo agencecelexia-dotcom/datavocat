@@ -1,14 +1,16 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEmail, isAdminEmail, wrapEmailLayout } from "@/lib/email/send";
+import { sendEmail, isAdminEmail } from "@/lib/email/send";
+import { userApproved, userRevoked } from "@/lib/email/templates";
 
 /**
  * POST /api/admin/approve
  * Body : { userId: string, approved: boolean }
  *
- * Seuls les emails listés dans ADMIN_EMAILS peuvent approuver/rejeter.
- * Quand `approved` passe à true, un email de bienvenue est envoyé à l'utilisateur.
+ * Seuls les emails listés dans ADMIN_EMAILS peuvent approuver/révoquer.
+ * - approved: true  → email "bienvenue" envoyé au user (si transition false→true)
+ * - approved: false → email "révocation" envoyé au user (si transition true→false)
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -36,7 +38,6 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Récupère le user ciblé
   const { data: targetData, error: fetchErr } = await admin.auth.admin.getUserById(body.userId);
   if (fetchErr || !targetData?.user) {
     return new Response(JSON.stringify({ error: fetchErr?.message || "User introuvable" }), {
@@ -47,7 +48,6 @@ export async function POST(request: NextRequest) {
   const target = targetData.user;
   const previousApproved = target.user_metadata?.approved === true;
 
-  // Update metadata
   const { error: updateErr } = await admin.auth.admin.updateUserById(body.userId, {
     user_metadata: {
       ...(target.user_metadata || {}),
@@ -64,35 +64,32 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Si on passe de non-approuvé à approuvé → email de bienvenue
-  if (body.approved && !previousApproved && target.email) {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://datavocat.fr";
-    const fullName = (target.user_metadata?.full_name as string | undefined) || "";
-    const html = wrapEmailLayout({
-      eyebrow: "Accès validé",
-      title: "Bienvenue sur Datavocat",
-      body: `
-        <p>${fullName ? escapeHtml(fullName) + ", votre" : "Votre"} compte a été validé.</p>
-        <p>Vous pouvez désormais vous connecter et lancer votre première analyse jurimétrique.</p>
-      `,
-      ctaLabel: "Accéder à Datavocat",
-      ctaHref: appUrl,
-      footerNote: `Si vous avez la moindre question, écrivez-nous à contact@datavocat.fr — nous lisons chaque message.`,
-    });
-    await sendEmail({
-      to: target.email,
-      subject: "[Datavocat] Votre accès a été validé",
-      html,
-      text: `Votre compte Datavocat a été validé. Connectez-vous sur ${appUrl}/login`,
-    });
+  // Emails transactionnels selon la transition
+  const userFullName = (target.user_metadata?.full_name as string | undefined) || "";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://datavocat.fr";
+
+  if (target.email) {
+    if (body.approved && !previousApproved) {
+      const tpl = userApproved({ userFullName, appUrl });
+      await sendEmail({
+        to: target.email,
+        subject: tpl.subject,
+        html: tpl.html,
+        text: tpl.text,
+      });
+    } else if (!body.approved && previousApproved) {
+      const tpl = userRevoked({ userFullName });
+      await sendEmail({
+        to: target.email,
+        subject: tpl.subject,
+        html: tpl.html,
+        text: tpl.text,
+      });
+    }
   }
 
   return new Response(
     JSON.stringify({ ok: true, userId: body.userId, approved: body.approved }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

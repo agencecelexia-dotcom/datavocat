@@ -1,19 +1,20 @@
-import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail, getAdminEmail, wrapEmailLayout } from "@/lib/email/send";
+import { sendEmail, getAdminEmail, type SendEmailResult } from "@/lib/email/send";
+import { adminNewSignup, userSignupReceived } from "@/lib/email/templates";
 
 /**
  * Route appelée depuis /register juste après signUp réussi.
- * Envoie un email à l'administrateur avec le détail du nouvel inscrit
- * + un lien direct qui le mène à la page d'approbation.
+ * - Envoie un email à l'administrateur (contact@datavocat.fr) pour validation
+ * - Envoie un accusé de réception à l'utilisateur
+ *
+ * Les deux envois sont indépendants : si l'un échoue, l'autre est tenté.
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // L'utilisateur doit être authentifié (session venant d'être créée par signUp)
   if (!user) {
     return new Response(JSON.stringify({ ok: false, error: "unauthenticated" }), {
       status: 401,
@@ -25,69 +26,47 @@ export async function POST(request: NextRequest) {
   const adminApprovalsUrl = `${appUrl}/admin/approvals`;
 
   const meta = user.user_metadata || {};
-  const fullName = (meta.full_name as string | undefined) || "—";
-  const cabinetName = (meta.cabinet_name as string | undefined) || "—";
-  const email = user.email || "—";
-  const signedUpAt = new Date(user.created_at).toLocaleString("fr-FR", {
-    dateStyle: "long",
-    timeStyle: "short",
+  const userFullName = (meta.full_name as string | undefined) || "";
+  const cabinetName = (meta.cabinet_name as string | undefined) || "";
+  const userEmail = user.email || "";
+
+  // 1. Email admin
+  const adminTpl = adminNewSignup({
+    userFullName,
+    userEmail,
+    cabinetName,
+    createdAt: user.created_at,
+    adminApprovalsUrl,
   });
-
-  const html = wrapEmailLayout({
-    eyebrow: "Nouvelle demande",
-    title: "Un compte attend votre validation",
-    body: `
-      <p><strong>${escapeHtml(fullName)}</strong> vient de demander l'accès à Datavocat.</p>
-      <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;border-collapse:collapse;font-size:13px;">
-        <tr>
-          <td style="padding:8px 0;color:#6b6658;font-family:'Courier New',monospace;text-transform:uppercase;font-size:10px;letter-spacing:0.15em;width:130px;">Nom</td>
-          <td style="padding:8px 0;color:#0b1220;">${escapeHtml(fullName)}</td>
-        </tr>
-        <tr style="border-top:1px solid #ecebe3;">
-          <td style="padding:8px 0;color:#6b6658;font-family:'Courier New',monospace;text-transform:uppercase;font-size:10px;letter-spacing:0.15em;">Cabinet</td>
-          <td style="padding:8px 0;color:#0b1220;">${escapeHtml(cabinetName)}</td>
-        </tr>
-        <tr style="border-top:1px solid #ecebe3;">
-          <td style="padding:8px 0;color:#6b6658;font-family:'Courier New',monospace;text-transform:uppercase;font-size:10px;letter-spacing:0.15em;">Email</td>
-          <td style="padding:8px 0;color:#0b1220;font-family:'Courier New',monospace;">${escapeHtml(email)}</td>
-        </tr>
-        <tr style="border-top:1px solid #ecebe3;">
-          <td style="padding:8px 0;color:#6b6658;font-family:'Courier New',monospace;text-transform:uppercase;font-size:10px;letter-spacing:0.15em;">Demande</td>
-          <td style="padding:8px 0;color:#0b1220;">${escapeHtml(signedUpAt)}</td>
-        </tr>
-      </table>
-      <p>Validez ou refusez la demande depuis votre tableau d'administration :</p>
-    `,
-    ctaLabel: "Ouvrir le tableau d'administration",
-    ctaHref: adminApprovalsUrl,
-    footerNote: `Tant que vous n'avez pas validé, l'utilisateur voit une page d'attente et n'a accès à aucune fonctionnalité.`,
-  });
-
-  const textPart = [
-    "Nouvelle demande de compte Datavocat",
-    "",
-    `Nom : ${fullName}`,
-    `Cabinet : ${cabinetName}`,
-    `Email : ${email}`,
-    `Date : ${signedUpAt}`,
-    "",
-    `Valider : ${adminApprovalsUrl}`,
-  ].join("\n");
-
-  const result = await sendEmail({
+  const adminResult = await sendEmail({
     to: getAdminEmail(),
-    subject: `[Datavocat] Nouvelle demande — ${fullName}`,
-    html,
-    text: textPart,
-    replyTo: email,
+    subject: adminTpl.subject,
+    html: adminTpl.html,
+    text: adminTpl.text,
+    replyTo: userEmail || undefined,
   });
 
-  return new Response(JSON.stringify(result), {
-    status: result.ok || result.skipped ? 200 : 500,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+  // 2. Email accusé de réception au user
+  let userResult: SendEmailResult = { ok: false, skipped: true };
+  if (userEmail) {
+    const userTpl = userSignupReceived({
+      userFullName,
+      userEmail,
+      createdAt: user.created_at,
+    });
+    userResult = await sendEmail({
+      to: userEmail,
+      subject: userTpl.subject,
+      html: userTpl.html,
+      text: userTpl.text,
+    });
+  }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return new Response(
+    JSON.stringify({ admin: adminResult, user: userResult }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 }
