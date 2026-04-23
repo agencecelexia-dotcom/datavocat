@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, getAdminEmail } from "@/lib/email/send";
-import { adminFeedback } from "@/lib/email/templates";
+import { adminFeedback, userFeedbackReceived } from "@/lib/email/templates";
 
 /**
  * POST /api/feedback
@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
   const cabinetName = (meta.cabinet_name as string | undefined) || "";
   const userEmail = user.email || "";
 
-  const tpl = adminFeedback({
+  // 1. Email admin
+  const adminTpl = adminFeedback({
     userFullName,
     userEmail,
     cabinetName,
@@ -56,16 +57,31 @@ export async function POST(request: NextRequest) {
     sentAt: new Date(),
   });
 
-  const result = await sendEmail({
+  const adminResult = await sendEmail({
     to: getAdminEmail(),
-    subject: tpl.subject,
-    html: tpl.html,
-    text: tpl.text,
+    subject: adminTpl.subject,
+    html: adminTpl.html,
+    text: adminTpl.text,
     replyTo: userEmail || undefined,
   });
 
-  return new Response(JSON.stringify(result), {
-    status: result.ok || result.skipped ? 200 : 500,
+  // 2. Accusé de réception au user
+  if (userEmail) {
+    const userTpl = userFeedbackReceived({
+      userFullName,
+      category,
+      message,
+    });
+    await sendEmail({
+      to: userEmail,
+      subject: userTpl.subject,
+      html: userTpl.html,
+      text: userTpl.text,
+    });
+  }
+
+  return new Response(JSON.stringify(adminResult), {
+    status: adminResult.ok || adminResult.skipped ? 200 : 500,
     headers: { "Content-Type": "application/json" },
   });
 }

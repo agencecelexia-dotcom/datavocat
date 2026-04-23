@@ -357,6 +357,50 @@ export function adminNewSignup(args: AdminSignupTpl) {
 
 // ───────────────────────────────────────────────────────────────────────────
 
+export interface UserFeedbackReceivedTpl {
+  userFullName: string;
+  category: string;
+  message: string;
+}
+
+/** Email au user : accusé de réception après envoi d'un feedback. */
+export function userFeedbackReceived(args: UserFeedbackReceivedTpl) {
+  const greeting = args.userFullName ? escapeHtml(args.userFullName) : "Bonjour";
+
+  const html = layout({
+    preheader: `Nous avons bien reçu votre ${args.category.toLowerCase()} — merci pour votre retour.`,
+    eyebrow: `Message reçu · ${args.category}`,
+    title: "Merci pour votre retour",
+    body: `
+      <p style="margin:0 0 12px 0;">${greeting}${args.userFullName ? "," : ""}</p>
+      <p style="margin:0 0 12px 0;">Nous avons bien reçu votre message et l'équipe Datavocat va le lire attentivement.</p>
+      <p style="margin:0 0 12px 0;">Chaque retour d'utilisateur nous aide à faire évoluer l'outil dans la bonne direction.</p>
+      ${quoteBlock(`Votre ${args.category.toLowerCase()}`, args.message)}
+      <p style="margin:16px 0 0 0;color:${MUTED};">Si votre message nécessite une réponse de notre part, nous vous recontacterons dans les jours qui viennent.</p>
+    `,
+    footerNote: `Datavocat évolue grâce à ses utilisateurs. Écrivez-nous à tout moment à <a href="mailto:${CONTACT_EMAIL}" style="color:${INK};text-decoration:underline;text-decoration-color:${GOLD};">${CONTACT_EMAIL}</a>.`,
+  });
+
+  const text = [
+    `${greeting}${args.userFullName ? "," : ""}`,
+    "",
+    `Nous avons bien reçu votre ${args.category.toLowerCase()}.`,
+    "",
+    "Votre message :",
+    args.message,
+    "",
+    "— L'équipe Datavocat",
+  ].join("\n");
+
+  return {
+    subject: "Nous avons bien reçu votre message",
+    html,
+    text,
+  };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+
 export interface AdminFeedbackTpl {
   userFullName: string;
   userEmail: string;
