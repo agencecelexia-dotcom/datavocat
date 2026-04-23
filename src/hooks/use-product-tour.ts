@@ -117,7 +117,6 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 const LAUNCH_KEY = "datavocat_launch_tour";
-const SEEN_KEY = "datavocat_tour_seen";
 
 // Module-level flag: survives React Strict Mode effect double-firing.
 // The first effect run reads+removes localStorage and sets this flag.
@@ -131,16 +130,12 @@ export function useProductTour() {
   const advancingRef = useRef(false);
 
   useEffect(() => {
+    // Le tour ne se déclenche que lorsque scheduleTour() a posé LAUNCH_KEY
+    // (uniquement après inscription réussie). Pas d'auto-démarrage.
     const val = localStorage.getItem(LAUNCH_KEY);
     if (val) {
       localStorage.removeItem(LAUNCH_KEY);
       _pendingLaunch = true;
-    }
-    // Auto-démarrage à la toute première visite (pas encore vu).
-    const alreadySeen = localStorage.getItem(SEEN_KEY);
-    if (!alreadySeen && !val) {
-      _pendingLaunch = true;
-      localStorage.setItem(SEEN_KEY, "true");
     }
     if (_pendingLaunch) {
       const timer = setTimeout(() => {

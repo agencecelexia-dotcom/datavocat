@@ -7,7 +7,6 @@ import {
   Building2,
   Mail,
   Lock,
-  Palette,
   Shield,
   Save,
   Loader2,
@@ -15,12 +14,8 @@ import {
   AlertTriangle,
   FileText,
   ExternalLink,
-  HelpCircle,
-  Play,
 } from "lucide-react";
 import Link from "next/link";
-import { scheduleTour } from "@/hooks/use-product-tour";
-import { useTheme, type DatavocatTheme } from "@/components/theme/theme-provider";
 
 interface UserProfile {
   email: string;
@@ -28,13 +23,7 @@ interface UserProfile {
   cabinetName: string;
 }
 
-type ActiveTab = "profil" | "securite" | "preferences" | "legal";
-
-const THEME_DESCRIPTIONS: Record<DatavocatTheme, { label: string; desc: string }> = {
-  greffe: { label: "Greffe", desc: "Papier crème, ink profond — défaut éditorial" },
-  jurimetrie: { label: "Nuit", desc: "Fond noir, accent gold — lecture prolongée" },
-  palais: { label: "Palais", desc: "Crème doré saturé — chaleureux et institutionnel" },
-};
+type ActiveTab = "profil" | "securite" | "legal";
 
 function Field({
   label,
@@ -98,49 +87,7 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle: string })
   );
 }
 
-function PrefRow({
-  icon: Icon,
-  label,
-  desc,
-  action,
-}: {
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-  label: string;
-  desc: string;
-  action: React.ReactNode;
-}) {
-  return (
-    <div
-      className="flex items-center justify-between gap-4 py-4"
-      style={{ borderBottom: "1px solid var(--line-soft)" }}
-    >
-      <div className="flex items-start gap-3">
-        <Icon
-          className="h-4 w-4 mt-0.5 shrink-0"
-          style={{ color: "var(--gold)" }}
-        />
-        <div>
-          <p
-            className="text-[13.5px] font-medium"
-            style={{ color: "var(--ink)" }}
-          >
-            {label}
-          </p>
-          <p
-            className="text-[11.5px] mt-0.5"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            {desc}
-          </p>
-        </div>
-      </div>
-      {action}
-    </div>
-  );
-}
-
 export default function ParametresPage() {
-  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>("profil");
   const [profile, setProfile] = useState<UserProfile>({
     email: "",
@@ -224,7 +171,6 @@ export default function ParametresPage() {
   const tabs = [
     { key: "profil" as const, label: "Profil", icon: User },
     { key: "securite" as const, label: "Sécurité", icon: Lock },
-    { key: "preferences" as const, label: "Préférences", icon: Palette },
     { key: "legal" as const, label: "Légal", icon: FileText },
   ];
 
@@ -479,115 +425,6 @@ export default function ParametresPage() {
               >
                 Supprimer mon compte
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* Préférences */}
-        {activeTab === "preferences" && (
-          <div>
-            <SectionHeader
-              title="Préférences d'interface"
-              subtitle="Choisissez votre thème et les comportements de l'interface."
-            />
-
-            {/* Thème */}
-            <div className="mb-8">
-              <div
-                className="font-mono text-[10px] uppercase tracking-[0.22em] mb-3"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                § Thème
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {(Object.keys(THEME_DESCRIPTIONS) as DatavocatTheme[]).map((key) => {
-                  const active = theme === key;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => setTheme(key)}
-                      className="p-4 rounded-md text-left cursor-pointer transition-all"
-                      style={{
-                        border: `2px solid ${active ? "var(--gold)" : "var(--line)"}`,
-                        background: "var(--card)",
-                      }}
-                    >
-                      <div className="flex gap-0.5 mb-2 h-6 rounded overflow-hidden">
-                        {key === "greffe" && (
-                          <>
-                            <div className="flex-1" style={{ background: "#f6f4ef" }} />
-                            <div className="flex-1" style={{ background: "#1e3a5f" }} />
-                          </>
-                        )}
-                        {key === "jurimetrie" && (
-                          <>
-                            <div className="flex-1" style={{ background: "#0f1115" }} />
-                            <div className="flex-1" style={{ background: "#b88a3e" }} />
-                          </>
-                        )}
-                        {key === "palais" && (
-                          <>
-                            <div className="flex-1" style={{ background: "#faf7f0" }} />
-                            <div className="flex-1" style={{ background: "#9c7b3a" }} />
-                          </>
-                        )}
-                      </div>
-                      <div
-                        className="font-serif text-[15px] font-medium"
-                        style={{ color: "var(--ink)" }}
-                      >
-                        {THEME_DESCRIPTIONS[key].label}
-                        {active && (
-                          <span
-                            className="ml-1.5 font-mono text-[9px] uppercase tracking-[0.15em]"
-                            style={{ color: "var(--gold)" }}
-                          >
-                            · actif
-                          </span>
-                        )}
-                      </div>
-                      <p
-                        className="text-[11.5px] mt-0.5"
-                        style={{ color: "var(--muted-foreground)" }}
-                      >
-                        {THEME_DESCRIPTIONS[key].desc}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Aide & Tutoriel */}
-            <div>
-              <div
-                className="font-mono text-[10px] uppercase tracking-[0.22em] mb-3"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                § Aide
-              </div>
-              <PrefRow
-                icon={HelpCircle}
-                label="Tutoriel guidé"
-                desc="Relancez le tutoriel interactif pour découvrir les fonctionnalités."
-                action={
-                  <button
-                    onClick={() => {
-                      scheduleTour();
-                      window.location.href = "/";
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-medium rounded-md cursor-pointer shrink-0"
-                    style={{
-                      border: "1px solid var(--line)",
-                      color: "var(--ink)",
-                      background: "var(--card)",
-                    }}
-                  >
-                    <Play className="h-3 w-3" />
-                    Revoir le tutoriel
-                  </button>
-                }
-              />
             </div>
           </div>
         )}

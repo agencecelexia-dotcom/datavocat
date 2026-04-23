@@ -3,24 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Menu, LogOut, Moon, Sun, Palette, ChevronDown, Settings, HelpCircle } from "lucide-react";
+import { Menu, LogOut, ChevronDown, Settings } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileNav } from "./mobile-nav";
 import { createClient } from "@/lib/supabase/client";
-import { scheduleTour } from "@/hooks/use-product-tour";
-import { useTheme, type DatavocatTheme } from "@/components/theme/theme-provider";
 import { LogoMark } from "@/components/brand/logo";
 
 interface HeaderProps {
   userEmail?: string | null;
   userName?: string | null;
 }
-
-const THEME_LABELS: Record<DatavocatTheme, string> = {
-  greffe: "Greffe",
-  jurimetrie: "Nuit",
-  palais: "Palais",
-};
 
 function pathToBreadcrumb(pathname: string): { section: string; current: string } {
   if (pathname.startsWith("/historique")) {
@@ -38,22 +30,18 @@ function pathToBreadcrumb(pathname: string): { section: string; current: string 
 export function Header({ userEmail, userName }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { theme, setTheme, cycleTheme } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const themeRef = useRef<HTMLDivElement>(null);
 
   // Close popovers on click outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (dropdownOpen && !dropdownRef.current?.contains(target)) setDropdownOpen(false);
-      if (themeMenuOpen && !themeRef.current?.contains(target)) setThemeMenuOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [dropdownOpen, themeMenuOpen]);
+  }, [dropdownOpen]);
 
   const isDemo = !userEmail;
   const initials = userName
@@ -67,7 +55,6 @@ export function Header({ userEmail, userName }: HeaderProps) {
   };
 
   const { section, current } = pathToBreadcrumb(pathname);
-  const isNight = theme === "jurimetrie";
 
   return (
     <header
@@ -117,7 +104,7 @@ export function Header({ userEmail, userName }: HeaderProps) {
 
         {/* Mobile: logo inline */}
         <div className="lg:hidden flex items-center gap-2">
-          <LogoMark size={26} tone={isNight ? "dark" : "light"} />
+          <LogoMark size={26} tone="light" />
           <div
             className="font-serif text-[15px] font-medium"
             style={{ letterSpacing: "-0.01em" }}
@@ -140,67 +127,6 @@ export function Header({ userEmail, userName }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Theme picker */}
-        <div className="relative" ref={themeRef}>
-          <button
-            onClick={() => setThemeMenuOpen((v) => !v)}
-            aria-label="Thème"
-            title={`Thème : ${THEME_LABELS[theme]}`}
-            className="flex h-9 w-9 items-center justify-center rounded-md cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            {theme === "jurimetrie" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-          {themeMenuOpen && (
-            <div
-              className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-md"
-              style={{
-                background: "var(--card)",
-                border: "1px solid var(--line)",
-                boxShadow: "0 12px 32px rgba(0,0,0,0.08)",
-              }}
-            >
-              <div
-                className="px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em]"
-                style={{
-                  color: "var(--muted-foreground)",
-                  borderBottom: "1px solid var(--line)",
-                }}
-              >
-                Thème
-              </div>
-              {(Object.keys(THEME_LABELS) as DatavocatTheme[]).map((key) => (
-                <button
-                  key={key}
-                  onClick={() => {
-                    setTheme(key);
-                    setThemeMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] cursor-pointer transition-colors"
-                  style={{
-                    background: theme === key ? "var(--paper)" : "transparent",
-                    color: theme === key ? "var(--ink)" : "var(--muted-foreground)",
-                  }}
-                >
-                  <Palette
-                    className="h-3 w-3"
-                    style={{ color: theme === key ? "var(--gold)" : "var(--muted-foreground)" }}
-                  />
-                  <span className="font-medium">{THEME_LABELS[key]}</span>
-                  {theme === key && (
-                    <span
-                      className="ml-auto font-mono text-[9px]"
-                      style={{ color: "var(--gold)" }}
-                    >
-                      ✓
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {isDemo && (
           <span
             className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.15em]"
@@ -280,32 +206,6 @@ export function Header({ userEmail, userName }: HeaderProps) {
                 </div>
               )}
               <div className="p-1.5">
-                <button
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    cycleTheme();
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[12.5px] cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <Palette className="h-3.5 w-3.5" />
-                  <span>Thème</span>
-                  <span className="ml-auto font-mono text-[10px]">
-                    {THEME_LABELS[theme]}
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    scheduleTour();
-                    router.push("/");
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[12.5px] cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <HelpCircle className="h-3.5 w-3.5" />
-                  <span>Refaire la visite guidée</span>
-                </button>
                 <button
                   onClick={() => {
                     setDropdownOpen(false);
