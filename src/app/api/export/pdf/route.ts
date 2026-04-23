@@ -1,25 +1,382 @@
 import { NextRequest } from "next/server";
 import { getAuthContext } from "@/lib/supabase/auth-helper";
+import type { ParsedAnalysis } from "@/lib/parse-analysis";
+import React from "react";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+  renderToBuffer,
+  Font,
+} from "@react-pdf/renderer";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
-/**
- * PDF Export — generates a clean text-based PDF
- * Uses a lightweight approach (no react-pdf/renderer which has serverless issues)
- * Format: Simple PDF 1.4 with proper French text
- */
 const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024; // 5 Mo
+
+// @react-pdf embarque Helvetica / Times par défaut, qui gèrent latin-1 étendu
+// (accents français OK). Pas besoin d'embed custom pour notre usage.
+Font.registerHyphenationCallback((word) => [word]);
+
+const styles = StyleSheet.create({
+  page: {
+    paddingTop: 60,
+    paddingBottom: 60,
+    paddingHorizontal: 50,
+    fontFamily: "Helvetica",
+    fontSize: 10,
+    color: "#1a1a2e",
+    lineHeight: 1.5,
+  },
+  cover: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 60,
+  },
+  brand: {
+    fontFamily: "Times-Bold",
+    fontSize: 32,
+    color: "#0b1220",
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  subbrand: {
+    fontFamily: "Times-Italic",
+    fontSize: 16,
+    color: "#b88a3e",
+    marginBottom: 28,
+  },
+  rule: {
+    width: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: "#b88a3e",
+    marginBottom: 28,
+  },
+  date: {
+    fontSize: 10,
+    color: "#6b7280",
+    marginBottom: 4,
+  },
+  confidential: {
+    fontFamily: "Helvetica-Oblique",
+    fontSize: 9,
+    color: "#6b7280",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginTop: 28,
+  },
+  h1: {
+    fontFamily: "Times-Bold",
+    fontSize: 18,
+    color: "#0b1220",
+    marginTop: 20,
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e2d9",
+  },
+  h2: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 12,
+    color: "#0b1220",
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  p: {
+    marginBottom: 6,
+  },
+  bold: {
+    fontFamily: "Helvetica-Bold",
+  },
+  italic: {
+    fontFamily: "Helvetica-Oblique",
+  },
+  bullet: {
+    flexDirection: "row",
+    marginBottom: 4,
+    paddingLeft: 12,
+  },
+  bulletDot: {
+    width: 10,
+  },
+  queryBlock: {
+    backgroundColor: "#f6f4ef",
+    padding: 14,
+    marginTop: 10,
+    marginBottom: 18,
+    borderLeftWidth: 2,
+    borderLeftColor: "#b88a3e",
+  },
+  table: {
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#e5e2d9",
+  },
+  tableCell: {
+    flex: 1,
+    padding: 4,
+    fontSize: 8,
+    borderRightWidth: 0.5,
+    borderRightColor: "#e5e2d9",
+  },
+  tableHeader: {
+    backgroundColor: "#f6f4ef",
+    fontFamily: "Helvetica-Bold",
+  },
+  footer: {
+    position: "absolute",
+    bottom: 30,
+    left: 50,
+    right: 50,
+    textAlign: "center",
+    fontSize: 8,
+    color: "#9ca3af",
+    fontFamily: "Helvetica-Oblique",
+  },
+});
+
+// ─── Markdown parser léger → blocs React ───────────────────────────
+
+type Block =
+  | { kind: "h1"; text: string }
+  | { kind: "h2"; text: string }
+  | { kind: "p"; text: string }
+  | { kind: "ul"; items: string[] }
+  | { kind: "table"; headers: string[]; rows: string[][] };
+
+function parseMarkdownToBlocks(md: string): Block[] {
+  const lines = md.split("\n");
+  const blocks: Block[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    // Tableau Markdown : ligne | | | suivie d'une ligne --- | --- | ---
+    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+      const next = (lines[i + 1] || "").trim();
+      const isSeparator = /^\|[\s:\-|]+\|$/.test(next);
+      if (isSeparator) {
+        const headers = trimmed
+          .slice(1, -1)
+          .split("|")
+          .map((c) => c.trim());
+        i += 2; // skip header + sep
+        const rows: string[][] = [];
+        while (i < lines.length) {
+          const l = lines[i].trim();
+          if (!l.startsWith("|") || !l.endsWith("|")) break;
+          rows.push(
+            l
+              .slice(1, -1)
+              .split("|")
+              .map((c) => c.trim())
+          );
+          i++;
+        }
+        blocks.push({ kind: "table", headers, rows });
+        continue;
+      }
+    }
+
+    if (trimmed.startsWith("## ")) {
+      blocks.push({ kind: "h1", text: trimmed.slice(3) });
+      i++;
+      continue;
+    }
+    if (trimmed.startsWith("### ")) {
+      blocks.push({ kind: "h2", text: trimmed.slice(4) });
+      i++;
+      continue;
+    }
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const l = lines[i].trim();
+        if (l.startsWith("- ") || l.startsWith("* ")) {
+          items.push(l.slice(2));
+          i++;
+        } else break;
+      }
+      blocks.push({ kind: "ul", items });
+      continue;
+    }
+
+    blocks.push({ kind: "p", text: trimmed });
+    i++;
+  }
+
+  return blocks;
+}
+
+// ─── Rendu inline : **gras** et *italique* ────────────────────────
+function renderInline(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts
+    .filter((p) => p !== "")
+    .map((part, idx) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return React.createElement(
+          Text,
+          { key: idx, style: styles.bold },
+          part.slice(2, -2)
+        );
+      }
+      if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+        return React.createElement(
+          Text,
+          { key: idx, style: styles.italic },
+          part.slice(1, -1)
+        );
+      }
+      return React.createElement(Text, { key: idx }, part);
+    });
+}
+
+// ─── Document React-PDF ───────────────────────────────────────────
+function AnalysisDocument(props: {
+  query: string;
+  blocks: Block[];
+  dateStr: string;
+}) {
+  const { query, blocks, dateStr } = props;
+
+  return React.createElement(
+    Document,
+    { title: "Datavocat — Analyse jurimétrique" },
+    // Page de garde
+    React.createElement(
+      Page,
+      { size: "A4", style: styles.page, key: "cover" },
+      React.createElement(
+        View,
+        { style: styles.cover },
+        React.createElement(Text, { style: styles.brand }, "DATAVOCAT"),
+        React.createElement(
+          Text,
+          { style: styles.subbrand },
+          "Analyse jurimétrique"
+        ),
+        React.createElement(View, { style: styles.rule }),
+        React.createElement(Text, { style: styles.date }, dateStr),
+        React.createElement(
+          Text,
+          { style: styles.confidential },
+          "Document confidentiel"
+        )
+      )
+    ),
+    // Contenu
+    React.createElement(
+      Page,
+      { size: "A4", style: styles.page, key: "content", wrap: true },
+      React.createElement(Text, { style: styles.h1 }, "Demande"),
+      React.createElement(
+        View,
+        { style: styles.queryBlock },
+        React.createElement(Text, null, query || "(non précisée)")
+      ),
+      React.createElement(Text, { style: styles.h1 }, "Analyse"),
+      ...blocks.map((b, i) => {
+        if (b.kind === "h1")
+          return React.createElement(
+            Text,
+            { style: styles.h1, key: i },
+            b.text
+          );
+        if (b.kind === "h2")
+          return React.createElement(
+            Text,
+            { style: styles.h2, key: i },
+            b.text
+          );
+        if (b.kind === "p")
+          return React.createElement(
+            Text,
+            { style: styles.p, key: i },
+            renderInline(b.text)
+          );
+        if (b.kind === "ul")
+          return React.createElement(
+            View,
+            { key: i },
+            ...b.items.map((it, j) =>
+              React.createElement(
+                View,
+                { style: styles.bullet, key: j },
+                React.createElement(Text, { style: styles.bulletDot }, "•"),
+                React.createElement(
+                  Text,
+                  { style: { flex: 1 } },
+                  renderInline(it)
+                )
+              )
+            )
+          );
+        // table
+        return React.createElement(
+          View,
+          { style: styles.table, key: i, wrap: false },
+          React.createElement(
+            View,
+            { style: [styles.tableRow, styles.tableHeader] },
+            ...b.headers.map((h, j) =>
+              React.createElement(Text, { style: styles.tableCell, key: j }, h)
+            )
+          ),
+          ...b.rows.map((row, ri) =>
+            React.createElement(
+              View,
+              { style: styles.tableRow, key: ri },
+              ...row.map((cell, ci) =>
+                React.createElement(
+                  Text,
+                  { style: styles.tableCell, key: ci },
+                  cell
+                )
+              )
+            )
+          )
+        );
+      }),
+      React.createElement(
+        Text,
+        { style: styles.footer, fixed: true },
+        "Datavocat — Analyse jurimétrique assistée par IA. Ne constitue pas une consultation juridique."
+      )
+    )
+  );
+}
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthContext();
   if (!auth) {
     return new Response(JSON.stringify({ error: "Non authentifié" }), {
-      status: 401, headers: { "Content-Type": "application/json" },
+      status: 401,
+      headers: { "Content-Type": "application/json" },
     });
   }
 
   try {
-    const { query, response } = await request.json();
+    const body = await request.json();
+    const query: string = body.query || "";
+    const response: string = body.response || "";
+    // parsed is available but not used here — we prefer the raw markdown
+    // to preserve the full structure (tableau de preuve, etc.)
+    void (body.parsed as ParsedAnalysis | null | undefined);
 
     if (!response || typeof response !== "string") {
       return new Response(JSON.stringify({ error: "response requis" }), {
@@ -30,53 +387,37 @@ export async function POST(request: NextRequest) {
 
     if (response.length > MAX_PAYLOAD_SIZE) {
       return new Response(
-        JSON.stringify({ error: "L'analyse est trop volumineuse pour être exportée en PDF." }),
+        JSON.stringify({
+          error: "L'analyse est trop volumineuse pour être exportée en PDF.",
+        }),
         { status: 413, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Clean markdown for plain text PDF
-    const cleanText = response
-      .replace(/^##+ /gm, "")
-      .replace(/\*\*(.+?)\*\*/g, "$1")
-      .replace(/^[-*] /gm, "  - ");
-
-    const date = new Date().toLocaleDateString("fr-FR", {
+    const blocks = parseMarkdownToBlocks(response);
+    const dateStr = new Date().toLocaleDateString("fr-FR", {
       day: "numeric",
       month: "long",
       year: "numeric",
     });
 
-    // Build simple PDF content
-    const title = "DATAVOCAT — Analyse Jurimetrique";
-    const subtitle = `Généré le ${date}`;
+    const element = React.createElement(AnalysisDocument, {
+      query,
+      blocks,
+      dateStr,
+    });
 
-    const fullText = [
-      title,
-      subtitle,
-      "",
-      "═".repeat(50),
-      "",
-      "DEMANDE :",
-      query || "",
-      "",
-      "═".repeat(50),
-      "",
-      cleanText,
-      "",
-      "═".repeat(50),
-      "",
-      "Généré par Datavocat — Analyse jurimétrique assistée par IA",
-      "Ce document est un outil d'aide à la décision stratégique.",
-    ].join("\n");
+    // renderToBuffer type expects a Document element — le composant rend bien
+    // un <Document>, on cast pour satisfaire le check.
+    const buffer = await renderToBuffer(
+      element as unknown as Parameters<typeof renderToBuffer>[0]
+    );
 
-    // Generate minimal PDF
-    const pdf = generateMinimalPDF(fullText);
-
-    return new Response(pdf.buffer as ArrayBuffer, {
+    return new Response(new Uint8Array(buffer).buffer as ArrayBuffer, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="datavocat-analyse.pdf"',
+        "Content-Disposition":
+          'attachment; filename="datavocat-analyse.pdf"',
       },
     });
   } catch (err) {
@@ -87,147 +428,4 @@ export async function POST(request: NextRequest) {
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
-}
-
-/**
- * Generate a minimal valid PDF with text content
- * This is a lightweight PDF generator that avoids heavy dependencies
- */
-function generateMinimalPDF(text: string): Uint8Array {
-  // Encode text for PDF (escape special chars)
-  const escapeText = (s: string) =>
-    s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-
-  const lines = text.split("\n");
-  const pageHeight = 842; // A4 height in points
-  const pageWidth = 595; // A4 width in points
-  const margin = 72; // 1 inch
-  const lineHeight = 14;
-  const maxLinesPerPage = Math.floor((pageHeight - 2 * margin) / lineHeight);
-
-  // Split lines across pages
-  const pages: string[][] = [];
-  let currentPage: string[] = [];
-
-  for (const line of lines) {
-    // Wrap long lines
-    const maxChars = 80;
-    if (line.length > maxChars) {
-      const words = line.split(" ");
-      let currentLine = "";
-      for (const word of words) {
-        if ((currentLine + " " + word).length > maxChars) {
-          currentPage.push(currentLine.trim());
-          if (currentPage.length >= maxLinesPerPage) {
-            pages.push(currentPage);
-            currentPage = [];
-          }
-          currentLine = word;
-        } else {
-          currentLine += " " + word;
-        }
-      }
-      if (currentLine.trim()) {
-        currentPage.push(currentLine.trim());
-      }
-    } else {
-      currentPage.push(line);
-    }
-
-    if (currentPage.length >= maxLinesPerPage) {
-      pages.push(currentPage);
-      currentPage = [];
-    }
-  }
-  if (currentPage.length > 0) pages.push(currentPage);
-
-  // Build PDF objects
-  const objects: string[] = [];
-  const offsets: number[] = [];
-  let output = "%PDF-1.4\n";
-
-  const addObject = (content: string) => {
-    const num = objects.length + 1;
-    offsets.push(output.length);
-    const obj = `${num} 0 obj\n${content}\nendobj\n`;
-    output += obj;
-    objects.push(obj);
-    return num;
-  };
-
-  // Object 1: Catalog
-  addObject("<< /Type /Catalog /Pages 2 0 R >>");
-
-  // Object 2: Pages (placeholder, will be updated)
-  const pagesObjIndex = objects.length;
-  addObject("PLACEHOLDER");
-
-  // Object 3: Font
-  addObject(
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
-  );
-
-  // Generate page objects
-  const pageObjIds: number[] = [];
-
-  for (const pageLines of pages) {
-    // Content stream
-    let stream = "BT\n/F1 10 Tf\n";
-    let y = pageHeight - margin;
-
-    for (const line of pageLines) {
-      // Check if it's a title line (all caps or starts with ═)
-      if (line.startsWith("═") || line === line.toUpperCase() && line.length > 10) {
-        stream += `/F1 12 Tf\n`;
-        stream += `${margin} ${y} Td\n(${escapeText(line)}) Tj\n`;
-        stream += `/F1 10 Tf\n`;
-      } else {
-        stream += `${margin} ${y} Td\n(${escapeText(line)}) Tj\n`;
-      }
-      // Reset position for next line
-      stream += `${-margin} ${-lineHeight} Td\n`;
-      y -= lineHeight;
-    }
-
-    stream += "ET";
-
-    const streamBytes = new TextEncoder().encode(stream);
-    const contentId = addObject(
-      `<< /Length ${streamBytes.length} >>\nstream\n${stream}\nendstream`
-    );
-
-    // Page object
-    const pageId = addObject(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Contents ${contentId} 0 R /Resources << /Font << /F1 3 0 R >> >> >>`
-    );
-    pageObjIds.push(pageId);
-  }
-
-  // Update pages object
-  const pagesContent = `<< /Type /Pages /Kids [${pageObjIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageObjIds.length} >>`;
-  const pagesObj = `2 0 obj\n${pagesContent}\nendobj\n`;
-  // Recalculate output
-  const beforePages = output.indexOf("2 0 obj\nPLACEHOLDER\nendobj\n");
-  const afterPages = beforePages + "2 0 obj\nPLACEHOLDER\nendobj\n".length;
-  output =
-    output.slice(0, beforePages) + pagesObj + output.slice(afterPages);
-
-  // Recalculate offsets (simplified — for a minimal PDF this works)
-  const xrefOffset = output.length;
-  output += "xref\n";
-  output += `0 ${objects.length + 1}\n`;
-  output += "0000000000 65535 f \n";
-  // Simplified offset table
-  for (let i = 0; i < objects.length; i++) {
-    const offset = output.indexOf(`${i + 1} 0 obj`);
-    output += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  }
-
-  output += "trailer\n";
-  output += `<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
-  output += "startxref\n";
-  output += `${xrefOffset}\n`;
-  output += "%%EOF";
-
-  return new TextEncoder().encode(output);
 }

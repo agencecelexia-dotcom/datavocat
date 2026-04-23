@@ -68,11 +68,18 @@ STRUCTURE TA REPONSE EXACTEMENT DANS CET ORDRE :
 ### Par juridiction
 [Juridiction -> taux de succes + delai moyen si disponible]
 
-### Par instance
-Pour CHAQUE instance, utilise ce format exact :
-[Instance] — [X%] de succes
-→ Sur [N] decisions analysees, [X%] ont ete favorables au demandeur (soit [n] decisions gagnees sur [N] total)
-Si moins de 10 decisions disponibles pour une instance, indique : "Donnees insuffisantes pour cette instance"
+### Par instance (DISTINCTION OBLIGATOIRE Fond / Cassation)
+IMPORTANT — la logique d'office du juge de cassation (juge du droit) diffère radicalement de celle du juge du fond (appréciation des faits). Agréger les deux fausse l'analyse. Tu DOIS donc présenter deux groupes distincts :
+
+**Groupe 1 — Juges du fond (1ère instance + Cour d'appel)**
+Taux d'acceptation de la demande : [X%] sur [N] decisions de fond
+→ Precise : CPH / TGI / TJ / TC / TA / CA confondus, [n] favorables sur [N]
+
+**Groupe 2 — Cour de cassation (juge du droit)**
+Taux de cassation : [Y%] sur [M] arrets de la Cour de cassation
+→ Precise : [m] cassations sur [M] (un rejet de pourvoi ≠ victoire sur le fond, c'est une confirmation de la decision attaquee)
+
+NE FUSIONNE JAMAIS les deux groupes dans un taux unique. Si un groupe contient moins de 10 decisions : indique "Donnees insuffisantes pour ce groupe".
 
 ### Montants
 [Fourchette de condamnation si applicable : min — mediane — max en euros]

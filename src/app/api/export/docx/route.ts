@@ -267,9 +267,41 @@ export async function POST(request: NextRequest) {
     })
   );
 
-  // Parse markdown sections from response
+  // Parse markdown sections from response — avec détection des tableaux
   const lines = response.split("\n");
-  for (const line of lines) {
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Détection de tableau Markdown : |...| puis séparateur |---|---|
+    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+      const next = (lines[i + 1] || "").trim();
+      const isSeparator = /^\|[\s:\-|]+\|$/.test(next);
+      if (isSeparator) {
+        const headers = trimmed
+          .slice(1, -1)
+          .split("|")
+          .map((c) => c.trim());
+        i += 2;
+        const rows: string[][] = [];
+        while (i < lines.length) {
+          const l = lines[i].trim();
+          if (!l.startsWith("|") || !l.endsWith("|")) break;
+          rows.push(
+            l
+              .slice(1, -1)
+              .split("|")
+              .map((c) => c.trim())
+          );
+          i++;
+        }
+        children.push(buildWordTable(headers, rows));
+        children.push(new Paragraph({ spacing: { after: 160 } }));
+        continue;
+      }
+    }
+
     if (line.startsWith("## ")) {
       children.push(
         new Paragraph({
@@ -316,6 +348,7 @@ export async function POST(request: NextRequest) {
         })
       );
     }
+    i++;
   }
 
   // Footer
@@ -397,6 +430,69 @@ export async function POST(request: NextRequest) {
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
+}
+
+function buildWordTable(headers: string[], rows: string[][]): Table {
+  const headerRow = new TableRow({
+    tableHeader: true,
+    children: headers.map(
+      (h) =>
+        new TableCell({
+          shading: { type: ShadingType.CLEAR, fill: "f6f4ef" },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: h, bold: true, size: 18, font: "Calibri" }),
+              ],
+            }),
+          ],
+        })
+    ),
+  });
+
+  const dataRows = rows.map(
+    (row) =>
+      new TableRow({
+        children: row.map(
+          (cell) =>
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: parseTableCellRuns(cell),
+                }),
+              ],
+            })
+        ),
+      })
+  );
+
+  return new Table({
+    rows: [headerRow, ...dataRows],
+    width: { size: 100, type: WidthType.PERCENTAGE },
+  });
+}
+
+function parseTableCellRuns(text: string): TextRun[] {
+  const runs: TextRun[] = [];
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  for (const part of parts) {
+    if (!part) continue;
+    if (part.startsWith("**") && part.endsWith("**")) {
+      runs.push(
+        new TextRun({
+          text: part.slice(2, -2),
+          bold: true,
+          size: 16,
+          font: "Calibri",
+        })
+      );
+    } else {
+      runs.push(new TextRun({ text: part, size: 16, font: "Calibri" }));
+    }
+  }
+  return runs.length > 0
+    ? runs
+    : [new TextRun({ text, size: 16, font: "Calibri" })];
 }
 
 function parseInlineFormatting(text: string): TextRun[] {
