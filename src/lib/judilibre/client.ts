@@ -313,7 +313,8 @@ export interface JudilibreAnalysisContext {
  * deduplicates, and always returns maximum relevant results.
  */
 export async function searchJudilibreForAnalysis(
-  userQuery: string
+  userQuery: string,
+  opts?: { userId?: string | null; userEmail?: string | null }
 ): Promise<JudilibreAnalysisContext> {
   const keyId = process.env.PISTE_KEY_ID;
   if (!keyId) {
@@ -464,8 +465,20 @@ export async function searchJudilibreForAnalysis(
       };
     }
 
-    // Take the top JUDILIBRE_MAX_CONTEXT unique decisions for richer statistical analysis
-    const topDecisions = uniqueDecisions.slice(0, JUDILIBRE_MAX_CONTEXT);
+    // 1) On garde JUDILIBRE_MAX_CONTEXT candidates côté Judilibre (score mot-clé).
+    // 2) Haiku rerank sémantiquement et conserve les JUDILIBRE_RERANK_KEEP meilleures
+    //    pour passer à Sonnet. Fallback sûr si Haiku échoue.
+    const candidates = uniqueDecisions.slice(0, JUDILIBRE_MAX_CONTEXT);
+    const { rerankDecisions, JUDILIBRE_RERANK_KEEP } = await import(
+      "@/lib/judilibre/rerank"
+    );
+    const topDecisions = await rerankDecisions({
+      userQuery,
+      decisions: candidates,
+      keepN: JUDILIBRE_RERANK_KEEP,
+      userId: opts?.userId,
+      userEmail: opts?.userEmail,
+    });
     const dates = topDecisions.map((d) => d.date).filter(Boolean).sort();
 
     return {

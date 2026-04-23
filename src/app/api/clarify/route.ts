@@ -61,11 +61,18 @@ export async function POST(request: NextRequest) {
   }
 
   const anthropic = getAnthropicClient();
+  const CLARIFY_MODEL = "claude-haiku-4-5-20251001";
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: CLARIFY_MODEL,
     max_tokens: 1024,
-    system: CLARIFY_PROMPT,
+    system: [
+      {
+        type: "text",
+        text: CLARIFY_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [
       {
         role: "user",
@@ -78,13 +85,19 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    const usage = response.usage as typeof response.usage & {
+      cache_creation_input_tokens?: number;
+      cache_read_input_tokens?: number;
+    };
     await trackClaudeUsage({
       userId: user?.id || null,
       userEmail: user?.email || null,
-      model: "claude-sonnet-4-20250514",
+      model: CLARIFY_MODEL,
       operation: "clarify",
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      cacheWriteTokens: usage.cache_creation_input_tokens || 0,
+      cacheReadTokens: usage.cache_read_input_tokens || 0,
     });
   } catch {
     // silent

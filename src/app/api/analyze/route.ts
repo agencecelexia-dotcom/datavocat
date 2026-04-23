@@ -74,9 +74,12 @@ export async function POST(request: NextRequest) {
   };
   const [judilibreResult, datagouvContext] = await Promise.all([
     Promise.race([
-      searchJudilibreForAnalysis(query).catch(() => emptyJudilibre),
+      searchJudilibreForAnalysis(query, {
+        userId: user.id,
+        userEmail: user.email ?? null,
+      }).catch(() => emptyJudilibre),
       new Promise<typeof emptyJudilibre>((resolve) =>
-        setTimeout(() => resolve(emptyJudilibre), 12000)
+        setTimeout(() => resolve(emptyJudilibre), 18000)
       ),
     ]),
     Promise.race([
@@ -131,7 +134,13 @@ RAPPEL ABSOLU — ARTICLE 33 LOI n° 2019-222 :
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",
     max_tokens: 32000,
-    system: DATAVOCAT_SYSTEM_PROMPT,
+    system: [
+      {
+        type: "text",
+        text: DATAVOCAT_SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [{ role: "user", content: userMessage }],
   });
 
@@ -179,13 +188,19 @@ RAPPEL ABSOLU — ARTICLE 33 LOI n° 2019-222 :
         // Track API usage (fail-silent)
         try {
           const finalMessage = await stream.finalMessage();
+          const usage = finalMessage.usage as typeof finalMessage.usage & {
+            cache_creation_input_tokens?: number;
+            cache_read_input_tokens?: number;
+          };
           await trackClaudeUsage({
             userId: user.id,
             userEmail: user.email || null,
             model: "claude-sonnet-4-20250514",
             operation: "analyze",
-            inputTokens: finalMessage.usage.input_tokens,
-            outputTokens: finalMessage.usage.output_tokens,
+            inputTokens: usage.input_tokens,
+            outputTokens: usage.output_tokens,
+            cacheWriteTokens: usage.cache_creation_input_tokens || 0,
+            cacheReadTokens: usage.cache_read_input_tokens || 0,
             analysisId: id,
           });
         } catch {

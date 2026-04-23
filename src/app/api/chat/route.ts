@@ -48,7 +48,13 @@ export async function POST(request: NextRequest) {
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",
     max_tokens: 4000,
-    system: CHAT_SYSTEM_PROMPT(analysisContext),
+    system: [
+      {
+        type: "text",
+        text: CHAT_SYSTEM_PROMPT(analysisContext),
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: messages.map((m: { role: string; content: string }) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -72,13 +78,19 @@ export async function POST(request: NextRequest) {
         // Track API usage (fail-silent)
         try {
           const finalMessage = await stream.finalMessage();
+          const usage = finalMessage.usage as typeof finalMessage.usage & {
+            cache_creation_input_tokens?: number;
+            cache_read_input_tokens?: number;
+          };
           await trackClaudeUsage({
             userId: user?.id || null,
             userEmail: user?.email || null,
             model: "claude-sonnet-4-20250514",
             operation: "chat",
-            inputTokens: finalMessage.usage.input_tokens,
-            outputTokens: finalMessage.usage.output_tokens,
+            inputTokens: usage.input_tokens,
+            outputTokens: usage.output_tokens,
+            cacheWriteTokens: usage.cache_creation_input_tokens || 0,
+            cacheReadTokens: usage.cache_read_input_tokens || 0,
           });
         } catch {
           // silent

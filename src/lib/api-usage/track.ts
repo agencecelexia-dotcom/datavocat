@@ -18,6 +18,11 @@ const PRICING: Record<string, { input: number; output: number }> = {
     input: 3 / 1_000_000,
     output: 15 / 1_000_000,
   },
+  // Claude Haiku 4.5 — $1/M in, $5/M out
+  "claude-haiku-4-5-20251001": {
+    input: 1 / 1_000_000,
+    output: 5 / 1_000_000,
+  },
   // Fallback générique (même tarif Sonnet)
   default: {
     input: 3 / 1_000_000,
@@ -33,9 +38,19 @@ export function computeUsdCost(args: {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
 }): number {
   const p = priceFor(args.model);
-  return args.inputTokens * p.input + args.outputTokens * p.output;
+  // Anthropic cache pricing: cache read = 0.1x input, cache write = 1.25x input.
+  const cacheRead = (args.cacheReadTokens || 0) * p.input * 0.1;
+  const cacheWrite = (args.cacheWriteTokens || 0) * p.input * 1.25;
+  return (
+    args.inputTokens * p.input +
+    args.outputTokens * p.output +
+    cacheRead +
+    cacheWrite
+  );
 }
 
 export interface TrackClaudeArgs {
@@ -60,6 +75,8 @@ export async function trackClaudeUsage(args: TrackClaudeArgs): Promise<void> {
       model: args.model,
       inputTokens: args.inputTokens,
       outputTokens: args.outputTokens,
+      cacheReadTokens: args.cacheReadTokens,
+      cacheWriteTokens: args.cacheWriteTokens,
     });
     const supabase = createAdminClient();
     // La table api_usage n'est pas (encore) dans les types Database générés.

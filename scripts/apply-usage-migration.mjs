@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Applique la migration 00017 (table api_usage) sur Supabase prod via REST.
+// Applique la migration 00017 (table api_usage) sur Supabase prod via
+// l'API Management (nécessite SUPABASE_ACCESS_TOKEN).
 
 import fs from "node:fs";
 import path from "node:path";
@@ -14,47 +15,58 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!url || !key) {
-  console.error("❌ env Supabase manquant");
+const token = process.env.SUPABASE_ACCESS_TOKEN;
+if (!token) {
+  console.error("❌ SUPABASE_ACCESS_TOKEN manquant dans .env.local");
   process.exit(1);
 }
 
-const sql = fs.readFileSync(
-  path.join(__dirname, "..", "supabase", "migrations", "00017_create_api_usage.sql"),
-  "utf8"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+if (!supabaseUrl) {
+  console.error("❌ NEXT_PUBLIC_SUPABASE_URL manquant");
+  process.exit(1);
+}
+// Extract project ref from URL like https://cqslbsztxzfhkqxuszeb.supabase.co
+const ref = supabaseUrl.replace(/^https?:\/\//, "").split(".")[0];
+
+const sqlPath = path.join(
+  __dirname,
+  "..",
+  "supabase",
+  "migrations",
+  "00017_create_api_usage.sql"
+);
+const sql = fs.readFileSync(sqlPath, "utf8");
+
+console.log(`\n━━━ Migration via Management API ━━━`);
+console.log(`Project : ${ref}`);
+console.log(`File    : 00017_create_api_usage.sql\n`);
+
+const res = await fetch(
+  `https://api.supabase.com/v1/projects/${ref}/database/query`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: sql }),
+  }
 );
 
-console.log("Applying migration 00017_create_api_usage.sql …");
-
-// Supabase REST ne permet pas d'exécuter du SQL arbitraire. On utilise
-// l'endpoint RPC "exec_sql" s'il existe, sinon on demande à l'utilisateur
-// d'appliquer la migration via le SQL editor du dashboard.
-const res = await fetch(`${url}/rest/v1/rpc/exec_sql`, {
-  method: "POST",
-  headers: {
-    apikey: key,
-    Authorization: `Bearer ${key}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({ sql }),
-});
-
-if (res.status === 404) {
-  console.log("\n⚠️  L'endpoint rpc/exec_sql n'existe pas sur ce projet Supabase.");
-  console.log("   Tu dois appliquer la migration manuellement :");
-  console.log("   1. Ouvre https://supabase.com/dashboard/project/" +
-    url.replace(/^https:\/\//, "").replace(".supabase.co", "") +
-    "/sql/new");
-  console.log("   2. Colle le contenu de supabase/migrations/00017_create_api_usage.sql");
-  console.log("   3. Run\n");
-  process.exit(1);
-}
+const body = await res.text();
 
 if (!res.ok) {
-  console.error(`❌ ${res.status}`, await res.text());
+  console.error(`❌ ${res.status}\n${body}`);
   process.exit(1);
 }
 
 console.log("✅ Migration appliquée");
+try {
+  const parsed = JSON.parse(body);
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    console.log("Retour :", parsed);
+  }
+} catch {
+  if (body.trim()) console.log(body);
+}
