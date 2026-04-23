@@ -113,11 +113,10 @@ ${query}
 ${sourceBlock}
 ${sourceInstruction}`;
 
-  // Sonnet par défaut pour l'analyse (tableau de preuve + raisonnement
-  // juridique profond). Peut être forcé sur Haiku 4.5 via env ANALYZE_MODEL
-  // pour tester une baisse de coût — rollback instantané en retirant l'env.
+  // TEST TEMPORAIRE — Haiku 4.5 sur analyze pour évaluation qualité/coût.
+  // À rebasculer sur "claude-sonnet-4-20250514" après les 3 tests.
   const ANALYZE_MODEL =
-    process.env.ANALYZE_MODEL || "claude-sonnet-4-20250514";
+    process.env.ANALYZE_MODEL || "claude-haiku-4-5-20251001";
 
   const stream = await anthropic.messages.stream({
     model: ANALYZE_MODEL,
