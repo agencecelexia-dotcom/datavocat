@@ -27,10 +27,13 @@ export async function POST(request: NextRequest) {
   });
 
   const anthropic = getAnthropicClient();
+  // Haiku 4.5 par défaut — la rédaction structurée à partir de stats déjà
+  // calculées est à sa portée. Surchargable via env si besoin.
+  const RAPPORT_MODEL = process.env.RAPPORT_MODEL || "claude-haiku-4-5-20251001";
 
   // Use streaming for better UX
   const stream = await anthropic.messages.stream({
-    model: "claude-sonnet-4-20250514",
+    model: RAPPORT_MODEL,
     max_tokens: 4096,
     messages: [
       {
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
         await trackClaudeUsage({
           userId: auth.userId,
           userEmail: null,
-          model: "claude-sonnet-4-20250514",
+          model: RAPPORT_MODEL,
           operation: "rapport",
           inputTokens: finalMessage.usage.input_tokens,
           outputTokens: finalMessage.usage.output_tokens,

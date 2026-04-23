@@ -45,8 +45,12 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Haiku 4.5 par défaut — la tâche (reformuler/approfondir à partir d'un
+  // contexte déjà fourni) n'exige pas Sonnet. Surchargable via env si besoin.
+  const CHAT_MODEL = process.env.CHAT_MODEL || "claude-haiku-4-5-20251001";
+
   const stream = await anthropic.messages.stream({
-    model: "claude-sonnet-4-20250514",
+    model: CHAT_MODEL,
     max_tokens: 4000,
     system: [
       {
@@ -85,7 +89,7 @@ export async function POST(request: NextRequest) {
           await trackClaudeUsage({
             userId: user?.id || null,
             userEmail: user?.email || null,
-            model: "claude-sonnet-4-20250514",
+            model: CHAT_MODEL,
             operation: "chat",
             inputTokens: usage.input_tokens,
             outputTokens: usage.output_tokens,
