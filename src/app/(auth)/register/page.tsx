@@ -1,19 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleTour } from "@/hooks/use-product-tour";
-import { Loader2, User, Building2, Mail, Lock, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Loader2, User, Building2, Mail, Lock, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [cabinetName, setCabinetName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,17 +25,29 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        data: { full_name: fullName, cabinet_name: cabinetName },
+        data: {
+          full_name: fullName,
+          cabinet_name: cabinetName,
+          approved: false,
+        },
       },
     });
     if (error) {
       setError(error.message);
       setLoading(false);
-    } else {
-      setLoading(false);
-      setSuccess(true);
-      scheduleTour();
+      return;
     }
+    // Notifie l'admin (best-effort — on bloque pas la redirection si l'email échoue)
+    try {
+      await fetch("/api/admin/notify-signup", { method: "POST" });
+    } catch {
+      // silent
+    }
+    // Active le tour pour quand le user sera validé
+    scheduleTour();
+    // Redirige vers la page d'attente (le middleware la laisse passer)
+    router.push("/pending-approval");
+    router.refresh();
   };
 
   const inputStyle: React.CSSProperties = {
@@ -42,41 +55,6 @@ export default function RegisterPage() {
     background: "var(--card)",
     color: "var(--ink)",
   };
-
-  if (success) {
-    return (
-      <div className="animate-fade-in-up text-center">
-        <CheckCircle2
-          className="h-10 w-10 mx-auto mb-4"
-          style={{ color: "var(--emerald, #2d6a4f)" }}
-        />
-        <div
-          className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
-          style={{ color: "var(--gold)" }}
-        >
-          § Inscription envoyée
-        </div>
-        <h1 className="font-serif text-[32px] font-medium tracking-tight leading-[1.05]">
-          Bienvenue sur <span className="dv-italic">Datavocat.</span>
-        </h1>
-        <p
-          className="mx-auto mt-3 max-w-sm text-[13.5px] leading-relaxed"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          Un email de confirmation a été envoyé à{" "}
-          <strong style={{ color: "var(--ink)" }}>{email}</strong>. Vérifiez votre boîte de réception pour activer votre compte.
-        </p>
-        <Link
-          href="/login"
-          className="mt-8 inline-flex items-center gap-2 text-[13px] font-semibold cursor-pointer"
-          style={{ color: "var(--ink)" }}
-        >
-          <ArrowRight className="h-4 w-4 rotate-180" />
-          Retour à la connexion
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="animate-fade-in-up">
@@ -95,7 +73,8 @@ export default function RegisterPage() {
         className="mt-3 text-[14px]"
         style={{ color: "var(--muted-foreground)" }}
       >
-        Commencez à analyser la jurisprudence en quelques minutes.
+        L&apos;accès est soumis à validation manuelle. Vous recevrez un email
+        dès que votre compte sera activé.
       </p>
 
       <form onSubmit={handleRegister} className="mt-8 space-y-5">

@@ -36,7 +36,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Allow public routes without auth
+  // Routes publiques (pas besoin d'auth)
   const isPublicRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
@@ -46,11 +46,50 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/confidentialite") ||
     pathname.startsWith("/mentions-legales");
 
-  // Redirect unauthenticated users to /login for protected routes
+  // Routes admin — accessibles uniquement aux emails dans ADMIN_EMAILS
+  const isAdminRoute = pathname.startsWith("/admin");
+
+  // Page d'attente de validation
+  const isPendingPage = pathname === "/pending-approval";
+
+  // Non-authentifié → /login
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
+  }
+
+  if (user) {
+    const adminEmailsRaw = process.env.ADMIN_EMAILS || "contact@datavocat.fr";
+    const adminEmails = adminEmailsRaw
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    const userEmail = (user.email || "").toLowerCase();
+    const isAdmin = adminEmails.includes(userEmail);
+    const isApproved =
+      isAdmin || user.user_metadata?.approved === true;
+
+    // Admin uniquement pour /admin*
+    if (isAdminRoute && !isAdmin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    // User non-approuvé → /pending-approval pour tout ce qui n'est pas public/admin/pending
+    if (!isApproved && !isPublicRoute && !isAdminRoute && !isPendingPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/pending-approval";
+      return NextResponse.redirect(url);
+    }
+
+    // User approuvé sur /pending-approval → renvoyer sur /
+    if (isApproved && isPendingPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

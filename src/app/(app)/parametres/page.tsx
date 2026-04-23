@@ -413,7 +413,7 @@ export default function ParametresPage() {
               <button
                 onClick={() =>
                   alert(
-                    "Pour supprimer votre compte, contactez le support à support@datavocat.fr"
+                    "Pour supprimer votre compte, contactez-nous à contact@datavocat.fr"
                   )
                 }
                 className="px-4 py-2 text-[12.5px] font-medium rounded-md cursor-pointer transition-colors"

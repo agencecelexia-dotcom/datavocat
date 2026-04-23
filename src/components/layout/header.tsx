@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Menu, LogOut, ChevronDown, Settings } from "lucide-react";
+import { Menu, LogOut, ChevronDown, Settings, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { MobileNav } from "./mobile-nav";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +12,7 @@ import { LogoMark } from "@/components/brand/logo";
 interface HeaderProps {
   userEmail?: string | null;
   userName?: string | null;
+  isAdmin?: boolean;
 }
 
 function pathToBreadcrumb(pathname: string): { section: string; current: string } {
@@ -27,7 +28,7 @@ function pathToBreadcrumb(pathname: string): { section: string; current: string 
   return { section: "Espace de travail", current: "Nouvelle analyse" };
 }
 
-export function Header({ userEmail, userName }: HeaderProps) {
+export function Header({ userEmail, userName, isAdmin }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -206,6 +207,19 @@ export function Header({ userEmail, userName }: HeaderProps) {
                 </div>
               )}
               <div className="p-1.5">
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      router.push("/admin/approvals");
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[12.5px] cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
+                    style={{ color: "var(--gold)", fontWeight: 600 }}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span>Administration</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setDropdownOpen(false);
