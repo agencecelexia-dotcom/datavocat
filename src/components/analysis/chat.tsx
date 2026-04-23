@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageCircle, Send, Loader2, ChevronDown } from "lucide-react";
+import { formatMarkdownSafe } from "@/lib/format-markdown";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -201,8 +202,13 @@ export function AnalysisChat({ analysisContext, query }: AnalysisChatProps) {
                           style={{ background: "currentColor" }}
                         />
                       </span>
+                    ) : msg.role === "user" ? (
+                      <span className="whitespace-pre-wrap leading-relaxed">{msg.content}</span>
                     ) : (
-                      <ChatContent content={msg.content} />
+                      <div
+                        className="prose-chat"
+                        dangerouslySetInnerHTML={{ __html: formatMarkdownSafe(msg.content) }}
+                      />
                     )}
                   </div>
                 </div>
@@ -255,81 +261,3 @@ export function AnalysisChat({ analysisContext, query }: AnalysisChatProps) {
   );
 }
 
-/** Renders chat message content with simple inline formatting (no dangerouslySetInnerHTML). */
-function ChatContent({ content }: { content: string }) {
-  // Split content into segments: bold, ECLI links, and plain text
-  const parts = parseContent(content);
-
-  return (
-    <span className="whitespace-pre-wrap leading-relaxed">
-      {parts.map((part, i) => {
-        if (part.type === "bold") {
-          return <strong key={i}>{part.text}</strong>;
-        }
-        if (part.type === "ecli") {
-          return (
-            <a
-              key={i}
-              href={`https://www.legifrance.gouv.fr/search/juri?query=${part.text}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary font-mono text-xs"
-            >
-              {part.text}
-            </a>
-          );
-        }
-        if (part.type === "listItem") {
-          return (
-            <span key={i} className="block pl-3">
-              {part.text}
-            </span>
-          );
-        }
-        return <span key={i}>{part.text}</span>;
-      })}
-    </span>
-  );
-}
-
-interface ContentPart {
-  type: "text" | "bold" | "ecli" | "listItem";
-  text: string;
-}
-
-function parseContent(content: string): ContentPart[] {
-  const parts: ContentPart[] = [];
-
-  // Combined regex for bold, ECLI references, and list items
-  const regex = /(\*\*(.+?)\*\*)|(ECLI:[A-Z]{2}:[A-Z]+:\d{4}:[A-Z0-9.]+)|(^- .+$)/gm;
-
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(content)) !== null) {
-    // Add text before this match
-    if (match.index > lastIndex) {
-      parts.push({ type: "text", text: content.slice(lastIndex, match.index) });
-    }
-
-    if (match[1]) {
-      // Bold
-      parts.push({ type: "bold", text: match[2] });
-    } else if (match[3]) {
-      // ECLI
-      parts.push({ type: "ecli", text: match[3] });
-    } else if (match[4]) {
-      // List item
-      parts.push({ type: "listItem", text: match[4] });
-    }
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add remaining text
-  if (lastIndex < content.length) {
-    parts.push({ type: "text", text: content.slice(lastIndex) });
-  }
-
-  return parts.length > 0 ? parts : [{ type: "text", text: content }];
-}

@@ -507,6 +507,107 @@ body.theme-jurimetrie .prose-legal strong { color: var(--gold-warm); }
   color: var(--ink);
 }
 
+/* ═══ GREFFE — Chat prose (version compacte pour bulles de conversation) ═══ */
+.prose-chat {
+  color: var(--ink);
+  font-size: 13.5px;
+  line-height: 1.65;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+/* Neutralise les classes Tailwind "agnostiques" injectées par formatMarkdownSafe */
+.prose-chat :is(h1, h2, h3, h4, p, strong, em, a, li, code, blockquote) {
+  color: inherit;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3,
+.prose-chat h4 {
+  font-family: var(--font-serif), Fraunces, Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  /* Override margins Tailwind inline */
+  margin-top: 14px !important;
+  margin-bottom: 6px !important;
+  padding-left: 0 !important;
+  border: none !important;
+}
+.prose-chat h1:first-child,
+.prose-chat h2:first-child,
+.prose-chat h3:first-child,
+.prose-chat h4:first-child,
+.prose-chat p:first-child { margin-top: 0 !important; }
+.prose-chat h2 { font-size: 15.5px !important; color: var(--navy) !important; }
+.prose-chat h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--ink) !important; }
+.prose-chat h4 {
+  font-size: 10.5px !important;
+  font-family: var(--font-mono), 'JetBrains Mono', monospace !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.15em !important;
+  color: var(--muted-ink) !important;
+  font-weight: 600 !important;
+}
+.prose-chat p {
+  margin: 6px 0 !important;
+  line-height: 1.65 !important;
+  color: var(--ink) !important;
+}
+.prose-chat strong {
+  color: var(--ink) !important;
+  font-weight: 600 !important;
+}
+.prose-chat em { color: var(--muted-ink) !important; font-style: italic !important; }
+.prose-chat a {
+  color: var(--ink) !important;
+  text-decoration: underline !important;
+  text-decoration-color: var(--gold) !important;
+  text-underline-offset: 3px !important;
+}
+.prose-chat ul {
+  margin: 6px 0 !important;
+  padding-left: 0 !important;
+  list-style: none !important;
+}
+.prose-chat ul li {
+  position: relative;
+  padding-left: 16px !important;
+  margin: 3px 0 !important;
+  color: var(--ink) !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+.prose-chat ul li::before {
+  content: '§';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--gold);
+  font-family: var(--font-serif), Fraunces, serif;
+  font-weight: 500;
+}
+.prose-chat ol {
+  margin: 6px 0 !important;
+  padding-left: 18px !important;
+}
+.prose-chat ol li { margin: 3px 0 !important; font-size: 13px !important; }
+.prose-chat code {
+  font-family: var(--font-mono), 'JetBrains Mono', monospace;
+  font-size: 11.5px !important;
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--navy) !important;
+}
+.prose-chat blockquote {
+  border-left: 2px solid var(--gold);
+  padding-left: 10px !important;
+  margin: 8px 0 !important;
+  color: var(--muted-ink) !important;
+  font-style: italic;
+  font-family: var(--font-serif), Fraunces, serif;
+  font-size: 13.5px !important;
+}
+
 /* ═══ GREFFE — Streaming cursor ═══ */
 @keyframes dv-typing { from { opacity: 0.3; } to { opacity: 1; } }
 .streaming::after {
