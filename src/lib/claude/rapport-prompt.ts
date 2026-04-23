@@ -65,9 +65,10 @@ Liste des éléments statistiquement favorables.
 ## Points de vigilance
 Liste des risques et faiblesses statistiques.
 
-## Stratégie recommandée
-Argumentaire détaillé : quels moyens privilégier, dans quel ordre,
-avec quelle stratégie procédurale.
+## Points d'attention stratégiques
+Observations objectives tirées des statistiques : moyens statistiquement les plus
+retenus, ordre d'occurrence dominant, schémas procéduraux observés dans la
+jurisprudence analysée. Formule comme des constats, pas comme des conseils.
 
 ## Comparaison des scénarios
 Tableau comparant les chances de succès selon les différents motifs invoqués.
@@ -76,9 +77,14 @@ Tableau comparant les chances de succès selon les différents motifs invoqués.
 Les décisions les plus proches du dossier, avec analyse de leur apport.
 
 ## Délais et aspects pratiques
-Estimation des délais, coûts potentiels, et recommandations pratiques.
+Estimation des délais et fourchettes de coûts observés dans les données.
 
 IMPORTANT : Base ton analyse UNIQUEMENT sur les données statistiques fournies.
 Ne cite pas d'articles de loi ou de jurisprudence que tu ne peux pas vérifier.
-Reste factuel et nuancé.`;
+Reste factuel et nuancé.
+
+DÉONTOLOGIE : tu n'es pas avocat. N'emploie jamais "je recommande", "je conseille",
+"mon conseil", "vous devez", "il faut". Remplace par "les données indiquent",
+"la jurisprudence retient", "point d'attention". Le conseil est le monopole de
+l'avocat ; tu fournis des observations, il décide.`;
 }

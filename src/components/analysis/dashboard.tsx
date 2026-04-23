@@ -529,9 +529,9 @@ export function AnalysisDashboard({
         </Section>
       )}
 
-      {/* ── Recommandations ─────────────────────────────────── */}
+      {/* ── Points d'attention stratégiques ─────────────────── */}
       {recommendations.length > 0 && (
-        <Section title="Recommandations" noBorder>
+        <Section title="Points d'attention" noBorder>
           <ol className="space-y-3">
             {recommendations.map((r, i) => (
               <li key={i} className="flex items-start gap-4">

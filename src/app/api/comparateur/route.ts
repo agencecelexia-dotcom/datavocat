@@ -36,18 +36,20 @@ STRUCTURE TA REPONSE EXACTEMENT AINSI :
 [fourchette]
 
 ## Verdict comparatif
-### Strategie recommandee
-[A ou B, avec justification]
+### Strategie a privilegier selon les donnees
+[A ou B, avec justification fondee sur la jurisprudence analysee]
 ### Facteurs decisifs
 [les 3 facteurs les plus importants]
-### Scenario optimal
-[recommandation combinant le meilleur des deux si possible]
+### Scenario optimal suggere par les donnees
+[combinaison des elements les plus favorables selon la jurisprudence, formule comme observation]
 
 REGLES :
 - Base-toi sur les decisions Judilibre fournies en contexte
 - JAMAIS inventer de references
 - Vocabulaire juridique precis
-- Cite les ECLI quand disponibles`;
+- Cite les ECLI quand disponibles
+- Tu n'es PAS avocat : n'emploie jamais "je recommande", "je conseille", "vous devez", "il faut". Formule en observations factuelles ("les donnees indiquent", "la jurisprudence retient", "la tendance statistique est")
+- Tu fournis des elements factuels que l'avocat appreciera, pas des recommandations`;
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthContext();

@@ -107,7 +107,7 @@ ${sourceBlock}
 ═══ INSTRUCTIONS ═══
 ${sourceInstruction}
 Analyse cette demande en suivant la structure definie dans ton systeme prompt.
-Fournis une analyse RICHE avec des statistiques, des decisions cles, et des recommandations strategiques concretes (toujours au pluriel).
+Fournis une analyse RICHE avec des statistiques, des decisions cles, et des points d'attention strategiques concrets (toujours au pluriel, formules comme des observations et non comme des conseils).
 Cite les references les plus precises possibles (ECLI, numeros de pourvoi, dates).
 IMPORTANT : cite un MAXIMUM de sources pertinentes. Analyse TOUTES les decisions Judilibre fournies ci-dessus et complete avec tes connaissances. Ne cite que des decisions reelles.
 

@@ -51,7 +51,7 @@ export default function AuthLayout({
                 </span>
               </h2>
               <p className="mt-5 max-w-sm text-[14.5px] leading-relaxed text-white/60">
-                Analysez la jurisprudence en quelques secondes. Statistiques, tendances et recommandations stratégiques pour chaque dossier.
+                Analysez la jurisprudence en quelques secondes. Statistiques, tendances et points d&apos;attention stratégiques pour chaque dossier.
               </p>
             </div>
 
@@ -60,7 +60,7 @@ export default function AuthLayout({
               {[
                 { icon: Search, label: "Recherche intelligente", detail: "Moteur Judilibre + data.gouv.fr" },
                 { icon: BarChart3, label: "Statistiques en temps réel", detail: "Taux de succès par argument & juridiction" },
-                { icon: Target, label: "Recommandations stratégiques", detail: "Fondées sur la jurisprudence réelle" },
+                { icon: Target, label: "Points d'attention stratégiques", detail: "Fondés sur la jurisprudence réelle" },
                 { icon: FileText, label: "Export multi-format", detail: "PDF, DOCX, CSV, JSON" },
               ].map((item, i) => {
                 const Icon = item.icon;

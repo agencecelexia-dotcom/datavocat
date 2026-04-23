@@ -1361,7 +1361,7 @@ function SlideRecommandation({ data }: { data: ParsedAnalysis }) {
             Plan d&apos;action
           </p>
           <h2 className="font-serif text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: NAVY }}>
-            Recommandations strategiques
+            Points d&apos;attention stratégiques
           </h2>
         </div>
 

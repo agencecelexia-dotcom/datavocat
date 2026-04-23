@@ -18,7 +18,7 @@ export default function RapportPage() {
           className="mt-4 text-[14px] leading-relaxed max-w-[520px]"
           style={{ color: "var(--muted-foreground)" }}
         >
-          Les rapports sont générés depuis la page « Nouvelle analyse ». Une fois l&apos;analyse terminée, le rapport complet apparaîtra ici avec statistiques, recommandations et sources vérifiables.
+          Les rapports sont générés depuis la page « Nouvelle analyse ». Une fois l&apos;analyse terminée, le rapport complet apparaîtra ici avec statistiques, observations et sources vérifiables.
         </p>
       </div>
     </div>

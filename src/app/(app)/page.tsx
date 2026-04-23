@@ -366,7 +366,7 @@ export default function AnalyzePage() {
                 <span className="font-semibold" style={{ color: "var(--ink)" }}>
                   562 487 décisions
                 </span>{" "}
-                de Judilibre et data.gouv.fr pour produire statistiques, recommandations et sources vérifiables.
+                de Judilibre et data.gouv.fr pour produire statistiques, observations et sources vérifiables.
               </p>
             </div>
 

@@ -42,13 +42,13 @@ export default function LoginPage() {
       </div>
 
       <h1 className="font-serif text-[40px] font-medium tracking-tight leading-[1.05]">
-        Bon <span className="dv-italic">retour.</span>
+        Accédez à <span className="dv-italic">votre espace.</span>
       </h1>
       <p
         className="mt-3 text-[14px]"
         style={{ color: "var(--muted-foreground)" }}
       >
-        Connectez-vous à votre espace d&apos;analyse jurimétrique.
+        Connexion à votre espace d&apos;analyse jurimétrique.
       </p>
 
       <form onSubmit={handleLogin} className="mt-10 space-y-5">

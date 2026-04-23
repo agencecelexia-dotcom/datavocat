@@ -381,10 +381,16 @@ function computeFiabilite(
 
   // Factor 6: Content richness — up to 10 points
   const hasStats = text.includes("%");
-  const hasRecommandation = text.toLowerCase().includes("recommandation");
-  const hasDecisionsCles = text.toLowerCase().includes("decisions cles") || text.toLowerCase().includes("décisions clés");
+  const lowerText = text.toLowerCase();
+  const hasPointsAttention =
+    lowerText.includes("recommandation") ||
+    lowerText.includes("points d'attention") ||
+    lowerText.includes("point d'attention") ||
+    lowerText.includes("points d’attention") ||
+    lowerText.includes("point d’attention");
+  const hasDecisionsCles = lowerText.includes("decisions cles") || lowerText.includes("décisions clés");
   const hasMontants = text.includes("€");
-  const richnessScore = (hasStats ? 3 : 0) + (hasRecommandation ? 3 : 0) + (hasDecisionsCles ? 2 : 0) + (hasMontants ? 2 : 0);
+  const richnessScore = (hasStats ? 3 : 0) + (hasPointsAttention ? 3 : 0) + (hasDecisionsCles ? 2 : 0) + (hasMontants ? 2 : 0);
   score += richnessScore;
   factorsList.push({
     name: "Richesse de l'analyse",
@@ -392,7 +398,7 @@ function computeFiabilite(
     maxScore: 10,
     description: [
       hasStats && "statistiques",
-      hasRecommandation && "recommandations",
+      hasPointsAttention && "points d'attention",
       hasDecisionsCles && "decisions cles",
       hasMontants && "montants chiffres",
     ].filter(Boolean).join(", ") || "Analyse sommaire",
@@ -691,7 +697,14 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     if (lowerTitle.includes("recherche") || (lowerTitle === "sources")) {
       result.recherche = content;
     }
-    if (lowerTitle.includes("recommandation")) {
+    // Compatible avec anciens titres ("Recommandations") et nouveaux ("Points d'attention")
+    if (
+      lowerTitle.includes("recommandation") ||
+      lowerTitle.includes("points d'attention") ||
+      lowerTitle.includes("point d'attention") ||
+      lowerTitle.includes("points d’attention") ||
+      lowerTitle.includes("point d’attention")
+    ) {
       result.recommandation = content;
     }
     if (
