@@ -1053,7 +1053,7 @@ function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] })
 
 // Durée moyenne (ms) d'une analyse, calibrée par la moyenne des 5 dernières
 // sessions réussies stockées dans localStorage (fallback 48 s).
-const DEFAULT_ANALYSIS_MS = 48000;
+const DEFAULT_ANALYSIS_MS = 75000;
 const STORAGE_KEY_DURATIONS = "datavocat.analysis.durations";
 
 function readAverageDurationMs(): number {
@@ -1105,7 +1105,18 @@ function AnalyzingScreen({
     return () => clearInterval(interval);
   }, []);
 
-  const progress = Math.min(95, (elapsedMs / totalMs) * 100);
+  // Courbe asymptotique : linéaire jusqu'à 90% sur la durée estimée, puis
+  // progression qui tend vers 99% sans jamais l'atteindre. Évite le blocage
+  // visible à 95% quand l'analyse prend plus longtemps que la moyenne.
+  let progress: number;
+  if (elapsedMs <= totalMs) {
+    progress = (elapsedMs / totalMs) * 90;
+  } else {
+    const overflowMs = elapsedMs - totalMs;
+    progress = 90 + 9 * (1 - Math.exp(-overflowMs / 30000));
+  }
+
+  const overflowing = elapsedMs > totalMs;
   const remainingSec = Math.max(1, Math.round((totalMs - elapsedMs) / 1000));
 
   const stepConfig: Array<{
@@ -1177,7 +1188,11 @@ function AnalyzingScreen({
             className="mt-3 text-[12px]"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Estimation restante : <span className="tabular-nums">{remainingSec}s</span>
+            {overflowing ? (
+              <>Finalisation… rédaction en cours</>
+            ) : (
+              <>Estimation restante : <span className="tabular-nums">{remainingSec}s</span></>
+            )}
           </div>
         </div>
 
