@@ -23,7 +23,7 @@ import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisChat } from "@/components/analysis/chat";
 import { SourcesAnnex } from "@/components/analysis/sources-annex";
 import { EvidenceTable } from "@/components/analysis/evidence-table";
-import { formatMarkdownSafe } from "@/lib/format-markdown";
+import { formatMarkdownSafe, stripEvidenceTableSection } from "@/lib/format-markdown";
 import { CopyMarkdown } from "@/components/ui/copy-markdown";
 
 interface ClarifyQuestion {
@@ -842,7 +842,9 @@ export default function AnalyzePage() {
               <div className="animate-fade-in-up">
                 <div
                   className="prose-legal max-w-none"
-                  dangerouslySetInnerHTML={{ __html: formatMarkdownSafe(response) }}
+                  dangerouslySetInnerHTML={{
+                    __html: formatMarkdownSafe(stripEvidenceTableSection(response)),
+                  }}
                 />
               </div>
             )}

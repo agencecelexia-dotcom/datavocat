@@ -585,11 +585,23 @@ function Metric({
 }
 
 // ── Extract recommandations helper ──────────────────────────────────
+// Nettoie les marqueurs markdown (###, **, -, etc.) et retourne des lignes propres.
 function extractRecommendations(reco: string): string[] {
   if (!reco) return [];
   const lines = reco
     .split(/\n/)
-    .map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim())
+    .map((l) => l
+      // Retire les # de titres
+      .replace(/^#{1,6}\s*/, "")
+      // Retire les puces / numérotations
+      .replace(/^[-•*]\s+/, "")
+      .replace(/^\d+[.)]\s+/, "")
+      // Retire ** gras markdown
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      // Retire * italique orphelin
+      .replace(/\*{1,2}/g, "")
+      .trim()
+    )
     .filter((l) => l.length > 10);
   return lines.slice(0, 6);
 }

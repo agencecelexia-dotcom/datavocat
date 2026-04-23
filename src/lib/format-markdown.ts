@@ -4,6 +4,29 @@
  * Output is rendered via dangerouslySetInnerHTML in a prose container.
  */
 
+/**
+ * Retire la section "## Tableau de preuve" du markdown pour éviter le doublon
+ * dans la vue Rapport — le tableau complet est déjà accessible via l'onglet
+ * Tableau dédié.
+ */
+export function stripEvidenceTableSection(md: string): string {
+  if (!md) return md;
+  const lines = md.split("\n");
+  const out: string[] = [];
+  let skipping = false;
+  for (const line of lines) {
+    if (/^##\s+Tableau\s+de\s+preuve/i.test(line)) {
+      skipping = true;
+      continue;
+    }
+    if (skipping && /^##\s+/.test(line)) {
+      skipping = false;
+    }
+    if (!skipping) out.push(line);
+  }
+  return out.join("\n");
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")

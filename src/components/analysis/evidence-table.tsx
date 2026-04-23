@@ -9,8 +9,10 @@ import {
   CheckCircle2,
   XCircle,
   Minus,
+  ExternalLink,
 } from "lucide-react";
 import type { EvidenceTable as EvidenceTableData } from "@/lib/parse-analysis";
+import { buildSourceUrl } from "@/lib/parse-analysis";
 
 const EMERALD = "var(--emerald, #2d6a4f)";
 const BORDEAUX = "var(--bordeaux, #9b2226)";
@@ -398,12 +400,21 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
                             >
                               {value}
                             </span>
-                          ) : isRef ? (
-                            <span
-                              className="font-serif text-[13px] font-medium"
+                          ) : isRef && value ? (
+                            <a
+                              href={buildSourceUrl(value)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group/ref inline-flex items-center gap-1.5 font-serif text-[13px] font-medium transition-colors"
+                              style={{ color: "var(--ink)" }}
+                              title="Ouvrir la décision sur Légifrance"
                             >
                               {value}
-                            </span>
+                              <ExternalLink
+                                className="h-3 w-3 opacity-0 group-hover/ref:opacity-70 transition-opacity"
+                                style={{ color: "var(--gold)" }}
+                              />
+                            </a>
                           ) : (
                             <span
                               style={{ color: "var(--muted-foreground)" }}

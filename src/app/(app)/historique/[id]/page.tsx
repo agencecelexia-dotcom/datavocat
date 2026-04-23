@@ -21,7 +21,7 @@ import { AnalysisChat } from "@/components/analysis/chat";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { EvidenceTable } from "@/components/analysis/evidence-table";
 import { SourcesAnnex } from "@/components/analysis/sources-annex";
-import { formatMarkdownSafe } from "@/lib/format-markdown";
+import { formatMarkdownSafe, stripEvidenceTableSection } from "@/lib/format-markdown";
 import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
 import { CopyMarkdown } from "@/components/ui/copy-markdown";
 
@@ -357,7 +357,9 @@ export default function AnalysisDetailPage() {
           <div className="animate-fade-in-up">
             <div
               className="prose-legal max-w-none"
-              dangerouslySetInnerHTML={{ __html: formatMarkdownSafe(analysis.response) }}
+              dangerouslySetInnerHTML={{
+                __html: formatMarkdownSafe(stripEvidenceTableSection(analysis.response)),
+              }}
             />
           </div>
         ) : activeView === "dashboard" && parsedData ? (

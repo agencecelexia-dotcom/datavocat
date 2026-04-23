@@ -90,21 +90,23 @@ export interface ParsedAnalysis {
  * Build a clickable URL for a French court decision reference.
  * Prioritizes direct Legifrance links when possible, falls back to Judilibre search.
  */
-function buildSourceUrl(ref: string): string {
-  // ECLI references -> direct Legifrance ECLI lookup
+export function buildSourceUrl(ref: string): string {
+  // ECLI references -> Legifrance search/all qui redirige vers la fiche JURITEXT.
+  // L'ancien format /juri/id/ECLI:... ne fonctionne plus depuis la refonte
+  // Legifrance. Le format search/all retourne la bonne décision.
   const ecliMatch = ref.match(/ECLI:[A-Z]{2}:[A-Z]+:\d{4}:[A-Z0-9.]+/);
   if (ecliMatch) {
-    return `https://www.legifrance.gouv.fr/juri/id/${encodeURIComponent(ecliMatch[0])}`;
+    return `https://www.legifrance.gouv.fr/search/all?tab_selection=all&searchField=ALL&query=${encodeURIComponent(ecliMatch[0])}&page=1&init=true`;
   }
 
-  // Pourvoi numbers -> Judilibre search with pourvoi number (most precise)
+  // Pourvoi numbers -> Legifrance search/all avec le n° de pourvoi
   const pourvoiMatch = ref.match(/(\d{2,4}[-/.]\d{2,5}(?:\.\d+)?)/);
   if (pourvoiMatch) {
-    return `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(pourvoiMatch[1])}&op=Rechercher`;
+    return `https://www.legifrance.gouv.fr/search/all?tab_selection=all&searchField=ALL&query=${encodeURIComponent(pourvoiMatch[1])}&page=1&init=true`;
   }
 
-  // Cass. references -> Judilibre with full text search
-  return `https://www.courdecassation.fr/recherche-judilibre?search_api_fulltext=${encodeURIComponent(ref)}&op=Rechercher`;
+  // Cass. references -> Legifrance search/all avec la référence brute
+  return `https://www.legifrance.gouv.fr/search/all?tab_selection=all&searchField=ALL&query=${encodeURIComponent(ref)}&page=1&init=true`;
 }
 
 /**
