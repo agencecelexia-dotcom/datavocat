@@ -211,7 +211,7 @@ export function Header({ userEmail, userName, isAdmin }: HeaderProps) {
                   <button
                     onClick={() => {
                       setDropdownOpen(false);
-                      router.push("/admin/approvals");
+                      router.push("/admin");
                     }}
                     className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[12.5px] cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
                     style={{ color: "var(--gold)", fontWeight: 600 }}

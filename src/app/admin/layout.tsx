@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/email/send";
 import { LogoMark } from "@/components/brand/logo";
+import { AdminNav } from "./admin-nav";
 
 export default async function AdminLayout({
   children,
@@ -50,6 +51,7 @@ export default async function AdminLayout({
             ← Retour app
           </Link>
         </div>
+        <AdminNav />
       </header>
       <main className="flex-1">{children}</main>
     </div>

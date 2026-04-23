@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { buildRapportPrompt } from "@/lib/claude/rapport-prompt";
 import { getAuthContext } from "@/lib/supabase/auth-helper";
+import { trackClaudeUsage } from "@/lib/api-usage/track";
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthContext();
@@ -50,6 +51,20 @@ export async function POST(request: NextRequest) {
         ) {
           controller.enqueue(encoder.encode(event.delta.text));
         }
+      }
+      // Track usage (fail-silent)
+      try {
+        const finalMessage = await stream.finalMessage();
+        await trackClaudeUsage({
+          userId: auth.userId,
+          userEmail: null,
+          model: "claude-sonnet-4-20250514",
+          operation: "rapport",
+          inputTokens: finalMessage.usage.input_tokens,
+          outputTokens: finalMessage.usage.output_tokens,
+        });
+      } catch {
+        // silent
       }
       controller.close();
     },

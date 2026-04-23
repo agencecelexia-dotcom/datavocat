@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAnthropicClient } from "@/lib/claude/client";
+import { createClient } from "@/lib/supabase/server";
+import { trackClaudeUsage } from "@/lib/api-usage/track";
 
 export const maxDuration = 30;
 
@@ -40,6 +42,9 @@ export async function POST(request: NextRequest) {
 
   const anthropic = getAnthropicClient();
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const stream = await anthropic.messages.stream({
     model: "claude-sonnet-4-20250514",
     max_tokens: 4000,
@@ -62,6 +67,21 @@ export async function POST(request: NextRequest) {
           ) {
             controller.enqueue(encoder.encode(event.delta.text));
           }
+        }
+
+        // Track API usage (fail-silent)
+        try {
+          const finalMessage = await stream.finalMessage();
+          await trackClaudeUsage({
+            userId: user?.id || null,
+            userEmail: user?.email || null,
+            model: "claude-sonnet-4-20250514",
+            operation: "chat",
+            inputTokens: finalMessage.usage.input_tokens,
+            outputTokens: finalMessage.usage.output_tokens,
+          });
+        } catch {
+          // silent
         }
       } catch {
         // Stream error — client will see incomplete response

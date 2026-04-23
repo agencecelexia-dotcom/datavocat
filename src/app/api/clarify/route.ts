@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAnthropicClient } from "@/lib/claude/client";
+import { createClient } from "@/lib/supabase/server";
+import { trackClaudeUsage } from "@/lib/api-usage/track";
 
 export const maxDuration = 30;
 
@@ -71,6 +73,22 @@ export async function POST(request: NextRequest) {
       },
     ],
   });
+
+  // Track API usage (fail-silent)
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    await trackClaudeUsage({
+      userId: user?.id || null,
+      userEmail: user?.email || null,
+      model: "claude-sonnet-4-20250514",
+      operation: "clarify",
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    });
+  } catch {
+    // silent
+  }
 
   // Extract text content
   const text = response.content

@@ -5,6 +5,7 @@ import { getAnthropicClient } from "@/lib/claude/client";
 import { DATAVOCAT_SYSTEM_PROMPT } from "@/lib/claude/analyze-prompt";
 import { searchJudilibreForAnalysis } from "@/lib/judilibre/client";
 import { searchJusticeDatasets } from "@/lib/datagouv/mcp-client";
+import { trackClaudeUsage } from "@/lib/api-usage/track";
 
 export const maxDuration = 300;
 
@@ -173,6 +174,22 @@ RAPPEL ABSOLU — ARTICLE 33 LOI n° 2019-222 :
             .from("analyses")
             .update({ response: fullResponse, status: "done" })
             .eq("id", id);
+        }
+
+        // Track API usage (fail-silent)
+        try {
+          const finalMessage = await stream.finalMessage();
+          await trackClaudeUsage({
+            userId: user.id,
+            userEmail: user.email || null,
+            model: "claude-sonnet-4-20250514",
+            operation: "analyze",
+            inputTokens: finalMessage.usage.input_tokens,
+            outputTokens: finalMessage.usage.output_tokens,
+            analysisId: id,
+          });
+        } catch {
+          // fail silent
         }
       } catch (err) {
         if (id) {
