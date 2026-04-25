@@ -176,8 +176,8 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
       )}
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-wrap items-center gap-3 w-full">
+        <div className="relative flex-1 min-w-0 sm:min-w-[200px] w-full sm:w-auto">
           <Search
             className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2"
             style={{ color: "var(--muted-foreground)" }}
@@ -257,8 +257,8 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
         </div>
       )}
 
-      {/* Column count + toggle */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* Column count + toggle (caché sur mobile, on est en vue cartes) */}
+      <div className="hidden sm:flex flex-wrap items-center justify-between gap-2">
         <p
           className="text-[11px] font-mono uppercase tracking-[0.15em]"
           style={{ color: "var(--muted-foreground)" }}
@@ -343,7 +343,7 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
                   href={buildSourceUrl(refValue)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block font-serif text-[14px] font-medium leading-snug mb-1.5 break-words"
+                  className="block font-serif text-[14px] font-medium leading-snug mb-1.5 break-all"
                   style={{ color: "var(--ink)" }}
                 >
                   {refValue}

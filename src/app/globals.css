@@ -257,10 +257,19 @@ body.theme-palais {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
     line-height: 1.6;
+    /* Empêche tout débordement horizontal global : si un enfant déborde,
+       on ne fait pas scroller la page entière. Les zones qui ont vraiment
+       besoin de scroll horizontal (overflow-x-auto) restent locales. */
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
   }
   html {
     @apply font-sans;
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
   }
   h1, h2, h3, h4, .font-serif {
     font-family: var(--font-serif), Fraunces, Georgia, serif;
@@ -351,6 +360,14 @@ body.theme-palais {
 }
 
 /* ═══ GREFFE — Prose légal ═══ */
+.prose-legal {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.prose-legal a {
+  word-break: break-word;
+}
 .prose-legal h2 {
   font-family: var(--font-serif), Fraunces, serif;
   font-weight: 500;

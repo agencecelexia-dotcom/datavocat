@@ -1,7 +1,7 @@
 export default function RapportPage() {
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-[780px] px-6 lg:px-10 py-20">
+      <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6 lg:px-10 py-12 sm:py-20">
         <div className="flex items-center gap-3 mb-6">
           <span
             className="font-mono text-[10px] uppercase tracking-[0.25em]"
@@ -11,7 +11,7 @@ export default function RapportPage() {
           </span>
           <span className="h-px flex-1" style={{ background: "var(--line)" }} />
         </div>
-        <h1 className="font-serif text-[36px] lg:text-[40px] font-medium tracking-tight">
+        <h1 className="font-serif text-[28px] sm:text-[36px] lg:text-[40px] font-medium tracking-tight">
           Rapport <span className="dv-italic">stratégique.</span>
         </h1>
         <p

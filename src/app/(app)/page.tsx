@@ -471,7 +471,7 @@ export default function AnalyzePage() {
       ) : phase === "clarify" && loading ? (
         /* ═══ Préparation des questions — loader minimal ═══ */
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-[780px] px-6 lg:px-10 py-20">
+          <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6 lg:px-10 py-12 sm:py-20">
             <div className="flex flex-col items-center text-center">
               <div
                 className="font-mono text-[10px] uppercase tracking-[0.22em] flex items-center gap-2 mb-6"
@@ -512,7 +512,7 @@ export default function AnalyzePage() {
       ) : phase === "clarify" && !loading ? (
         /* ═══ Clarification — style éditorial Greffe ═══ */
         <div data-tour="clarify-section" className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-[780px] px-6 lg:px-10 py-14">
+          <div className="mx-auto w-full max-w-[780px] px-4 sm:px-6 lg:px-10 py-8 sm:py-14">
             {/* Saisine echo */}
             <div
               className="mb-10 pl-4"
@@ -1255,7 +1255,7 @@ function AnalyzingScreen({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-[720px] px-6 lg:px-10 py-20">
+      <div className="mx-auto w-full max-w-[720px] px-4 sm:px-6 lg:px-10 py-12 sm:py-20">
         {/* Big progress */}
         <div className="flex flex-col items-center text-center mb-12">
           <div

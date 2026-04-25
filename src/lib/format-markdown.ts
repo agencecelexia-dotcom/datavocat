@@ -90,8 +90,8 @@ function processTable(lines: string[]): { html: string; consumed: number } | nul
     .join("");
 
   const html =
-    `<div class="my-5 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">` +
-    `<table class="w-full min-w-[400px] border-collapse text-sm">` +
+    `<div class="my-5 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm" style="max-width:100%">` +
+    `<table class="w-full border-collapse text-sm" style="min-width:min(100%, 400px)">` +
     `<thead><tr class="bg-gradient-to-r from-slate-800 to-slate-700 dark:from-slate-700 dark:to-slate-600">${headerHtml}</tr></thead>` +
     `<tbody>${bodyHtml}</tbody>` +
     `</table></div>`;

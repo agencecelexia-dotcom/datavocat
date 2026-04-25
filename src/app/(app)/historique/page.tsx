@@ -95,7 +95,7 @@ export default function HistoriquePage() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-[1100px] px-6 lg:px-10 py-10">
+      <div className="mx-auto w-full max-w-[1100px] px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
         {/* Eyebrow */}
         <div className="flex items-center gap-3 mb-6">
           <span

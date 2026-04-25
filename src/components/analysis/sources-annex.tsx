@@ -349,8 +349,8 @@ export function SourcesAnnex({ data }: { data: ParsedAnalysis }) {
       )}
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[200px] flex-1">
+      <div className="flex flex-wrap items-center gap-3 w-full">
+        <div className="relative flex-1 min-w-0 sm:min-w-[200px] w-full sm:w-auto">
           <Search
             className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2"
             style={{ color: "var(--muted-foreground)" }}
