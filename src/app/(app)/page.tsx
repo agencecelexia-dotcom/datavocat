@@ -344,7 +344,7 @@ export default function AnalyzePage() {
       {phase === "input" ? (
         /* ═══ SAISINE — Hero éditorial Greffe ═══ */
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-[780px] px-6 lg:px-10 py-16 lg:py-24">
+          <div className="mx-auto max-w-[780px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12 lg:py-24">
             {/* Eyebrow */}
             <div className="mb-5 animate-fade-in-up">
               <div className="flex items-center gap-3">
@@ -357,7 +357,7 @@ export default function AnalyzePage() {
 
             {/* Hero */}
             <div className="mb-10 animate-fade-in-up d-1">
-              <h1 className="font-serif text-[44px] leading-[0.98] font-medium tracking-tight sm:text-[56px] lg:text-[68px]">
+              <h1 className="font-serif text-[34px] leading-[1] font-medium tracking-tight sm:text-[48px] lg:text-[68px]">
                 Analysez{" "}
                 <span className="dv-italic">votre affaire.</span>
               </h1>
@@ -385,7 +385,7 @@ export default function AnalyzePage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Mon client, salarié depuis 15 ans dans une entreprise de BTP, conteste un licenciement pour faute grave…"
-                  className="min-h-[140px] w-full resize-none border-0 bg-transparent px-5 py-5 text-[15px] leading-[1.7] shadow-none ring-0 placeholder:text-[color:var(--muted-foreground)]/50 focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:border-0"
+                  className="min-h-[110px] sm:min-h-[140px] w-full resize-none border-0 bg-transparent px-4 sm:px-5 py-4 sm:py-5 text-[14px] sm:text-[15px] leading-[1.7] shadow-none ring-0 placeholder:text-[color:var(--muted-foreground)]/50 focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:border-0"
                   disabled={loading}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -692,7 +692,7 @@ export default function AnalyzePage() {
       ) : (
         /* ═══ RESULTS — rapport d'analyse éditorial ═══ */
         <div className="flex-1 overflow-y-auto" ref={responseRef}>
-          <div className="mx-auto max-w-[1040px] px-6 lg:px-10 py-10">
+          <div className="mx-auto w-full max-w-[1040px] px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
             {/* Title block */}
             {parsedData && (
               <div className="mb-8">
@@ -1064,7 +1064,8 @@ function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] })
 
       {open && (
         <div
-          className="absolute z-50 right-0 mt-3 w-[440px] max-w-[92vw] rounded-md p-5 shadow-2xl"
+          className="absolute z-50 mt-3 rounded-md p-4 sm:p-5 shadow-2xl
+            left-0 right-0 sm:left-auto sm:right-0 sm:w-[440px] sm:max-w-[92vw]"
           style={{
             background: "var(--card)",
             border: "1px solid var(--line)",

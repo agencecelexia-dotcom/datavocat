@@ -180,7 +180,7 @@ export default function AnalysisDetailPage() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-[1040px] px-6 lg:px-10 py-8">
+      <div className="mx-auto w-full max-w-[1040px] px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
         {/* Back */}
         <Link
           href="/historique"

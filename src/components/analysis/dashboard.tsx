@@ -444,7 +444,7 @@ export function AnalysisDashboard({
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-2">
                 <Metric label="Min." value={fmtEur(data.montants.min)} />
                 <Metric label="Médian" value={fmtEur(data.montants.median)} em />
                 <Metric label="Max." value={fmtEur(data.montants.max)} />
@@ -486,7 +486,7 @@ export function AnalysisDashboard({
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <Metric label="Montant moyen" value={fmtEur(art700.montantMoyen)} />
                 <Metric label="Montant médian" value={fmtEur(art700.montantMedian)} />
               </div>

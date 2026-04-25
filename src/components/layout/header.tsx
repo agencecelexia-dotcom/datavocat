@@ -59,7 +59,7 @@ export function Header({ userEmail, userName, isAdmin }: HeaderProps) {
 
   return (
     <header
-      className="h-14 flex items-center justify-between px-5 lg:px-8"
+      className="h-14 flex items-center justify-between gap-2 px-3 sm:px-5 lg:px-8"
       style={{
         borderBottom: "1px solid var(--line)",
         background: "var(--bg)",
@@ -127,7 +127,7 @@ export function Header({ userEmail, userName, isAdmin }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
         {isDemo && (
           <span
             className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.15em]"
@@ -180,7 +180,7 @@ export function Header({ userEmail, userName, isAdmin }: HeaderProps) {
 
           {dropdownOpen && (
             <div
-              className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-md"
+              className="absolute right-0 top-full z-50 mt-2 w-56 max-w-[calc(100vw-1rem)] max-h-[80vh] overflow-y-auto rounded-md"
               style={{
                 background: "var(--card)",
                 border: "1px solid var(--line)",

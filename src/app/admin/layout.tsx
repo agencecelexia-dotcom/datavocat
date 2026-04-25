@@ -22,7 +22,7 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       <header style={{ borderBottom: "1px solid var(--line)" }}>
-        <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6 lg:px-10">
+        <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between gap-2 px-3 sm:px-6 lg:px-10">
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2.5">
               <LogoMark size={24} tone="light" />

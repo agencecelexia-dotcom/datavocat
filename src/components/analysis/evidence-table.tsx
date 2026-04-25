@@ -281,9 +281,136 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
         )}
       </div>
 
-      {/* Table */}
+      {/* ─── Mobile : vue cartes (< sm) ─── */}
+      <div className="sm:hidden space-y-3">
+        {filtered.map((row, i) => {
+          const pertCol = data.headers.find((h) =>
+            h.toLowerCase().includes("pertinence")
+          );
+          const pertValue = pertCol ? row[pertCol] || "" : "";
+          const refCol = data.headers.find((h) =>
+            /decision|référence|reference/i.test(h)
+          );
+          const refValue = refCol ? row[refCol] || "" : "";
+          const dateCol = data.headers.find((h) =>
+            h.toLowerCase().includes("date")
+          );
+          const dateValue = dateCol ? row[dateCol] || "" : "";
+          const numCol = data.headers.find(
+            (h) => h === "N°" || h.toLowerCase().includes("n°")
+          );
+          const numValue = numCol ? row[numCol] || String(i + 1) : String(i + 1);
+          const solutionCol = data.headers.find((h) =>
+            h.toLowerCase().includes("solution")
+          );
+          const solutionValue = solutionCol ? row[solutionCol] || "" : "";
+          const isExpanded = expandedRows.has(i);
+          const otherFields = data.headers.filter(
+            (h) =>
+              h !== refCol &&
+              h !== dateCol &&
+              h !== numCol &&
+              h !== pertCol &&
+              h !== solutionCol &&
+              row[h]
+          );
+          return (
+            <div
+              key={i}
+              className="rounded-md p-3"
+              style={{
+                border: "1px solid var(--line)",
+                background: "var(--card)",
+                borderLeft: `3px solid ${pertinenceColor(pertValue) || "transparent"}`,
+              }}
+            >
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span
+                  className="font-mono text-[10px] tabular-nums"
+                  style={{ color: "var(--gold)" }}
+                >
+                  N° {numValue}
+                </span>
+                <span
+                  className="font-mono text-[10px]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {dateValue}
+                </span>
+              </div>
+              {refValue && (
+                <a
+                  href={buildSourceUrl(refValue)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block font-serif text-[14px] font-medium leading-snug mb-1.5 break-words"
+                  style={{ color: "var(--ink)" }}
+                >
+                  {refValue}
+                </a>
+              )}
+              {solutionValue && (
+                <p
+                  className="text-[12px] leading-snug mb-2"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {solutionValue}
+                </p>
+              )}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                {pertValue && (
+                  <span
+                    className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.05em] font-semibold px-2 py-0.5 rounded"
+                    style={{
+                      color: pertinenceColor(pertValue),
+                      backgroundColor: `color-mix(in srgb, ${pertinenceColor(pertValue)} 10%, transparent)`,
+                    }}
+                  >
+                    {pertinenceIcon(pertValue)}
+                    {pertValue}
+                  </span>
+                )}
+                {otherFields.length > 0 && (
+                  <button
+                    onClick={() => toggleRow(i)}
+                    className="text-[11px] font-mono uppercase tracking-[0.1em] cursor-pointer"
+                    style={{ color: "var(--gold)" }}
+                  >
+                    {isExpanded ? "Masquer" : "Détails"}
+                  </button>
+                )}
+              </div>
+              {isExpanded && otherFields.length > 0 && (
+                <div
+                  className="mt-3 pt-3 grid grid-cols-1 gap-2"
+                  style={{ borderTop: "1px solid var(--line-soft)" }}
+                >
+                  {otherFields.map((h) => (
+                    <div key={h} className="flex justify-between gap-3 text-[11.5px]">
+                      <span
+                        className="font-mono text-[9.5px] uppercase tracking-[0.1em] flex-shrink-0"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
+                        {h}
+                      </span>
+                      <span
+                        className="text-right break-words"
+                        style={{ color: "var(--ink)" }}
+                      >
+                        {row[h]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ─── Tablette + desktop (≥ sm) : table classique ─── */}
       <div
-        className="overflow-x-auto rounded-md"
+        className="hidden sm:block overflow-x-auto rounded-md"
         style={{
           border: "1px solid var(--line)",
           background: "var(--card)",
@@ -293,7 +420,7 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
           className="w-full text-[13px]"
           style={{
             minWidth:
-              visibleHeaders.length > 8 ? `${visibleHeaders.length * 140}px` : undefined,
+              visibleHeaders.length > 10 ? `${visibleHeaders.length * 130}px` : undefined,
           }}
         >
           <thead>
@@ -302,7 +429,7 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
                 <th
                   key={header}
                   onClick={() => handleSort(header)}
-                  className="cursor-pointer whitespace-nowrap px-4 py-3 text-left font-mono text-[9.5px] uppercase tracking-[0.15em] font-semibold transition-colors"
+                  className="cursor-pointer whitespace-nowrap px-2 sm:px-4 py-2 sm:py-3 text-left font-mono text-[9.5px] uppercase tracking-[0.15em] font-semibold transition-colors"
                   style={{
                     color: "var(--muted-foreground)",
                     position: colIdx === 0 ? "sticky" : undefined,
@@ -371,7 +498,7 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
                       return (
                         <td
                           key={header}
-                          className="whitespace-nowrap px-4 py-3"
+                          className="whitespace-nowrap px-2 sm:px-4 py-2 sm:py-3"
                           style={{
                             position: isFirstCol ? "sticky" : undefined,
                             left: isFirstCol ? 0 : undefined,

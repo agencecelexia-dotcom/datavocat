@@ -332,7 +332,7 @@ export function SourcesAnnex({ data }: { data: ParsedAnalysis }) {
       {/* Stats chip line */}
       {hasDetailed && (favorableCount > 0 || defavorableCount > 0 || neutreCount > 0) && (
         <div
-          className="flex flex-wrap items-center gap-x-6 gap-y-2 py-3 pb-4"
+          className="flex flex-wrap items-center gap-x-3 sm:gap-x-6 gap-y-2 py-3 pb-4"
           style={{ borderBottom: "1px solid var(--line)" }}
         >
           <AnnexStatChip label="Total" value={detailedSources.length} color="var(--ink)" />

@@ -12,8 +12,8 @@ const TABS = [
 export function AdminNav() {
   const pathname = usePathname();
   return (
-    <nav className="mx-auto max-w-[1100px] px-6 lg:px-10">
-      <div className="flex items-center gap-1" style={{ marginBottom: "-1px" }}>
+    <nav className="mx-auto w-full max-w-[1100px] px-4 sm:px-6 lg:px-10 overflow-x-auto">
+      <div className="flex items-center gap-1 whitespace-nowrap" style={{ marginBottom: "-1px" }}>
         {TABS.map((t) => {
           const active = t.match(pathname);
           return (
