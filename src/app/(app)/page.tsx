@@ -797,8 +797,15 @@ export default function AnalyzePage() {
                       className="mt-3 text-[12px]"
                       style={{ color: "var(--muted-foreground)" }}
                     >
-                      Sur {parsedData.echantillon ?? analysisMeta?.analyzedCount ?? "—"} décisions analysées ·{" "}
-                      {parsedData.sourceCount} sources citées
+                      Sur{" "}
+                      {parsedData.evidenceTable?.rows.length ??
+                        parsedData.echantillon ??
+                        analysisMeta?.analyzedCount ??
+                        "—"}{" "}
+                      décisions analysées ·{" "}
+                      {parsedData.verification?.verifiedRefs ??
+                        parsedData.sourceCount}{" "}
+                      sources citées
                       {analysisMeta?.freshestDate && ` · jusqu'au ${analysisMeta.freshestDate}`}
                     </div>
                   </div>

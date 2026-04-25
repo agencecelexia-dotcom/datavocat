@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import type { ParsedAnalysis, DetailedSource } from "@/lib/parse-analysis";
+import { buildSourceUrl } from "@/lib/parse-analysis";
 
 const EMERALD = "var(--emerald, #2d6a4f)";
 const BORDEAUX = "var(--bordeaux, #9b2226)";
@@ -272,22 +273,70 @@ export function SourcesAnnex({ data }: { data: ParsedAnalysis }) {
   const [filter, setFilter] = useState<"all" | "favorable" | "defavorable" | "neutre">("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Use detailedSources if available, otherwise fall back to basic sources
-  const hasDetailed = data.detailedSources.length > 0;
+  // Sources affichées : on PRIORISE les lignes du tableau de preuve
+  // (qui contient TOUTES les décisions analysées avec leur référence et leurs
+  // facteurs juridiques) sur l'annexe textuelle (souvent partielle, juste
+  // les arrêts les plus saillants détaillés par Claude).
+  const evidenceRows = data.evidenceTable?.rows ?? [];
+  const hasEvidence = evidenceRows.length > 0;
 
-  const detailedSources = hasDetailed
-    ? data.detailedSources
-    : data.sources.map((s) => ({
-        reference: s.reference,
-        juridiction: "",
-        chambre: s.chamber,
-        date: s.date,
-        solution: s.solution,
-        source: "",
-        pertinence: "" as const,
-        apport: "",
-        url: s.url,
-      }));
+  const sourcesFromEvidence = evidenceRows.map((row) => {
+    // Le tableau a la nouvelle structure (Règle 4) : colonnes nommées.
+    // On cherche par regex pour s'adapter aux libellés (Référence, Juridiction…).
+    const find = (re: RegExp): string => {
+      for (const k of Object.keys(row)) {
+        if (re.test(k.toLowerCase())) return row[k] || "";
+      }
+      return "";
+    };
+    const reference = find(/r[eé]f[eé]rence|decision|décision/);
+    const juridiction = find(/^juridiction$/);
+    const chambre = find(/chambre|formation/);
+    const date = find(/^date$/);
+    const resultat = find(/r[eé]sultat|pertinence/i);
+    const argument = find(/argument/);
+    const partie = find(/partie/);
+    const fondement = find(/fondement/);
+    const detail = find(/d[eé]tail/);
+    const r = (resultat || "").toLowerCase();
+    const pertinence: "favorable" | "defavorable" | "neutre" | "" =
+      r.includes("favorable") && !r.includes("defav") && !r.includes("défav")
+        ? "favorable"
+        : r.includes("defavorable") || r.includes("défavorable")
+          ? "defavorable"
+          : r.includes("nuanc")
+            ? "neutre"
+            : "";
+    return {
+      reference,
+      juridiction,
+      chambre,
+      date,
+      solution: argument || "",
+      source: fondement || "",
+      pertinence,
+      apport: detail || "",
+      url: reference ? buildSourceUrl(reference) : "",
+    };
+  });
+
+  // Fallback : ancienne annexe textuelle (pour les analyses pré-Règle 4).
+  const hasDetailed = data.detailedSources.length > 0;
+  const detailedSources = hasEvidence
+    ? sourcesFromEvidence
+    : hasDetailed
+      ? data.detailedSources
+      : data.sources.map((s) => ({
+          reference: s.reference,
+          juridiction: "",
+          chambre: s.chamber,
+          date: s.date,
+          solution: s.solution,
+          source: "",
+          pertinence: "" as const,
+          apport: "",
+          url: s.url,
+        }));
 
   const filtered = detailedSources.filter((s) => {
     if (filter !== "all" && s.pertinence !== filter) return false;

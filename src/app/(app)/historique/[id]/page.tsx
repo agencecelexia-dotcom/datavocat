@@ -260,7 +260,14 @@ export default function AnalysisDetailPage() {
                   className="mt-3 text-[12px]"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  Sur {parsedData.echantillon ?? "—"} décisions · {parsedData.sourceCount} sources citées
+                  Sur{" "}
+                  {parsedData.evidenceTable?.rows.length ??
+                    parsedData.echantillon ??
+                    "—"}{" "}
+                  décisions ·{" "}
+                  {parsedData.verification?.verifiedRefs ??
+                    parsedData.sourceCount}{" "}
+                  sources citées
                 </div>
               </div>
               <div
