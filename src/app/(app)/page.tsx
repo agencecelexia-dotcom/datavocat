@@ -394,21 +394,9 @@ export default function AnalyzePage() {
                   }}
                 />
                 <div
-                  className="flex items-center justify-between px-4 py-3"
+                  className="flex items-center justify-end px-4 py-3"
                   style={{ borderTop: "1px solid var(--line-soft)" }}
                 >
-                  <div className="hidden sm:flex items-center gap-2 text-[11px]" style={{ color: "var(--muted-foreground)" }}>
-                    <kbd
-                      className="font-mono text-[10px] px-1.5 py-0.5 rounded"
-                      style={{
-                        border: "1px solid var(--line)",
-                        background: "var(--paper)",
-                      }}
-                    >
-                      ⌘↵
-                    </kbd>
-                    <span>pour lancer</span>
-                  </div>
                   <button
                     data-tour="analyze-button"
                     type="submit"
