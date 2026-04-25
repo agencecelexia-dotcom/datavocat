@@ -553,11 +553,17 @@ export async function searchJudilibreForAnalysis(
       }
     }
 
-    // Pour les CA on garde le filtre chambre (chambre sociale, com, civ…)
-    // qui aide à la pertinence. Pour la Cass, le filtre chambre est aussi
-    // utile (chambre sociale Cass, etc.).
+    // Le filtre `chamber` (soc, civ1, civ2, civ3, com, crim, mi, pl) ne
+    // s'applique qu'à la Cour de cassation et aux Cours d'appel — les TJ
+    // et TCOM utilisent des codes de chambre internes différents et le
+    // filtre les évince à 0. On l'omet donc pour ces juridictions.
+    const chamberAppliesTo = (j: string) => j === "cc" || j === "ca";
     const searchPromises: Promise<JudilibreSearchResult>[] = [];
     for (const jur of jurisdictions) {
+      const useChamber =
+        chamber && jur && jur.every((j) => chamberAppliesTo(j))
+          ? chamber
+          : undefined;
       for (const q of searchQueries) {
         searchPromises.push(
           searchMultiPage({
@@ -566,7 +572,7 @@ export async function searchJudilibreForAnalysis(
             sort: "score",
             order: "desc",
             pageSize: 50,
-            chamber,
+            chamber: useChamber,
             jurisdiction: jur,
             dateStart: dateStartRecent,
             dateEnd,
@@ -614,6 +620,7 @@ export async function searchJudilibreForAnalysis(
 
     // Fallback élargi : si trop peu de décisions dans la fenêtre récente,
     // on refait un passage sans filtre de date pour capter les arrêts de principe.
+    // Pas de filtre chamber ici (TJ/TCOM ne le supportent pas).
     if (uniqueDecisions.length < JUDILIBRE_MAX_CONTEXT / 2) {
       const fallbackPromises = searchQueries.map((q) =>
         searchJudilibre({
@@ -622,7 +629,6 @@ export async function searchJudilibreForAnalysis(
           sort: "score",
           order: "desc",
           pageSize: 50,
-          chamber,
           jurisdiction: targetJurisdiction,
         }).catch(
           () =>
