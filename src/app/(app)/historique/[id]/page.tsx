@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Loader2,
   FileDown,
-  FileJson,
   Sheet,
   Table,
 } from "lucide-react";
@@ -116,7 +115,7 @@ export default function AnalysisDetailPage() {
     return parseAnalysisResponse(analysis.response);
   }, [analysis]);
 
-  const handleExport = async (format: "pdf" | "docx" | "csv" | "json") => {
+  const handleExport = async (format: "pdf" | "docx" | "xlsx") => {
     if (!analysis?.response) {
       toast.error("Aucune analyse à exporter");
       return;
@@ -303,9 +302,8 @@ export default function AnalysisDetailPage() {
             <div className="flex items-center gap-1.5">
               <CopyMarkdown content={analysis.response} />
               <ExportButton icon={FileDown} label="PDF" onClick={() => handleExport("pdf")} />
-              <ExportButton icon={FileDown} label="DOCX" onClick={() => handleExport("docx")} />
-              <ExportButton icon={Sheet} label="CSV" onClick={() => handleExport("csv")} />
-              <ExportButton icon={FileJson} label="JSON" onClick={() => handleExport("json")} />
+              <ExportButton icon={FileDown} label="Word" onClick={() => handleExport("docx")} />
+              <ExportButton icon={Sheet} label="Excel" onClick={() => handleExport("xlsx")} />
             </div>
           </div>
         )}

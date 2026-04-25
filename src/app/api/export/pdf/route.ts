@@ -504,9 +504,8 @@ function AnalysisDocument(props: {
   blocks: Block[];
   dateStr: string;
   shortDateStr: string;
-  editionNumber: string;
 }) {
-  const { query, blocks, dateStr, shortDateStr, editionNumber } = props;
+  const { query, blocks, dateStr, shortDateStr } = props;
 
   // Numérotation des sections h1
   let sectionCounter = 0;
@@ -632,7 +631,7 @@ function AnalysisDocument(props: {
         View,
         { style: styles.coverFrame },
 
-        // Top : monogram + eyebrow
+        // Top : monogram seul
         React.createElement(
           View,
           { style: styles.coverTop },
@@ -648,7 +647,7 @@ function AnalysisDocument(props: {
           React.createElement(
             Text,
             { style: styles.coverTopEyebrow },
-            "Datavocat · Greffe · Jurimétrie"
+            "Datavocat"
           )
         ),
 
@@ -674,7 +673,7 @@ function AnalysisDocument(props: {
           )
         ),
 
-        // Bottom : date, édition, confidentialité
+        // Bottom : date seule
         React.createElement(
           View,
           { style: styles.coverBottom },
@@ -690,34 +689,6 @@ function AnalysisDocument(props: {
               Text,
               { style: styles.coverBottomValue },
               dateStr
-            )
-          ),
-          React.createElement(
-            View,
-            { style: styles.coverBottomCol },
-            React.createElement(
-              Text,
-              { style: styles.coverBottomLabel },
-              "N° d'édition"
-            ),
-            React.createElement(
-              Text,
-              { style: styles.coverBottomValueMono },
-              editionNumber
-            )
-          ),
-          React.createElement(
-            View,
-            { style: styles.coverBottomCol },
-            React.createElement(
-              Text,
-              { style: styles.coverBottomLabel },
-              "Diffusion"
-            ),
-            React.createElement(
-              Text,
-              { style: styles.coverBottomValue },
-              "Confidentiel"
             )
           )
         )
@@ -826,20 +797,12 @@ export async function POST(request: NextRequest) {
       month: "2-digit",
       year: "numeric",
     });
-    // N° d'édition déterministe à partir de la date+heure (YY.MM.DD-HHMM)
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const editionNumber = `${String(now.getFullYear()).slice(
-      2
-    )}·${pad(now.getMonth() + 1)}·${pad(now.getDate())} — ${pad(
-      now.getHours()
-    )}${pad(now.getMinutes())}`;
 
     const element = React.createElement(AnalysisDocument, {
       query,
       blocks,
       dateStr,
       shortDateStr,
-      editionNumber,
     });
 
     const buffer = await renderToBuffer(

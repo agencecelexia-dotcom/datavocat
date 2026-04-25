@@ -8,7 +8,6 @@ import {
   Sparkles,
   ArrowRight,
   FileDown,
-  FileJson,
   Sheet,
   Search,
   Database,
@@ -292,7 +291,7 @@ export default function AnalyzePage() {
     });
   };
 
-  const handleExport = async (format: "pdf" | "docx" | "csv" | "json") => {
+  const handleExport = async (format: "pdf" | "docx" | "xlsx") => {
     if (!response) {
       toast.error("Aucune analyse à exporter");
       return;
@@ -818,9 +817,8 @@ export default function AnalyzePage() {
                 <div data-tour="tour-export-buttons" className="flex items-center gap-1.5">
                   <CopyMarkdown content={response} />
                   <ExportButton icon={FileDown} label="PDF" onClick={() => handleExport("pdf")} />
-                  <ExportButton icon={FileDown} label="DOCX" onClick={() => handleExport("docx")} />
-                  <ExportButton icon={Sheet} label="CSV" onClick={() => handleExport("csv")} title="Exporter le tableau de preuve en CSV" />
-                  <ExportButton icon={FileJson} label="JSON" onClick={() => handleExport("json")} title="Exporter l'analyse complète en JSON" />
+                  <ExportButton icon={FileDown} label="Word" onClick={() => handleExport("docx")} />
+                  <ExportButton icon={Sheet} label="Excel" onClick={() => handleExport("xlsx")} title="Exporter l'analyse complète en Excel (synthèse, tableau de preuve, sources)" />
                 </div>
               </div>
             )}
@@ -1250,7 +1248,7 @@ function AnalyzingScreen({
     },
     {
       key: "claude",
-      label: "Analyse jurimétrique & rédaction",
+      label: "Analyse jurimétrique",
       detail: "Motifs · solutions · synthèse",
     },
   ];
