@@ -25,6 +25,8 @@ export interface VerificationResult {
   removedSentences: number;
   /** Nombre de lignes de tableau supprimées. */
   removedRows: number;
+  /** Vrai si l'invariant N (intro/stats) a dû être patché pour matcher le tableau. */
+  coherenceCorrected: boolean;
 }
 
 const ECLI_REGEX = /ECLI:[A-Z]{2}:[A-Z0-9]+:\d{4}:[A-Z0-9.]+/g;
@@ -211,12 +213,110 @@ export function verifyAndCleanMarkdown(
     // Si la ligne entière a été vidée, on la skip pour ne pas laisser de blanc
   }
 
+  let cleanedMarkdown = cleanedLines.join("\n");
+
+  // ─── Axe 1 : cohérence du comptage N intro = N tableau ──
+  // Si on a supprimé des lignes du tableau, le N annoncé dans l'intro
+  // et les stats n'est plus valide. On le patche pour matcher la nouvelle
+  // taille du tableau.
+  let coherenceCorrected = false;
+  const finalRowCount = countTableRows(cleanedMarkdown);
+  const announcedCount = corpus.length;
+  if (
+    finalRowCount > 0 &&
+    finalRowCount !== announcedCount &&
+    removedRows > 0
+  ) {
+    cleanedMarkdown = patchAnnouncedCount(
+      cleanedMarkdown,
+      announcedCount,
+      finalRowCount
+    );
+    coherenceCorrected = true;
+  }
+
   return {
-    cleanedMarkdown: cleanedLines.join("\n"),
+    cleanedMarkdown,
     citedRefs: allCitedRefs.length,
     verifiedRefs: verifiedRefs.length,
     unverifiedRefs: Array.from(unverifiedSet),
     removedSentences,
     removedRows,
+    coherenceCorrected,
   };
+}
+
+/**
+ * Compte le nombre de lignes de données dans le premier tableau de preuve
+ * du markdown (en-tête et séparateur exclus).
+ */
+function countTableRows(markdown: string): number {
+  const lines = markdown.split("\n");
+  let count = 0;
+  let inTable = false;
+  let sepSeen = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const isRow = trimmed.startsWith("|") && trimmed.endsWith("|");
+    const isSep = /^\|[\s:\-|]+\|$/.test(trimmed);
+    if (isRow && !inTable) {
+      inTable = true;
+      sepSeen = false;
+      continue; // header
+    }
+    if (isRow && inTable && isSep) {
+      sepSeen = true;
+      continue;
+    }
+    if (isRow && inTable && sepSeen) {
+      count++;
+      continue;
+    }
+    if (!isRow && inTable && sepSeen) {
+      // Fin du tableau, on s'arrête (premier tableau seulement).
+      return count;
+    }
+  }
+  return count;
+}
+
+/**
+ * Remplace les occurrences de l'ancien N par le nouveau N dans les
+ * formulations canoniques (« sur N décisions », « N décisions analysées »,
+ * « Total : N »…). On évite les remplacements aveugles : seuls les patterns
+ * couplés au mot "décision(s)" / "Total" sont substitués.
+ */
+function patchAnnouncedCount(
+  markdown: string,
+  oldN: number,
+  newN: number
+): string {
+  if (oldN === newN) return markdown;
+  let out = markdown;
+  // « sur N décisions », « sur N arrêts », « sur les N décisions »
+  out = out.replace(
+    new RegExp(`(\\bsur(?:\\s+les)?\\s+)${oldN}(\\s+(?:décisions?|arrêts?|d\\u00e9cisions?))`, "gi"),
+    `$1${newN}$2`
+  );
+  // « N décisions analysées »
+  out = out.replace(
+    new RegExp(`\\b${oldN}(\\s+décisions?\\s+analysées?)`, "gi"),
+    `${newN}$1`
+  );
+  // « N décisions ont été » / « N décisions du corpus »
+  out = out.replace(
+    new RegExp(`\\b${oldN}(\\s+décisions?\\s+(?:ont|du|de|cit|retenu|favorables?|défavorables?))`, "gi"),
+    `${newN}$1`
+  );
+  // « Total décisions analysées : N » / « Total : N »
+  out = out.replace(
+    new RegExp(`(Total(?:\\s+décisions?\\s+analysées?)?\\s*:\\s*)${oldN}\\b`, "gi"),
+    `$1${newN}`
+  );
+  // « Sur les N » en tête de phrase
+  out = out.replace(
+    new RegExp(`(Sur\\s+(?:les\\s+)?)${oldN}(\\s+décisions?)`, "gi"),
+    `$1${newN}$2`
+  );
+  return out;
 }

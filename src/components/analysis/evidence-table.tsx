@@ -48,16 +48,65 @@ function isCompactColumn(header: string): boolean {
   return COMPACT_KEYWORDS.some((k) => h.includes(k));
 }
 
+// Helpers pour résoudre dynamiquement la colonne correspondante d'après son nom.
+function findColumn(headers: string[], regexes: RegExp[]): string | null {
+  for (const re of regexes) {
+    const m = headers.find((h) => re.test(h.toLowerCase()));
+    if (m) return m;
+  }
+  return null;
+}
+
 export function EvidenceTable({ data }: { data: EvidenceTableData }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [filterPertinence, setFilterPertinence] = useState<"all" | "favorable" | "defavorable" | "nuance">("all");
+  // Filtres avancés cumulables (Règle 4)
+  const [filterJuridiction, setFilterJuridiction] = useState<Set<string>>(new Set());
+  const [filterChambre, setFilterChambre] = useState<Set<string>>(new Set());
+  const [filterArgument, setFilterArgument] = useState<Set<string>>(new Set());
+  const [filterPartie, setFilterPartie] = useState<string>("all");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   // Mode condensé : colonnes essentielles par défaut, expand par ligne pour le détail.
   const [compactMode, setCompactMode] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const hasPertinence = data.headers.some((h) => h.toLowerCase().includes("pertinence"));
+
+  // Résolution dynamique des colonnes pour les filtres avancés.
+  const colJuridiction = findColumn(data.headers, [
+    /^juridiction$/i,
+    /juridiction/i,
+  ]);
+  const colChambre = findColumn(data.headers, [/chambre|formation/i]);
+  const colArgument = findColumn(data.headers, [/argument/i, /motif/i]);
+  const colPartie = findColumn(data.headers, [
+    /partie\s*gagnante/i,
+    /partie/i,
+    /gain/i,
+  ]);
+
+  // Valeurs uniques (triées) pour peupler les selects multi.
+  const uniq = (col: string | null): string[] => {
+    if (!col) return [];
+    const s = new Set<string>();
+    for (const r of data.rows) {
+      const v = (r[col] || "").trim();
+      if (v && v !== "N/C") s.add(v);
+    }
+    return Array.from(s).sort();
+  };
+  const juridictionOptions = uniq(colJuridiction);
+  const chambreOptions = uniq(colChambre);
+  const argumentOptions = uniq(colArgument);
+  const partieOptions = uniq(colPartie);
+
+  const hasAnyAdvancedFilter =
+    filterJuridiction.size > 0 ||
+    filterChambre.size > 0 ||
+    filterArgument.size > 0 ||
+    filterPartie !== "all";
 
   const compactHeaders = useMemo(
     () => data.headers.filter(isCompactColumn),
@@ -111,6 +160,20 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
       });
     }
 
+    // Filtres avancés cumulables (Règle 4) — logique AND
+    if (filterJuridiction.size > 0 && colJuridiction) {
+      rows = rows.filter((r) => filterJuridiction.has((r[colJuridiction] || "").trim()));
+    }
+    if (filterChambre.size > 0 && colChambre) {
+      rows = rows.filter((r) => filterChambre.has((r[colChambre] || "").trim()));
+    }
+    if (filterArgument.size > 0 && colArgument) {
+      rows = rows.filter((r) => filterArgument.has((r[colArgument] || "").trim()));
+    }
+    if (filterPartie !== "all" && colPartie) {
+      rows = rows.filter((r) => (r[colPartie] || "").trim() === filterPartie);
+    }
+
     // Search
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -130,7 +193,23 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
     }
 
     return rows;
-  }, [data.rows, data.headers, searchTerm, sortCol, sortDir, filterPertinence, hasPertinence]);
+  }, [
+    data.rows,
+    data.headers,
+    searchTerm,
+    sortCol,
+    sortDir,
+    filterPertinence,
+    hasPertinence,
+    filterJuridiction,
+    filterChambre,
+    filterArgument,
+    filterPartie,
+    colJuridiction,
+    colChambre,
+    colArgument,
+    colPartie,
+  ]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -234,6 +313,104 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
           </div>
         )}
       </div>
+
+      {/* Filtres avancés cumulables (Règle 4) */}
+      {(juridictionOptions.length > 0 ||
+        chambreOptions.length > 0 ||
+        argumentOptions.length > 0 ||
+        partieOptions.length > 0) && (
+        <div>
+          <button
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="text-[11px] font-mono uppercase tracking-[0.15em] cursor-pointer flex items-center gap-1.5"
+            style={{ color: hasAnyAdvancedFilter ? "var(--gold)" : "var(--muted-foreground)" }}
+          >
+            <Filter className="h-3 w-3" />
+            Filtres avancés{hasAnyAdvancedFilter ? " (actifs)" : ""}
+            <span style={{ opacity: 0.6 }}>{showAdvanced ? "—" : "+"}</span>
+          </button>
+          {showAdvanced && (
+            <div
+              className="mt-2 rounded-md p-3 grid grid-cols-1 sm:grid-cols-2 gap-3"
+              style={{
+                border: "1px solid var(--line)",
+                background: "var(--paper)",
+              }}
+            >
+              {juridictionOptions.length > 0 && (
+                <FilterMultiSelect
+                  label="Juridiction"
+                  options={juridictionOptions}
+                  selected={filterJuridiction}
+                  onChange={setFilterJuridiction}
+                />
+              )}
+              {chambreOptions.length > 0 && (
+                <FilterMultiSelect
+                  label="Chambre / Formation"
+                  options={chambreOptions}
+                  selected={filterChambre}
+                  onChange={setFilterChambre}
+                />
+              )}
+              {argumentOptions.length > 0 && (
+                <FilterMultiSelect
+                  label="Argument principal"
+                  options={argumentOptions}
+                  selected={filterArgument}
+                  onChange={setFilterArgument}
+                />
+              )}
+              {partieOptions.length > 0 && (
+                <div>
+                  <div
+                    className="font-mono text-[9.5px] uppercase tracking-[0.15em] mb-1.5"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Partie gagnante
+                  </div>
+                  <select
+                    value={filterPartie}
+                    onChange={(e) => setFilterPartie(e.target.value)}
+                    className="w-full text-[12px] py-1.5 px-2 rounded"
+                    style={{
+                      border: "1px solid var(--line)",
+                      background: "var(--card)",
+                    }}
+                  >
+                    <option value="all">Toutes</option>
+                    {partieOptions.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {hasAnyAdvancedFilter && (
+                <button
+                  onClick={() => {
+                    setFilterJuridiction(new Set());
+                    setFilterChambre(new Set());
+                    setFilterArgument(new Set());
+                    setFilterPartie("all");
+                  }}
+                  className="sm:col-span-2 text-[11px] font-mono uppercase tracking-[0.1em] cursor-pointer self-start"
+                  style={{ color: "var(--bordeaux)" }}
+                >
+                  Réinitialiser les filtres avancés
+                </button>
+              )}
+              <div
+                className="sm:col-span-2 text-[11px]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                {filtered.length} décision{filtered.length > 1 ? "s" : ""}{" "}
+                affichée{filtered.length > 1 ? "s" : ""} sur {data.rows.length}{" "}
+                total.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Légende persistante des filtres */}
       {hasPertinence && (
@@ -688,6 +865,57 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
+
+function FilterMultiSelect({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const toggle = (v: string) => {
+    const next = new Set(selected);
+    if (next.has(v)) next.delete(v);
+    else next.add(v);
+    onChange(next);
+  };
+  return (
+    <div>
+      <div
+        className="font-mono text-[9.5px] uppercase tracking-[0.15em] mb-1.5"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        {label}
+        {selected.size > 0 && (
+          <span style={{ color: "var(--gold)" }}> ({selected.size})</span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto">
+        {options.map((opt) => {
+          const active = selected.has(opt);
+          return (
+            <button
+              key={opt}
+              onClick={() => toggle(opt)}
+              className="text-[11px] px-2 py-0.5 rounded cursor-pointer transition-colors"
+              style={{
+                background: active ? "var(--gold)" : "var(--card)",
+                color: active ? "white" : "var(--ink)",
+                border: "1px solid var(--line)",
+              }}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function StatChip({
   label,

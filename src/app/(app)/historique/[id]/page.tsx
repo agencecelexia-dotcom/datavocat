@@ -16,7 +16,11 @@ import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { EvidenceTable } from "@/components/analysis/evidence-table";
 import { SourcesAnnex } from "@/components/analysis/sources-annex";
 import { formatMarkdownSafe, stripEvidenceTableSection } from "@/lib/format-markdown";
-import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
+import {
+  parseAnalysisResponse,
+  ParsedAnalysis,
+  computeFiabiliteFromFormula,
+} from "@/lib/parse-analysis";
 import { CopyMarkdown } from "@/components/ui/copy-markdown";
 
 interface Analysis {
@@ -113,11 +117,16 @@ export default function AnalysisDetailPage() {
   const parsedData = useMemo(() => {
     if (!analysis?.response || analysis.status !== "done") return null;
     const parsed = parseAnalysisResponse(analysis.response);
-    // Merge la verification JSONB stockée en BDD (depuis migration 00018)
     const a = analysis as unknown as {
       verification?: ParsedAnalysis["verification"];
     };
-    if (a.verification) parsed.verification = a.verification;
+    if (a.verification) {
+      parsed.verification = a.verification;
+      if (a.verification.fiabilite) {
+        const f = a.verification.fiabilite;
+        parsed.fiabilite = computeFiabiliteFromFormula(f.A, f.B, f.C, f.D);
+      }
+    }
     return parsed;
   }, [analysis]);
 

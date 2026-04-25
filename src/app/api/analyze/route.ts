@@ -75,15 +75,21 @@ export async function POST(request: NextRequest) {
     oldestDate: null as string | null,
     freshestDate: null as string | null,
     decisions: [] as JudilibreDecision[],
+    expandLevel: -1 as -1 | 0 | 1 | 2 | 3,
   };
+  // Capture les niveaux d'élargissement pour les émettre dans le stream après.
+  const expandEvents: Array<{ level: 1 | 2 | 3; count: number }> = [];
   const [judilibreResult, datagouvContext] = await Promise.all([
     Promise.race([
       searchJudilibreForAnalysis(query, {
         userId: user.id,
         userEmail: user.email ?? null,
+        onExpand: (level, count) => {
+          expandEvents.push({ level, count });
+        },
       }).catch(() => emptyJudilibre),
       new Promise<typeof emptyJudilibre>((resolve) =>
-        setTimeout(() => resolve(emptyJudilibre), 18000)
+        setTimeout(() => resolve(emptyJudilibre), 30000)
       ),
     ]),
     Promise.race([
@@ -162,6 +168,14 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
             `[STEP:judilibre:done count=${judilibreResult.analyzedCount} total=${judilibreResult.totalFound}]\n`
           )
         );
+        // Émissions des élargissements éventuels (Règle 5 : recherche progressive si < 30).
+        for (const ev of expandEvents) {
+          controller.enqueue(
+            encoder.encode(
+              `[STEP:judilibre:expand level=${ev.level} count=${ev.count}]\n`
+            )
+          );
+        }
         controller.enqueue(
           encoder.encode(
             `[STEP:datagouv:done has=${hasDatagouv ? 1 : 0}]\n`
@@ -185,7 +199,9 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
         // ─── Vérification post-génération ───────────────────────────
         // Toute référence ECLI/pourvoi citée par Claude qui n'est pas
         // dans le corpus Judilibre fourni → la phrase est SUPPRIMÉE du
-        // rapport final. Idem pour les lignes de tableau.
+        // rapport final. Idem pour les lignes de tableau. Si N tableau
+        // change, les occurrences de N dans l'intro/stats sont patchées
+        // pour préserver l'invariant Règle 1.
         const verification = hasJudilibre
           ? verifyAndCleanMarkdown(fullResponse, corpus)
           : {
@@ -195,13 +211,14 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
               unverifiedRefs: [],
               removedSentences: 0,
               removedRows: 0,
+              coherenceCorrected: false,
             };
 
         const finalMarkdown = verification.cleanedMarkdown;
 
         controller.enqueue(
           encoder.encode(
-            `\n[STEP:verify:done cited=${verification.citedRefs} verified=${verification.verifiedRefs} removed=${verification.removedSentences + verification.removedRows}]\n`
+            `\n[STEP:verify:done cited=${verification.citedRefs} verified=${verification.verifiedRefs} removed=${verification.removedSentences + verification.removedRows} coherence=${verification.coherenceCorrected ? 1 : 0}]\n`
           )
         );
 
@@ -216,31 +233,81 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
               };
             };
           };
-          // Composition du corpus pour avertir l'utilisateur quand le mix
-          // d'instances ne correspond pas à la juridiction de sa demande
-          // (ex: 100% Cass. alors que la question concerne le CPH).
+          // Composition du corpus 4 catégories (Règle 2).
           const corpusComposition = corpusStats
             ? {
                 total: corpusStats.total,
-                cassationCount: corpusStats.cassationGroup.total,
-                fondCount: corpusStats.fondGroup.total,
+                premierDegre: corpusStats.hierarchy.premierDegre.total,
+                courAppel: corpusStats.hierarchy.courAppel.total,
+                cassation: corpusStats.hierarchy.cassation.total,
+                conseilEtat: 0,
+                // Champs hérités pour rétro-compat.
+                cassationCount: corpusStats.hierarchy.cassation.total,
+                fondCount:
+                  corpusStats.hierarchy.premierDegre.total +
+                  corpusStats.hierarchy.courAppel.total,
                 cassationPct:
                   corpusStats.total > 0
                     ? Math.round(
-                        (corpusStats.cassationGroup.total / corpusStats.total) *
+                        (corpusStats.hierarchy.cassation.total /
+                          corpusStats.total) *
                           100
                       )
                     : 0,
                 fondPct:
                   corpusStats.total > 0
                     ? Math.round(
-                        (corpusStats.fondGroup.total / corpusStats.total) * 100
+                        ((corpusStats.hierarchy.premierDegre.total +
+                          corpusStats.hierarchy.courAppel.total) /
+                          corpusStats.total) *
+                          100
                       )
                     : 0,
-                cassationRate: corpusStats.cassationGroup.cassationRate,
+                cassationRate: corpusStats.hierarchy.cassation.cassationRate ?? null,
                 fondAcceptanceRate:
-                  corpusStats.fondGroup.acceptanceRate,
+                  corpusStats.hierarchy.premierDegre.total +
+                    corpusStats.hierarchy.courAppel.total >
+                  0
+                    ? Math.round(
+                        ((corpusStats.hierarchy.premierDegre.favorables +
+                          corpusStats.hierarchy.courAppel.favorables) /
+                          (corpusStats.hierarchy.premierDegre.total +
+                            corpusStats.hierarchy.courAppel.total)) *
+                          1000
+                      ) / 10
+                    : null,
               }
+            : null;
+
+          // ─── Axe 3 : composantes A/B/C/D de l'indice de fiabilité ──
+          // Calculées sur les vraies stats du corpus, stockées telles quelles
+          // pour que le client les affiche sans recalcul. La formule reste
+          // (A × 0,35) + (B × 0,25) + (C × 0,20) + (D × 0,20).
+          const fiabiliteFormula = corpusStats
+            ? (() => {
+                const A = corpusStats.coherencePct;
+                const B = Math.min(100, (corpusStats.total / 30) * 100);
+                const C =
+                  corpusStats.nonEmptyCategories >= 2
+                    ? 100
+                    : corpusStats.nonEmptyCategories === 1
+                      ? 50
+                      : 0;
+                const D =
+                  corpusStats.total > 0
+                    ? (corpusStats.freshDecisionsFiveYears /
+                        corpusStats.total) *
+                      100
+                    : 0;
+                const score = A * 0.35 + B * 0.25 + C * 0.2 + D * 0.2;
+                return {
+                  A: Math.round(A * 10) / 10,
+                  B: Math.round(B * 10) / 10,
+                  C: Math.round(C * 10) / 10,
+                  D: Math.round(D * 10) / 10,
+                  score: Math.round(score * 10) / 10,
+                };
+              })()
             : null;
 
           await updateClient
@@ -255,7 +322,9 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
                 unverifiedRefs: verification.unverifiedRefs,
                 removedSentences: verification.removedSentences,
                 removedRows: verification.removedRows,
+                coherenceCorrected: verification.coherenceCorrected,
                 corpusComposition,
+                fiabilite: fiabiliteFormula,
               },
             })
             .eq("id", id);

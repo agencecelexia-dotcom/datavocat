@@ -18,6 +18,9 @@ export const JUDILIBRE_MAX_CONTEXT = 100;
 /** Fenêtre de fraîcheur en années : on récupère prioritairement les décisions des N dernières années. */
 export const JUDILIBRE_FRESHNESS_YEARS = 5;
 
+/** Seuil cible de décisions pour considérer le corpus représentatif (Règle 5). */
+export const JUDILIBRE_MIN_DECISIONS = 30;
+
 /**
  * Masque les noms de magistrats identifiables dans un texte brut Judilibre,
  * en conformité avec l'article 33 de la loi n° 2019-222.
@@ -382,6 +385,15 @@ export interface JudilibreAnalysisContext {
   freshestDate: string | null;
   /** Décisions brutes du corpus, exposées pour stats serveur et vérification post-gen. */
   decisions: JudilibreDecision[];
+  /**
+   * Niveau d'élargissement utilisé pour atteindre 30 décisions :
+   *   0 = recherche initiale stricte
+   *   1 = sans filtre de date
+   *   2 = sans filtre de chambre
+   *   3 = sans filtre de juridiction
+   *   -1 = recherche échouée, < 30 même après élargissement
+   */
+  expandLevel: 0 | 1 | 2 | 3 | -1;
 }
 
 /**
@@ -391,7 +403,12 @@ export interface JudilibreAnalysisContext {
  */
 export async function searchJudilibreForAnalysis(
   userQuery: string,
-  opts?: { userId?: string | null; userEmail?: string | null }
+  opts?: {
+    userId?: string | null;
+    userEmail?: string | null;
+    /** Callback optionnel pour signaler un élargissement de recherche (UI). */
+    onExpand?: (level: 1 | 2 | 3, count: number) => void;
+  }
 ): Promise<JudilibreAnalysisContext> {
   const keyId = process.env.PISTE_KEY_ID;
   if (!keyId) {
@@ -403,6 +420,7 @@ export async function searchJudilibreForAnalysis(
       oldestDate: null,
       freshestDate: null,
       decisions: [],
+      expandLevel: -1,
     };
   }
 
@@ -588,7 +606,98 @@ export async function searchJudilibreForAnalysis(
         oldestDate: null,
         freshestDate: null,
         decisions: [],
+        expandLevel: -1,
       };
+    }
+
+    // ─── Élargissement progressif jusqu'à atteindre 30 décisions ──
+    // Règle 5 : si le corpus initial < 30, on relance la recherche en
+    // assouplissant progressivement les filtres avant d'abandonner.
+    let expandLevel: 0 | 1 | 2 | 3 = 0;
+
+    const collectMore = async (
+      searches: Promise<JudilibreSearchResult>[]
+    ): Promise<void> => {
+      const results = await Promise.all(searches);
+      for (const result of results) {
+        totalAcrossSearches = Math.max(totalAcrossSearches, result.total);
+        for (const dec of result.results) {
+          const key = dec.ecli || dec.id;
+          if (!seenEcli.has(key)) {
+            seenEcli.add(key);
+            uniqueDecisions.push(dec);
+          }
+        }
+      }
+    };
+
+    // Élargissement #1 : retire la fenêtre de date.
+    if (uniqueDecisions.length < JUDILIBRE_MIN_DECISIONS) {
+      expandLevel = 1;
+      await collectMore(
+        searchQueries.map((q) =>
+          searchJudilibre({
+            query: q,
+            operator: "or",
+            sort: "score",
+            order: "desc",
+            pageSize: 30,
+            chamber,
+            jurisdiction: targetJurisdiction,
+          }).catch(
+            () =>
+              ({ results: [], total: 0, query: q } as JudilibreSearchResult)
+          )
+        )
+      );
+      if (uniqueDecisions.length >= JUDILIBRE_MIN_DECISIONS && opts?.onExpand) {
+        opts.onExpand(1, uniqueDecisions.length);
+      }
+    }
+
+    // Élargissement #2 : retire le filtre de chambre (mots-clés seuls).
+    if (uniqueDecisions.length < JUDILIBRE_MIN_DECISIONS) {
+      expandLevel = 2;
+      await collectMore(
+        searchQueries.map((q) =>
+          searchJudilibre({
+            query: q,
+            operator: "or",
+            sort: "score",
+            order: "desc",
+            pageSize: 30,
+            jurisdiction: targetJurisdiction,
+          }).catch(
+            () =>
+              ({ results: [], total: 0, query: q } as JudilibreSearchResult)
+          )
+        )
+      );
+      if (uniqueDecisions.length >= JUDILIBRE_MIN_DECISIONS && opts?.onExpand) {
+        opts.onExpand(2, uniqueDecisions.length);
+      }
+    }
+
+    // Élargissement #3 : retire le filtre de juridiction.
+    if (uniqueDecisions.length < JUDILIBRE_MIN_DECISIONS) {
+      expandLevel = 3;
+      await collectMore(
+        searchQueries.map((q) =>
+          searchJudilibre({
+            query: q,
+            operator: "or",
+            sort: "score",
+            order: "desc",
+            pageSize: 30,
+          }).catch(
+            () =>
+              ({ results: [], total: 0, query: q } as JudilibreSearchResult)
+          )
+        )
+      );
+      if (opts?.onExpand) {
+        opts.onExpand(3, uniqueDecisions.length);
+      }
     }
 
     // 1) On garde JUDILIBRE_MAX_CONTEXT candidates côté Judilibre (score mot-clé).
@@ -618,6 +727,8 @@ export async function searchJudilibreForAnalysis(
       oldestDate: dates[0] ?? null,
       freshestDate: dates[dates.length - 1] ?? null,
       decisions: topDecisions,
+      expandLevel:
+        topDecisions.length < JUDILIBRE_MIN_DECISIONS ? -1 : expandLevel,
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erreur inconnue";
@@ -628,6 +739,7 @@ export async function searchJudilibreForAnalysis(
       oldestDate: null,
       freshestDate: null,
       decisions: [],
+      expandLevel: -1,
     };
   }
 }

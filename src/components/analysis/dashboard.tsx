@@ -216,16 +216,141 @@ export function AnalysisDashboard({
     ? verification.removedSentences + verification.removedRows
     : 0;
 
-  // Détecte un déséquilibre Cassation / Fond qui rend les % trompeurs si
-  // la question concerne une autre instance que celle dominante du corpus.
+  // Composition 4 catégories (Règle 2)
   const composition = verification?.corpusComposition ?? null;
-  const cassDominant =
-    !!composition && composition.cassationPct >= 70 && composition.fondPct < 30;
-  const fondDominant =
-    !!composition && composition.fondPct >= 70 && composition.cassationPct < 30;
+  const corpusTotal = composition?.total ?? 0;
+  const cassPct =
+    composition?.cassationPct ??
+    (composition && corpusTotal > 0
+      ? Math.round((composition.cassation / corpusTotal) * 100)
+      : 0);
+  const fondPct =
+    composition?.fondPct ??
+    (composition && corpusTotal > 0
+      ? Math.round(
+          ((composition.premierDegre + composition.courAppel) / corpusTotal) *
+            100
+        )
+      : 0);
+  const cassDominant = !!composition && cassPct >= 70 && fondPct < 30;
+  const fondDominant = !!composition && fondPct >= 70 && cassPct < 30;
+
+  // Indice de représentativité (composante B) — bandeau Règle 5 si < 30
+  const corpusUnderMin = corpusTotal > 0 && corpusTotal < 30;
+  const representativitePct = Math.min(100, Math.round((corpusTotal / 30) * 100));
 
   return (
     <div>
+      {/* ── BANDEAU CORPUS RÉDUIT (REGLE 5) ──────────────────── */}
+      {corpusUnderMin && (
+        <div
+          className="rounded-md px-4 py-3 mb-4 text-[12px] leading-relaxed"
+          style={{
+            border:
+              "1px solid color-mix(in srgb, var(--amber) 40%, transparent)",
+            background: "color-mix(in srgb, var(--amber) 8%, transparent)",
+            color: "var(--ink)",
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.18em] mt-0.5 flex-shrink-0"
+              style={{ color: "var(--amber)" }}
+            >
+              § Corpus réduit
+            </span>
+            <div className="flex-1">
+              <div className="font-semibold">
+                Seules {corpusTotal} décisions ont pu être identifiées (seuil
+                cible : 30).
+              </div>
+              <div
+                className="text-[11.5px] mt-1"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Indice de représentativité : <strong>{representativitePct} %</strong>{" "}
+                (composante B de la fiabilité). L&apos;analyse reste valable
+                sur ce corpus mais ses tendances sont indicatives. Élargir la
+                requête en variant les mots-clés permettrait d&apos;augmenter
+                la fiabilité.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HIÉRARCHIE 4 CATÉGORIES (REGLE 2) ────────────────── */}
+      {composition && corpusTotal > 0 && (
+        <div
+          className="rounded-md px-4 py-3 mb-4"
+          style={{
+            border: "1px solid var(--line)",
+            background: "var(--paper)",
+          }}
+        >
+          <div
+            className="font-mono text-[10px] uppercase tracking-[0.18em] mb-2"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            § Hiérarchie juridictionnelle
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              {
+                label: "1er degré",
+                count: composition.premierDegre ?? 0,
+                hint: "CPH, TJ, TC, TGI, TI, T. correctionnel",
+              },
+              {
+                label: "Cour d'appel",
+                count: composition.courAppel ?? 0,
+                hint: "Juridiction du 2nd degré",
+              },
+              {
+                label: "Cour de cassation",
+                count: composition.cassation ?? 0,
+                hint: "Juge du droit",
+              },
+              {
+                label: "Conseil d'État",
+                count: 0,
+                hint: "Source administrative non branchée",
+                disabled: true,
+              },
+            ].map((cat) => (
+              <div
+                key={cat.label}
+                title={cat.hint}
+                style={{
+                  opacity: cat.disabled ? 0.45 : 1,
+                }}
+              >
+                <div
+                  className="font-mono text-[9.5px] uppercase tracking-[0.15em]"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {cat.label}
+                </div>
+                <div
+                  className="font-serif text-[22px] tabular-nums leading-none mt-1"
+                  style={{ color: "var(--ink)" }}
+                >
+                  {cat.count}
+                  {corpusTotal > 0 && (
+                    <span
+                      className="font-mono text-[10px] ml-1.5"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      ({Math.round((cat.count / corpusTotal) * 100)}%)
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── BANDEAU AVERTISSEMENT COMPOSITION DU CORPUS ─────── */}
       {composition && (cassDominant || fondDominant) && (
         <div

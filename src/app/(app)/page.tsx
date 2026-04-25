@@ -16,7 +16,11 @@ import {
   ShieldCheck,
   CheckCircle2,
 } from "lucide-react";
-import { parseAnalysisResponse, ParsedAnalysis } from "@/lib/parse-analysis";
+import {
+  parseAnalysisResponse,
+  ParsedAnalysis,
+  computeFiabiliteFromFormula,
+} from "@/lib/parse-analysis";
 import { TOUR_QUERY } from "@/hooks/use-product-tour";
 import { AnalysisDashboard } from "@/components/analysis/dashboard";
 import { AnalysisChat } from "@/components/analysis/chat";
@@ -96,7 +100,15 @@ export default function AnalyzePage() {
   const parsedData = useMemo(() => {
     if (!response || phase !== "done") return null;
     const parsed = parseAnalysisResponse(response);
-    if (verification) parsed.verification = verification;
+    if (verification) {
+      parsed.verification = verification;
+      // Si le serveur a calculé A/B/C/D, on remplace l'estimation client
+      // par la vraie formule (Règle 3).
+      if (verification.fiabilite) {
+        const f = verification.fiabilite;
+        parsed.fiabilite = computeFiabiliteFromFormula(f.A, f.B, f.C, f.D);
+      }
+    }
     return parsed;
   }, [response, phase, verification]);
 
@@ -223,6 +235,16 @@ export default function AnalyzePage() {
         const state = parts[1];
         if (key === "judilibre" && state === "done") {
           setStreamSteps((s) => ({ ...s, judilibre: "done", datagouv: "active" }));
+        } else if (key === "judilibre" && state === "expand") {
+          // [STEP:judilibre:expand level=N count=M] — Règle 5
+          const rest = parts.slice(2).join(":");
+          const level = parseInt(rest.match(/level=(\d+)/)?.[1] || "0", 10);
+          const count = parseInt(rest.match(/count=(\d+)/)?.[1] || "0", 10);
+          if (typeof window !== "undefined") {
+            console.info(
+              `[Datavocat] Recherche élargie niveau ${level} → ${count} décisions trouvées.`
+            );
+          }
         } else if (key === "datagouv" && state === "done") {
           setStreamSteps((s) => ({ ...s, datagouv: "done", claude: "active" }));
         } else if (key === "claude" && state === "start") {
@@ -230,17 +252,18 @@ export default function AnalyzePage() {
         } else if (key === "claude" && state === "done") {
           setStreamSteps((s) => ({ ...s, claude: "done" }));
         } else if (key === "verify" && state === "done") {
-          // [STEP:verify:done cited=N verified=M removed=K]
+          // [STEP:verify:done cited=N verified=M removed=K coherence=0|1]
           const rest = parts.slice(2).join(":");
           const cited = parseInt(rest.match(/cited=(\d+)/)?.[1] || "0", 10);
           const verified = parseInt(rest.match(/verified=(\d+)/)?.[1] || "0", 10);
-          // removed = sentences + rows (granularité combinée pour le live).
+          const coherence = rest.includes("coherence=1");
           setVerification({
             citedRefs: cited,
             verifiedRefs: verified,
             unverifiedRefs: [],
             removedSentences: Math.max(0, cited - verified),
             removedRows: 0,
+            coherenceCorrected: coherence,
           });
         }
       };
