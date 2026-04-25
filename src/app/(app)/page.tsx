@@ -992,19 +992,45 @@ function ResultsTitle({ query }: { query: string }) {
 }
 
 /**
- * Jauge fiabilité — barre segmentée (style Greffe, remplace le SVG 3D).
+ * Jauge fiabilité — barre segmentée + popover cliquable montrant les 8
+ * facteurs de calcul (style Greffe).
  */
 function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] }) {
   const score = fiabilite.score;
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (open && !ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
   return (
-    <div className="w-full">
+    <div className="w-full relative" ref={ref}>
       <div className="flex items-baseline justify-between mb-2">
-        <div
-          className="font-mono text-[10px] uppercase tracking-[0.22em]"
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-1.5 cursor-pointer transition-opacity hover:opacity-70"
           style={{ color: "var(--muted-foreground)" }}
         >
-          Indice de fiabilité
-        </div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em]">
+            Indice de fiabilité
+          </span>
+          <span
+            className="rounded-full text-[9px] font-semibold w-[14px] h-[14px] inline-flex items-center justify-center"
+            style={{
+              border: "1px solid var(--gold)",
+              color: "var(--gold)",
+            }}
+            aria-label="Détail du calcul"
+          >
+            i
+          </span>
+        </button>
         <div
           className="font-mono text-[22px] tabular-nums font-semibold"
           style={{ color: "var(--gold)" }}
@@ -1047,6 +1073,100 @@ function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] })
         <span>75</span>
         <span>100</span>
       </div>
+
+      {open && (
+        <div
+          className="absolute z-50 right-0 mt-3 w-[440px] max-w-[92vw] rounded-md p-5 shadow-2xl"
+          style={{
+            background: "var(--card)",
+            border: "1px solid var(--line)",
+            top: "100%",
+          }}
+        >
+          <div
+            className="font-mono text-[9px] uppercase tracking-[0.22em] mb-2"
+            style={{ color: "var(--gold)" }}
+          >
+            Mode de calcul
+          </div>
+          <div
+            className="font-serif text-[15px] leading-snug mb-3"
+            style={{ color: "var(--ink)" }}
+          >
+            Indice composé de 8 facteurs sur 100 points.
+          </div>
+          <p
+            className="text-[11.5px] leading-relaxed mb-4"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Le score reflète la solidité statistique et la traçabilité du corpus
+            analysé. Une note de 60–75 est typique d'une analyse correcte ; au-dessus
+            de 80 indique un dossier particulièrement bien documenté.
+          </p>
+          <div className="space-y-2.5">
+            {fiabilite.factors.map((f, i) => {
+              const pct =
+                f.maxScore > 0 ? Math.max(0, (f.score / f.maxScore) * 100) : 0;
+              const color =
+                f.impact === "positive"
+                  ? "var(--emerald)"
+                  : f.impact === "negative"
+                    ? "var(--bordeaux)"
+                    : "var(--gold)";
+              return (
+                <div key={i}>
+                  <div className="flex justify-between items-baseline mb-0.5">
+                    <span
+                      className="text-[12px] font-medium"
+                      style={{ color: "var(--ink)" }}
+                    >
+                      {f.name}
+                    </span>
+                    <span
+                      className="font-mono text-[10px] tabular-nums"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      {f.score >= 0 ? "+" : ""}
+                      {f.score}
+                      {f.maxScore > 0 ? ` / ${f.maxScore}` : " (pénalité)"}
+                    </span>
+                  </div>
+                  {f.maxScore > 0 && (
+                    <div
+                      className="h-[3px] rounded-full overflow-hidden mb-1"
+                      style={{ background: "var(--paper-2)" }}
+                    >
+                      <div
+                        className="h-full"
+                        style={{ width: `${pct}%`, background: color }}
+                      />
+                    </div>
+                  )}
+                  <p
+                    className="text-[10.5px] leading-snug"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    {f.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          <div
+            className="mt-4 pt-3 text-[10px] leading-relaxed"
+            style={{
+              borderTop: "1px solid var(--line)",
+              color: "var(--muted-foreground)",
+            }}
+          >
+            <strong>Lecture :</strong> l'indice n'est PAS un pronostic d'issue —
+            c'est une mesure de la qualité du corpus mobilisé pour répondre à
+            votre question. Un indice élevé sur un dossier complexe ne garantit
+            pas l'issue ; un indice faible signale qu'il faut compléter par votre
+            propre recherche.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

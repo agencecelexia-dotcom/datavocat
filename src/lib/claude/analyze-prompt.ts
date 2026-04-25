@@ -157,7 +157,20 @@ Minimum 3 points d'attention distincts et argumentes. Pour chaque point :
 [Plus tu en cites, plus l'analyse est utile — mais ne cite QUE des decisions reelles et pertinentes]
 
 ## Limites de l'analyse
-[Sources utilisees, fiabilite, decisions non publiees, biais eventuels]
+OBLIGATOIRE — Tu DOIS produire AU MOINS 5 limites concretes et chiffrees, jamais des phrases vides du type "L'analyse presente des limites" ou "Les resultats sont indicatifs".
+
+Couvre IMPERATIVEMENT chacun des points suivants quand pertinent :
+
+1. **Profondeur du corpus** : "N decisions analysees sur M trouvees dans Judilibre". Si N < 30, ecris explicitement : "echantillon reduit, resultats indicatifs uniquement, a confirmer par recherche complementaire".
+2. **Couverture temporelle** : indique l'annee de la decision la plus ancienne et la plus recente. Si l'ecart > 10 ans : "ecart generationnel important, les orientations jurisprudentielles ont pu evoluer". Si aucune decision < 3 ans : signale le risque de revirements non captes.
+3. **Repartition par instance** : indique combien de Cassation / Cours d'appel / juges du fond figurent dans le corpus. Si une categorie represente > 70 % : "desequilibre marque, analyse biaisee vers le juge du droit / juge du fond".
+4. **Decisions non publiees** : rappelle que la majorite des decisions de 1ere instance et certaines de CA ne sont PAS dans Judilibre — les statistiques peuvent ne pas refleter l'ensemble des solutions effectivement rendues.
+5. **Pseudonymisation magistrats (article 33 loi n° 2019-222)** : "L'analyse fine par magistrat est interdite par la loi. Les statistiques sont produites au niveau de la juridiction et de la chambre uniquement."
+6. **Biais propres a l'IA** : "L'analyse repose sur les sommaires et extraits transmis par Judilibre — elle ne remplace pas la lecture integrale des arrets cles. L'IA peut interpreter differemment des elements factuels du dossier reel non communique."
+7. **Reformes en cours** : si une loi recente ou un revirement de jurisprudence affecte le contentieux et n'est pas encore reflete dans le corpus, signale-le explicitement.
+8. **Domaine non couvert par Judilibre** : pour le droit administratif (CE), penal (CA, TGI), prud'homal (1ere instance), CNIL/AAI : indique-le et signale que l'analyse mobilise tes connaissances faute de donnees verifiables en temps reel.
+
+Format : liste a puces (-) avec une phrase par limite, AVEC chiffres et noms de juridictions concretes. Pas de meta-commentaire.
 
 REGLES :
 - NE JAMAIS mentionner les honoraires d'avocat — le site est destine aux avocats dont les honoraires sont libres (article 10 loi du 31/12/1971). En revanche, TOUJOURS inclure la section Article 700 CPC avec les stats de condamnation.

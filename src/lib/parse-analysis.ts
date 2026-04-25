@@ -268,7 +268,12 @@ function detectHallucinationRisk(text: string, sources: SourceReference[]): { ri
 }
 
 /**
- * Compute fiabilite score based on analysis quality indicators
+ * Compute fiabilite score based on analysis quality indicators.
+ *
+ * Total maximum = 100 points, répartis sur 8 facteurs (incluant 2 nouveaux :
+ * diversité des instances et précision des références) + pénalité hallucination.
+ * Les seuils ont été resserrés en avril 2026 pour éviter le plafonnement
+ * artificiel à ~85 % sur des analyses moyennes.
  */
 function computeFiabilite(
   sources: SourceReference[],
@@ -281,107 +286,211 @@ function computeFiabilite(
   const summaryParts: string[] = [];
   const currentYear = new Date().getFullYear();
 
-  // Factor 1: Number of cited sources — up to 25 points
-  const sourcePoints = Math.min(sources.length * 3, 25);
+  // Factor 1: Number of cited sources — up to 18 points
+  // 0.6pt par source citée, plafond à 30 sources pour score plein.
+  const sourcePoints = Math.min(Math.round(sources.length * 0.6 * 10) / 10, 18);
   score += sourcePoints;
   factorsList.push({
-    name: "Nombre de sources citees",
+    name: "Nombre de sources citées",
     score: sourcePoints,
-    maxScore: 25,
-    description: sources.length > 0
-      ? `${sources.length} decision${sources.length > 1 ? "s" : ""} de justice identifiee${sources.length > 1 ? "s" : ""} avec reference verifiable`
-      : "Aucune reference precise de decision identifiee",
-    impact: sourcePoints >= 15 ? "positive" : sourcePoints >= 8 ? "neutral" : "negative",
+    maxScore: 18,
+    description:
+      sources.length > 0
+        ? `${sources.length} décision${sources.length > 1 ? "s" : ""} citée${sources.length > 1 ? "s" : ""} avec référence — ${sources.length >= 30 ? "très satisfaisant" : sources.length >= 15 ? "satisfaisant" : sources.length >= 8 ? "convenable" : "limité"}`
+        : "Aucune référence précise identifiée",
+    impact:
+      sourcePoints >= 14 ? "positive" : sourcePoints >= 8 ? "neutral" : "negative",
   });
   if (sources.length > 0) summaryParts.push(`${sources.length} ref.`);
 
   // Factor 2: Sample size — up to 15 points
+  // Seuils stricts : 60 décisions = score plein, < 10 = pénalisant.
   if (echantillon !== null) {
-    const samplePoints = echantillon >= 50 ? 15 : echantillon >= 20 ? 12 : echantillon >= 10 ? 9 : echantillon >= 5 ? 6 : 3;
+    const samplePoints =
+      echantillon >= 60
+        ? 15
+        : echantillon >= 30
+          ? 12
+          : echantillon >= 15
+            ? 9
+            : echantillon >= 8
+              ? 6
+              : echantillon >= 3
+                ? 3
+                : 1;
     score += samplePoints;
     factorsList.push({
-      name: "Taille de l'echantillon",
+      name: "Taille de l'échantillon",
       score: samplePoints,
       maxScore: 15,
-      description: `Echantillon de ${echantillon} decisions — ${echantillon >= 30 ? "base statistique solide" : echantillon >= 10 ? "echantillon convenable, a interpreter avec prudence" : "echantillon reduit, resultats indicatifs"}`,
-      impact: samplePoints >= 12 ? "positive" : samplePoints >= 6 ? "neutral" : "negative",
+      description: `${echantillon} décisions analysées — ${echantillon >= 50 ? "base statistique solide" : echantillon >= 25 ? "échantillon convenable, à interpréter avec prudence" : echantillon >= 10 ? "échantillon réduit, résultats indicatifs" : "échantillon insuffisant"}`,
+      impact:
+        samplePoints >= 12 ? "positive" : samplePoints >= 6 ? "neutral" : "negative",
+    });
+  } else {
+    factorsList.push({
+      name: "Taille de l'échantillon",
+      score: 0,
+      maxScore: 15,
+      description: "Échantillon non quantifié dans la réponse",
+      impact: "negative",
     });
   }
 
   // Factor 3: Data source quality — up to 20 points
-  const hasJudilibre = text.includes("JUDILIBRE") || text.includes("Judilibre") || text.includes("ECLI:FR:CCASS");
-  const hasKnowledge = text.includes("Connaissance consolidee") || text.includes("connaissance") || text.includes("jurisprudence constante");
+  const hasJudilibre =
+    text.includes("JUDILIBRE") ||
+    text.includes("Judilibre") ||
+    text.includes("ECLI:FR:CCASS");
+  const hasKnowledge =
+    text.includes("Connaissance consolidee") ||
+    text.includes("connaissance") ||
+    text.includes("jurisprudence constante");
   if (hasJudilibre) {
     score += 20;
     factorsList.push({
-      name: "Qualite des sources",
+      name: "Qualité de la source",
       score: 20,
       maxScore: 20,
-      description: "Decisions issues de Judilibre (base officielle de la Cour de cassation) — verifiables en temps reel",
+      description:
+        "Décisions issues de Judilibre — base officielle de la Cour de cassation, vérifiables en temps réel.",
       impact: "positive",
     });
     summaryParts.push("Judilibre");
   } else if (hasKnowledge || sources.length >= 3) {
     score += 10;
     factorsList.push({
-      name: "Qualite des sources",
+      name: "Qualité de la source",
       score: 10,
       maxScore: 20,
-      description: "Sources issues des connaissances consolidees du modele — non verifiables en temps reel mais basees sur la jurisprudence publiee",
+      description:
+        "Sources issues des connaissances consolidées du modèle — non vérifiables en temps réel.",
       impact: "neutral",
     });
     summaryParts.push("Connaissances");
   } else {
     factorsList.push({
-      name: "Qualite des sources",
+      name: "Qualité de la source",
       score: 0,
       maxScore: 20,
-      description: "Pas de source directe identifiee — resultats a considerer avec reserve",
+      description: "Pas de source directe identifiée — résultats à considérer avec réserve.",
       impact: "negative",
     });
   }
 
-  // Factor 4: Fraicheur des sources — up to 15 points
+  // Factor 4: Fraîcheur jurisprudentielle — up to 12 points (stricter)
   const years = extractSourceYears(text);
   if (years.length > 0) {
     const maxYear = Math.max(...years);
     const minYear = Math.min(...years);
-    const recentCount = years.filter((y) => y >= currentYear - 5).length;
+    const recentCount = years.filter((y) => y >= currentYear - 3).length;
     const recentPct = Math.round((recentCount / years.length) * 100);
-    const freshnessScore =
-      maxYear >= currentYear - 2 ? 15 :
-      maxYear >= currentYear - 5 ? 12 :
-      maxYear >= currentYear - 10 ? 7 : 3;
+    // Fraîcheur stricte : il faut À LA FOIS un arrêt récent ET un % de récents > 30 %
+    let freshnessScore = 0;
+    if (maxYear >= currentYear - 1 && recentPct >= 30) freshnessScore = 12;
+    else if (maxYear >= currentYear - 2 && recentPct >= 20) freshnessScore = 10;
+    else if (maxYear >= currentYear - 4) freshnessScore = 7;
+    else if (maxYear >= currentYear - 8) freshnessScore = 4;
+    else freshnessScore = 1;
     score += freshnessScore;
 
     const span = maxYear - minYear;
-    let desc = `Jurisprudence de ${minYear} a ${maxYear} (${span > 0 ? span + " ans" : "meme annee"})`;
+    let desc = `Période ${minYear}–${maxYear} (${span > 0 ? span + " ans" : "même année"})`;
     if (recentCount > 0) {
-      desc += ` — ${recentCount} source${recentCount > 1 ? "s" : ""} recente${recentCount > 1 ? "s" : ""} (${recentPct}% des ${years.length <= 5 ? "5" : String(years.length)} dernieres annees)`;
+      desc += ` · ${recentCount} décision${recentCount > 1 ? "s" : ""} de moins de 3 ans (${recentPct}%)`;
+    } else {
+      desc += " · aucune décision de moins de 3 ans";
     }
     if (maxYear < currentYear - 5) {
-      desc += ". Attention : aucune decision de moins de 5 ans, les orientations jurisprudentielles ont pu evoluer";
+      desc +=
+        ". Les orientations jurisprudentielles peuvent avoir évolué depuis.";
     }
-
     factorsList.push({
-      name: "Fraicheur jurisprudentielle",
+      name: "Fraîcheur jurisprudentielle",
       score: freshnessScore,
-      maxScore: 15,
+      maxScore: 12,
       description: desc,
-      impact: freshnessScore >= 12 ? "positive" : freshnessScore >= 7 ? "neutral" : "negative",
+      impact:
+        freshnessScore >= 10 ? "positive" : freshnessScore >= 6 ? "neutral" : "negative",
+    });
+  } else {
+    factorsList.push({
+      name: "Fraîcheur jurisprudentielle",
+      score: 0,
+      maxScore: 12,
+      description: "Aucune date identifiée dans les références.",
+      impact: "negative",
     });
   }
 
-  // Factor 5: Confidence level — up to 10 points
-  if (confiance === "élevé") {
-    score += 10;
-  } else if (confiance === "moyen") {
-    score += 7;
-  } else if (confiance === "faible") {
-    score += 3;
+  // Factor 5: Diversité des instances (NOUVEAU) — up to 8 points
+  // Cass. (juge du droit) + Fond (1ère inst./CA) doivent tous deux être présents
+  // pour une vision complète. Le déséquilibre est un biais important.
+  const lower = text.toLowerCase();
+  const hasCass =
+    /cass\.|cour de cassation|ccass|chambre sociale|chambre commerciale|chambre criminelle|chambre civile/.test(
+      lower
+    );
+  const hasCA = /cour d['’ ]?appel|\bca\b/i.test(text);
+  const hasFond =
+    /1[èeé]re? instance|tribunal judiciaire|tribunal de commerce|cph|conseil de prud['’]hommes|tribunal correctionnel|tribunal administratif|tj /i.test(
+      text
+    );
+  const instanceTypes = [hasCass, hasCA, hasFond].filter(Boolean).length;
+  let diversityScore = 0;
+  let diversityDesc = "";
+  if (instanceTypes >= 3) {
+    diversityScore = 8;
+    diversityDesc = "Cassation, cours d'appel et juridictions du fond toutes représentées.";
+  } else if (instanceTypes === 2) {
+    diversityScore = 5;
+    diversityDesc =
+      "Deux niveaux d'instance représentés — couverture acceptable mais perfectible.";
+  } else if (instanceTypes === 1) {
+    diversityScore = 2;
+    diversityDesc =
+      "Un seul niveau d'instance dominant — vision partielle (juge du droit ≠ juge du fond).";
+  } else {
+    diversityScore = 0;
+    diversityDesc = "Niveau d'instance non identifiable dans le corpus.";
   }
+  score += diversityScore;
+  factorsList.push({
+    name: "Diversité des instances",
+    score: diversityScore,
+    maxScore: 8,
+    description: diversityDesc,
+    impact:
+      diversityScore >= 6 ? "positive" : diversityScore >= 3 ? "neutral" : "negative",
+  });
 
-  // Factor 6: Content richness — up to 10 points
+  // Factor 6: Précision des références (NOUVEAU) — up to 10 points
+  // Compte le % de sources avec ECLI/pourvoi exact vs références vagues.
+  const preciseSourceCount = sources.filter(
+    (s) => s.type === "ecli" || s.type === "pourvoi"
+  ).length;
+  const precisionRatio =
+    sources.length > 0 ? preciseSourceCount / sources.length : 0;
+  const precisionScore = Math.round(precisionRatio * 10);
+  score += precisionScore;
+  factorsList.push({
+    name: "Précision des références",
+    score: precisionScore,
+    maxScore: 10,
+    description:
+      sources.length === 0
+        ? "Aucune référence à évaluer."
+        : `${preciseSourceCount} référence${preciseSourceCount > 1 ? "s" : ""} sur ${sources.length} avec ECLI ou n° de pourvoi exact (${Math.round(precisionRatio * 100)}%). ${precisionRatio < 0.5 ? "Beaucoup de citations restent vagues." : ""}`,
+    impact:
+      precisionScore >= 7 ? "positive" : precisionScore >= 4 ? "neutral" : "negative",
+  });
+
+  // Factor 7: Confidence level — up to 8 points
+  if (confiance === "élevé") score += 8;
+  else if (confiance === "moyen") score += 5;
+  else if (confiance === "faible") score += 2;
+
+  // Factor 8: Content richness — up to 7 points
   const hasStats = text.includes("%");
   const lowerText = text.toLowerCase();
   const hasPointsAttention =
@@ -390,24 +499,33 @@ function computeFiabilite(
     lowerText.includes("point d'attention") ||
     lowerText.includes("points d’attention") ||
     lowerText.includes("point d’attention");
-  const hasDecisionsCles = lowerText.includes("decisions cles") || lowerText.includes("décisions clés");
+  const hasDecisionsCles =
+    lowerText.includes("decisions cles") || lowerText.includes("décisions clés");
   const hasMontants = text.includes("€");
-  const richnessScore = (hasStats ? 3 : 0) + (hasPointsAttention ? 3 : 0) + (hasDecisionsCles ? 2 : 0) + (hasMontants ? 2 : 0);
+  const richnessScore =
+    (hasStats ? 2 : 0) +
+    (hasPointsAttention ? 2 : 0) +
+    (hasDecisionsCles ? 2 : 0) +
+    (hasMontants ? 1 : 0);
   score += richnessScore;
   factorsList.push({
     name: "Richesse de l'analyse",
     score: richnessScore,
-    maxScore: 10,
-    description: [
-      hasStats && "statistiques",
-      hasPointsAttention && "points d'attention",
-      hasDecisionsCles && "decisions cles",
-      hasMontants && "montants chiffres",
-    ].filter(Boolean).join(", ") || "Analyse sommaire",
-    impact: richnessScore >= 7 ? "positive" : richnessScore >= 4 ? "neutral" : "negative",
+    maxScore: 7,
+    description:
+      [
+        hasStats && "statistiques",
+        hasPointsAttention && "points d'attention",
+        hasDecisionsCles && "décisions clés",
+        hasMontants && "montants chiffrés",
+      ]
+        .filter(Boolean)
+        .join(", ") || "Analyse sommaire",
+    impact:
+      richnessScore >= 5 ? "positive" : richnessScore >= 3 ? "neutral" : "negative",
   });
 
-  // Factor 7: Hallucination risk — penalty up to -10 points
+  // Factor 9: Hallucination risk — penalty up to -10 points
   const hallucination = detectHallucinationRisk(text, sources);
   if (hallucination.risk !== "faible") {
     const penalty = hallucination.risk === "eleve" ? -10 : -5;
@@ -424,12 +542,12 @@ function computeFiabilite(
       name: "Risque d'hallucination IA",
       score: 0,
       maxScore: 0,
-      description: "Aucun indicateur d'hallucination detecte — les references paraissent coherentes",
+      description: "Pas d'incohérence détectée entre les références.",
       impact: "positive",
     });
   }
 
-  score = Math.max(0, Math.min(score, 100));
+  score = Math.max(0, Math.min(Math.round(score), 100));
 
   let label: FiabiliteScore["label"];
   if (score >= 80) label = "Tres eleve";

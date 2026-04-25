@@ -225,21 +225,33 @@ export function AnalysisDashboard({
         >
           {(meta?.analyzedCount ?? 0) > 0 && (
             <>
-              <span className="font-semibold">{meta!.analyzedCount} décisions analysées</span>
+              <span title="Décisions Judilibre transmises au modèle pour analyse, après reranking de pertinence">
+                <span className="font-semibold">{meta!.analyzedCount}</span> décisions Judilibre lues par l'IA
+              </span>
               {meta!.totalFound > meta!.analyzedCount && (
                 <>
-                  {" "}sur <span className="font-semibold">{meta!.totalFound}</span> trouvées
+                  {" "}<span style={{ color: "var(--muted-foreground)" }}>(sur {meta!.totalFound} trouvées)</span>
                 </>
               )}
               {data.sourceCount > 0 && (
                 <>
                   {" "}·{" "}
-                  <span className="font-semibold">{data.sourceCount} retenues</span> dans le rapport
+                  <span title="Décisions effectivement citées dans le rapport et l'annexe des sources">
+                    <span className="font-semibold">{data.sourceCount}</span> citées dans le rapport
+                  </span>
+                </>
+              )}
+              {data.evidenceTable && data.evidenceTable.rows.length > 0 && (
+                <>
+                  {" "}·{" "}
+                  <span title="Décisions documentées avec leurs facteurs juridiques décisifs dans le tableau de preuve">
+                    <span className="font-semibold">{data.evidenceTable.rows.length}</span> documentées dans le tableau
+                  </span>
                 </>
               )}
               .{" "}
               <span style={{ color: "var(--muted-foreground)" }}>
-                Les indicateurs sont calculés sur ces décisions retenues.
+                Les pourcentages sont calculés sur les décisions citées et documentées.
               </span>
             </>
           )}
@@ -358,7 +370,16 @@ export function AnalysisDashboard({
         </div>
         <div className="flex items-center gap-6 flex-wrap">
           <Metric label="Confiance" value={confianceLabel(data.confiance)} />
-          <Metric label="Échantillon" value={data.echantillon != null ? String(data.echantillon) : "—"} />
+          <Metric
+            label="Décisions tableau"
+            value={
+              data.evidenceTable && data.evidenceTable.rows.length > 0
+                ? String(data.evidenceTable.rows.length)
+                : data.echantillon != null
+                  ? String(data.echantillon)
+                  : "—"
+            }
+          />
           <Metric label="Sources citées" value={String(data.sourceCount)} />
         </div>
       </div>
