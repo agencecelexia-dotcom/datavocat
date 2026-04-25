@@ -62,6 +62,16 @@ export interface CorpusStats {
   nonEmptyCategories: number;
   /** Cohérence jurisprudentielle (max(fav,def)/total) sur tout le corpus, %. */
   coherencePct: number;
+  /**
+   * Taux de succès retenu — chiffre canonique à afficher comme « % de chances »
+   * pour le client. Calculé selon la composition du corpus :
+   *   - corpus mixte ou majoritairement fond → taux d'acceptation au fond
+   *   - corpus 100% Cassation → taux de cassation (succès du pourvoi)
+   *   - corpus vide ou sans signal → null
+   */
+  tauxSuccesRetenu: number | null;
+  /** Source du taux retenu (informatif, pour l'UI). */
+  tauxSuccesSource: "fond" | "cassation" | "mixte" | null;
 }
 
 const CHAMBER_LABELS: Record<string, string> = {
@@ -300,6 +310,28 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
   const dominant = Math.max(totalFav, totalDef);
   const coherencePct = total > 0 ? pct(dominant, total) : 0;
 
+  // Taux de succès retenu — chiffre canonique à afficher au client.
+  // Logique :
+  //   - Si corpus contient des décisions du fond (1er degré OU CA) → on
+  //     prend le taux d'acceptation calculé sur le fond (le plus pertinent
+  //     pour estimer les chances en pratique).
+  //   - Sinon (corpus 100% Cass) → on affiche le taux de cassation, qui
+  //     est le taux de succès des pourvois (signal pour un client en Cass).
+  //   - Si vide → null.
+  const fondTotal = hierarchy.premierDegre.total + hierarchy.courAppel.total;
+  const fondFav =
+    hierarchy.premierDegre.favorables + hierarchy.courAppel.favorables;
+  let tauxSuccesRetenu: number | null = null;
+  let tauxSuccesSource: "fond" | "cassation" | "mixte" | null = null;
+  if (fondTotal >= 5) {
+    tauxSuccesRetenu = pct(fondFav, fondTotal);
+    tauxSuccesSource =
+      hierarchy.cassation.total >= 5 ? "mixte" : "fond";
+  } else if (hierarchy.cassation.total >= 5) {
+    tauxSuccesRetenu = hierarchy.cassation.cassationRate ?? null;
+    tauxSuccesSource = "cassation";
+  }
+
   return {
     total,
     bySolution,
@@ -313,6 +345,8 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     freshDecisionsFiveYears,
     nonEmptyCategories,
     coherencePct,
+    tauxSuccesRetenu,
+    tauxSuccesSource,
   };
 }
 
@@ -349,6 +383,24 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
   lines.push(
     `Cohérence jurisprudentielle (sens dominant) : ${stats.coherencePct}%`
   );
+
+  // Taux retenu canonique — chiffre que Claude DOIT recopier dans la
+  // section "## Statistiques > Taux de succès global".
+  if (stats.tauxSuccesRetenu !== null) {
+    const labelSrc =
+      stats.tauxSuccesSource === "fond"
+        ? "calculé sur les décisions du fond (1er degré + CA) — base pertinente pour estimer les chances en pratique"
+        : stats.tauxSuccesSource === "mixte"
+          ? "calculé sur les décisions du fond (1er degré + CA) à l'exclusion des arrêts de Cassation pour ne pas biaiser le taux"
+          : "calculé sur les arrêts de Cour de cassation (taux de cassation) — applicable UNIQUEMENT si la stratégie envisage un pourvoi";
+    lines.push(
+      `TAUX DE SUCCÈS RETENU : ${stats.tauxSuccesRetenu}% (${labelSrc})`
+    );
+  } else {
+    lines.push(
+      `TAUX DE SUCCÈS RETENU : non calculable sur ce corpus — données insuffisantes par catégorie`
+    );
+  }
   lines.push("");
 
   // Hiérarchie 4 catégories

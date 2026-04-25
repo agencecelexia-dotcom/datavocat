@@ -35,7 +35,7 @@ export const JUDILIBRE_RERANK_KEEP = JUDILIBRE_TARGET_MAX;
 /** Seuils de pertinence Haiku (sur 10) testés en cascade jusqu'à atteindre MIN. */
 const RELEVANCE_THRESHOLDS = [8, 7, 6, 5, 4, 3];
 
-const RERANK_TIMEOUT_MS = 12000;
+const RERANK_TIMEOUT_MS = 18000;
 
 function compactSummary(dec: JudilibreDecision, idx: number): string {
   const chamber = dec.chamber || "";

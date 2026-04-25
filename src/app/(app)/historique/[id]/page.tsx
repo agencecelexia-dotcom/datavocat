@@ -126,6 +126,12 @@ export default function AnalysisDetailPage() {
         const f = a.verification.fiabilite;
         parsed.fiabilite = computeFiabiliteFromFormula(f.A, f.B, f.C, f.D);
       }
+      if (
+        typeof a.verification.tauxSuccesRetenu === "number" &&
+        a.verification.tauxSuccesRetenu !== null
+      ) {
+        parsed.tauxSuccesGlobal = a.verification.tauxSuccesRetenu;
+      }
     }
     return parsed;
   }, [analysis]);

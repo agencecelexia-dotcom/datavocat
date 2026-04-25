@@ -518,43 +518,65 @@ export async function searchJudilibreForAnalysis(
       .toISOString()
       .slice(0, 10);
 
-    // Récolte massive multi-pages (entonnoir) : on ramasse jusqu'à
-    // ~750 candidates via 5 recherches × 3 pages × 50 + 1 broad × 3 × 50.
-    // Le filtre Haiku (rerank.ts) sélectionnera ensuite les 30-100 plus
-    // pertinentes selon la qualité disponible.
-    const searchPromises = searchQueries.map((q) =>
-      searchMultiPage({
-        query: q,
-        operator: "or",
-        sort: "score",
-        order: "desc",
-        pageSize: 50,
-        chamber,
-        jurisdiction: targetJurisdiction,
-        dateStart: dateStartRecent,
-        dateEnd,
-      }).catch(
-        () =>
-          ({ results: [], total: 0, query: q } as JudilibreSearchResult)
-      )
-    );
+    // Récolte multi-stratégies + multi-pages.
+    //
+    // STRATÉGIE par défaut : si l'utilisateur n'a pas explicitement précisé
+    // une juridiction (pas de "pourvoi"/"CPH"/"CA" dans la query), on lance
+    // DEUX vagues parallèles :
+    //   - une dédiée Cour de cassation (jurisdiction=cc) — pour la doctrine
+    //     et l'évolution du droit
+    //   - une dédiée Cours d'appel (jurisdiction=ca) — pour la jurisprudence
+    //     du fond, base réelle de la jurimétrie
+    //
+    // Cela garantit un corpus mixte, indispensable à une vraie analyse
+    // jurimétrique. Sinon Judilibre renvoie ~80% de Cass par défaut et
+    // l'analyse devient trompeuse.
+    //
+    // Si une cible est explicite, on ne fait QUE cette vague.
+    const jurisdictions: Array<string[] | undefined> = targetJurisdiction
+      ? [targetJurisdiction]
+      : [["ca"], ["cc"]];
 
-    // Broad search avec OR sur la query complète tronquée
-    searchPromises.push(
-      searchMultiPage({
-        query: userQuery.slice(0, 200),
-        operator: "or",
-        sort: "score",
-        order: "desc",
-        pageSize: 50,
-        jurisdiction: targetJurisdiction,
-        dateStart: dateStartRecent,
-        dateEnd,
-      }).catch(
-        () =>
-          ({ results: [], total: 0, query: userQuery } as JudilibreSearchResult)
-      )
-    );
+    // Pour les CA on garde le filtre chambre (chambre sociale, com, civ…)
+    // qui aide à la pertinence. Pour la Cass, le filtre chambre est aussi
+    // utile (chambre sociale Cass, etc.).
+    const searchPromises: Promise<JudilibreSearchResult>[] = [];
+    for (const jur of jurisdictions) {
+      for (const q of searchQueries) {
+        searchPromises.push(
+          searchMultiPage({
+            query: q,
+            operator: "or",
+            sort: "score",
+            order: "desc",
+            pageSize: 50,
+            chamber,
+            jurisdiction: jur,
+            dateStart: dateStartRecent,
+            dateEnd,
+          }).catch(
+            () =>
+              ({ results: [], total: 0, query: q } as JudilibreSearchResult)
+          )
+        );
+      }
+      // Broad search par juridiction
+      searchPromises.push(
+        searchMultiPage({
+          query: userQuery.slice(0, 200),
+          operator: "or",
+          sort: "score",
+          order: "desc",
+          pageSize: 50,
+          jurisdiction: jur,
+          dateStart: dateStartRecent,
+          dateEnd,
+        }).catch(
+          () =>
+            ({ results: [], total: 0, query: userQuery } as JudilibreSearchResult)
+        )
+      );
+    }
 
     const allResults = await Promise.all(searchPromises);
 

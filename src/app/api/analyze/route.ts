@@ -325,6 +325,8 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
                 coherenceCorrected: verification.coherenceCorrected,
                 corpusComposition,
                 fiabilite: fiabiliteFormula,
+                tauxSuccesRetenu: corpusStats?.tauxSuccesRetenu ?? null,
+                tauxSuccesSource: corpusStats?.tauxSuccesSource ?? null,
               },
             })
             .eq("id", id);

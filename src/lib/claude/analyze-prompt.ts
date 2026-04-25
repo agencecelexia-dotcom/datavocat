@@ -96,7 +96,9 @@ Si une decision n'est pas dans le corpus, NE LA CITE PAS.
 Recopie les chiffres du bloc "FAITS VERIFIES — STATISTIQUES CALCULEES" SANS LES MODIFIER.
 
 ### Taux de succes global
-[Recopie la valeur du bloc FAITS VERIFIES, ou ecris "non documente dans le corpus analyse" si absent]
+[Recopie EXACTEMENT la valeur "TAUX DE SUCCÈS RETENU" du bloc FAITS VERIFIES, suivie de l'explication entre parenthèses qui te dit comment il est calculé. Ce chiffre doit apparaitre tel quel : "X% de chances de succes (calcule sur ...)".
+Si la valeur est "non calculable" : ecris "Taux non calculable sur ce corpus" et explique en une phrase pourquoi (corpus trop petit pour la categorie pertinente).
+NE FABRIQUE PAS de chiffre alternatif si la valeur retenue ne te plait pas.]
 
 ### Par argument juridique
 [Pour chaque argument identifie dans le corpus, indique le ratio retenu/invoque a partir des decisions presentes — pas d'estimation hors corpus. Si aucune donnee : "non documente dans le corpus analyse"]

@@ -129,6 +129,10 @@ export interface ParsedAnalysis {
       D: number;
       score: number;
     } | null;
+    /** Taux de succès retenu (canonique) calculé sur le corpus. */
+    tauxSuccesRetenu?: number | null;
+    /** Source du taux : "fond" (1er degré + CA), "mixte", "cassation". */
+    tauxSuccesSource?: "fond" | "mixte" | "cassation" | null;
   } | null;
 }
 

@@ -108,6 +108,15 @@ export default function AnalyzePage() {
         const f = verification.fiabilite;
         parsed.fiabilite = computeFiabiliteFromFormula(f.A, f.B, f.C, f.D);
       }
+      // Taux de succès retenu canonique (calculé côté serveur sur le
+      // corpus). Écrase l'extraction texte qui peut être null si Claude
+      // n'a pas écrit le bon format dans le markdown.
+      if (
+        typeof verification.tauxSuccesRetenu === "number" &&
+        verification.tauxSuccesRetenu !== null
+      ) {
+        parsed.tauxSuccesGlobal = verification.tauxSuccesRetenu;
+      }
     }
     return parsed;
   }, [response, phase, verification]);
