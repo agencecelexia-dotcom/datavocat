@@ -294,6 +294,81 @@ function detectChamber(query: string): string[] | undefined {
   return undefined; // No filter = search all chambers
 }
 
+/**
+ * Detect target jurisdiction from query.
+ *
+ * Judilibre n'indexe que la Cour de cassation (jurisdiction=cc) et les Cours
+ * d'appel (jurisdiction=ca). Les CPH, TJ, TC, TGI ne sont PAS indexés
+ * directement — pour ces cas, on bascule sur les CA (qui statuent en appel
+ * de ces juridictions et sont indexées). Cela évite le piège du corpus
+ * 100% Cass. quand la question concerne le fond.
+ *
+ * Retourne :
+ * - ["cc"] : la query parle clairement de Cassation (pourvoi, cassation, Cass.)
+ * - ["ca"] : la query parle d'appel OU d'une juridiction du fond (CPH, TJ, etc.)
+ * - undefined : pas de signal clair, on cherche dans les deux.
+ */
+export function detectTargetJurisdiction(query: string): string[] | undefined {
+  const q = query.toLowerCase();
+
+  // Signaux Cassation : pourvoi en cours / décision de cassation
+  const cassSignals = [
+    "pourvoi",
+    "cassation",
+    "cour de cassation",
+    "cass.",
+    "cass ",
+    "moyen de cassation",
+    "rejet du pourvoi",
+  ];
+  // Signaux Fond / Appel : juridictions de fond (jamais dans Judilibre direct)
+  // ou Cour d'appel.
+  const fondAppelSignals = [
+    "cph", // Conseil de prud'hommes
+    "prud'hommes",
+    "prudhommes",
+    "prud'homme",
+    "tj ", // Tribunal judiciaire
+    "tribunal judiciaire",
+    "tgi", // Tribunal de grande instance (ancien)
+    "tribunal de grande instance",
+    "tc ", // Tribunal de commerce
+    "tribunal de commerce",
+    "ta ", // Tribunal administratif (côté CA admin = pas Judilibre, mais on tente CA)
+    "tribunal administratif",
+    "ti ", // Tribunal d'instance (ancien)
+    "tribunal d'instance",
+    "tribunal correctionnel",
+    "tribunal pour enfants",
+    "premiere instance",
+    "première instance",
+    "1ere instance",
+    "1ère instance",
+    "1re instance",
+    "cour d'appel",
+    "ca paris",
+    "ca lyon",
+    "ca marseille",
+    "ca rennes",
+    "appel",
+    "interjeter appel",
+    "saisine de la cour",
+    "infirmation",
+    "confirmation",
+  ];
+
+  const hasCass = cassSignals.some((s) => q.includes(s));
+  const hasFond = fondAppelSignals.some((s) => q.includes(s));
+
+  // Cassation explicite ET pas de fond → on cible Cass.
+  if (hasCass && !hasFond) return ["cc"];
+  // Fond / appel → on cible CA (les CPH/TJ/TC ne sont pas dans Judilibre,
+  // mais les arrêts de CA traitent ces matières en appel).
+  if (hasFond && !hasCass) return ["ca"];
+  // Les deux mentionnés ou aucun → laisse Judilibre chercher dans tout.
+  return undefined;
+}
+
 export interface JudilibreAnalysisContext {
   /** Bloc texte à injecter dans le prompt Claude. */
   context: string;
@@ -334,6 +409,7 @@ export async function searchJudilibreForAnalysis(
   try {
     const searchQueries = extractSearchQueries(userQuery);
     const chamber = detectChamber(userQuery);
+    const targetJurisdiction = detectTargetJurisdiction(userQuery);
 
     // Fenêtre de fraîcheur : 5 ans par défaut pour capter les décisions 2024-2025
     // et au-delà, tout en gardant la possibilité d'élargir par requête.
@@ -348,6 +424,9 @@ export async function searchJudilibreForAnalysis(
       .slice(0, 10);
 
     // Run all search strategies in parallel, priorité aux 5 dernières années.
+    // Si la query vise une juridiction du fond (CPH/TJ/TC) ou la Cassation,
+    // on cible explicitement Cass. ou CA pour éviter le piège du corpus
+    // 100% Cass. (cf. fix avril 2026).
     const searchPromises = searchQueries.map((q) =>
       searchJudilibre({
         query: q,
@@ -356,6 +435,7 @@ export async function searchJudilibreForAnalysis(
         order: "desc",
         pageSize: 40,
         chamber,
+        jurisdiction: targetJurisdiction,
         dateStart: dateStartRecent,
         dateEnd,
       }).catch(
@@ -372,6 +452,7 @@ export async function searchJudilibreForAnalysis(
         sort: "score",
         order: "desc",
         pageSize: 40,
+        jurisdiction: targetJurisdiction,
         dateStart: dateStartRecent,
         dateEnd,
       }).catch(
@@ -409,6 +490,7 @@ export async function searchJudilibreForAnalysis(
           order: "desc",
           pageSize: 40,
           chamber,
+          jurisdiction: targetJurisdiction,
         }).catch(
           () =>
             ({ results: [], total: 0, query: q } as JudilibreSearchResult)
@@ -422,6 +504,46 @@ export async function searchJudilibreForAnalysis(
           if (!seenEcli.has(key)) {
             seenEcli.add(key);
             uniqueDecisions.push(dec);
+          }
+        }
+      }
+    }
+
+    // Rééquilibrage : si pas de juridiction cible explicite ET le corpus est
+    // dominé à > 70% par la Cassation, on refait une passe ciblée sur les
+    // Cours d'appel pour mieux couvrir le contentieux du fond. Inverse pour
+    // un mix 100% CA si l'utilisateur n'a pas dit "appel" non plus.
+    if (!targetJurisdiction && uniqueDecisions.length >= 10) {
+      const cassCount = uniqueDecisions.filter((d) => d.jurisdiction === "cc").length;
+      const total = uniqueDecisions.length;
+      const cassPct = cassCount / total;
+      if (cassPct > 0.7) {
+        // On manque de CA — recherche ciblée pour rééquilibrer.
+        const balancePromises = searchQueries.map((q) =>
+          searchJudilibre({
+            query: q,
+            operator: "or",
+            sort: "score",
+            order: "desc",
+            pageSize: 30,
+            chamber,
+            jurisdiction: ["ca"],
+            dateStart: dateStartRecent,
+            dateEnd,
+          }).catch(
+            () =>
+              ({ results: [], total: 0, query: q } as JudilibreSearchResult)
+          )
+        );
+        const balance = await Promise.all(balancePromises);
+        for (const result of balance) {
+          totalAcrossSearches = Math.max(totalAcrossSearches, result.total);
+          for (const dec of result.results) {
+            const key = dec.ecli || dec.id;
+            if (!seenEcli.has(key)) {
+              seenEcli.add(key);
+              uniqueDecisions.push(dec);
+            }
           }
         }
       }
