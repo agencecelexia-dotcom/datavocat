@@ -84,6 +84,18 @@ export interface ParsedAnalysis {
   } | null;
   evidenceTable: EvidenceTable | null;
   sections: Array<{ title: string; content: string; emoji: string }>;
+  /**
+   * Résultat du contrôle anti-hallucination réalisé côté serveur après
+   * génération. Présent uniquement si l'analyse a été produite avec le
+   * pipeline de vérification post-génération (depuis avril 2026).
+   */
+  verification?: {
+    citedRefs: number;
+    verifiedRefs: number;
+    unverifiedRefs: string[];
+    removedSentences: number;
+    removedRows: number;
+  } | null;
 }
 
 /**

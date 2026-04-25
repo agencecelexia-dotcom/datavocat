@@ -305,6 +305,8 @@ export interface JudilibreAnalysisContext {
   oldestDate: string | null;
   /** Date la plus récente du corpus analysé (YYYY-MM-DD) ou null. */
   freshestDate: string | null;
+  /** Décisions brutes du corpus, exposées pour stats serveur et vérification post-gen. */
+  decisions: JudilibreDecision[];
 }
 
 /**
@@ -325,6 +327,7 @@ export async function searchJudilibreForAnalysis(
       totalFound: 0,
       oldestDate: null,
       freshestDate: null,
+      decisions: [],
     };
   }
 
@@ -462,6 +465,7 @@ export async function searchJudilibreForAnalysis(
         totalFound: totalAcrossSearches,
         oldestDate: null,
         freshestDate: null,
+        decisions: [],
       };
     }
 
@@ -491,6 +495,7 @@ export async function searchJudilibreForAnalysis(
       totalFound: totalAcrossSearches,
       oldestDate: dates[0] ?? null,
       freshestDate: dates[dates.length - 1] ?? null,
+      decisions: topDecisions,
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erreur inconnue";
@@ -500,6 +505,7 @@ export async function searchJudilibreForAnalysis(
       totalFound: 0,
       oldestDate: null,
       freshestDate: null,
+      decisions: [],
     };
   }
 }

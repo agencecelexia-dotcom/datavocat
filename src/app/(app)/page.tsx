@@ -42,7 +42,7 @@ interface AnalysisMeta {
   freshestDate: string | null;
 }
 
-type StreamStepKey = "judilibre" | "datagouv" | "claude";
+type StreamStepKey = "judilibre" | "datagouv" | "claude" | "verify";
 type StreamStepState = "pending" | "active" | "done";
 type StreamSteps = Record<StreamStepKey, StreamStepState>;
 
@@ -50,6 +50,7 @@ const DEFAULT_STREAM_STEPS: StreamSteps = {
   judilibre: "active",
   datagouv: "pending",
   claude: "pending",
+  verify: "pending",
 };
 
 const LAWYER_JOKES = [
@@ -88,11 +89,16 @@ export default function AnalyzePage() {
   // Streaming metadata (transparence + étapes loader)
   const [analysisMeta, setAnalysisMeta] = useState<AnalysisMeta | null>(null);
   const [streamSteps, setStreamSteps] = useState<StreamSteps>(DEFAULT_STREAM_STEPS);
+  const [verification, setVerification] = useState<
+    ParsedAnalysis["verification"] | null
+  >(null);
 
   const parsedData = useMemo(() => {
     if (!response || phase !== "done") return null;
-    return parseAnalysisResponse(response);
-  }, [response, phase]);
+    const parsed = parseAnalysisResponse(response);
+    if (verification) parsed.verification = verification;
+    return parsed;
+  }, [response, phase, verification]);
 
   useEffect(() => {
     if (responseRef.current) {
@@ -177,6 +183,7 @@ export default function AnalyzePage() {
     setActiveView("text");
     setAnalysisMeta(null);
     setStreamSteps({ ...DEFAULT_STREAM_STEPS });
+    setVerification(null);
     const analysisStartedAt = Date.now();
 
     try {
@@ -222,6 +229,19 @@ export default function AnalyzePage() {
           setStreamSteps((s) => ({ ...s, claude: "active" }));
         } else if (key === "claude" && state === "done") {
           setStreamSteps((s) => ({ ...s, claude: "done" }));
+        } else if (key === "verify" && state === "done") {
+          // [STEP:verify:done cited=N verified=M removed=K]
+          const rest = parts.slice(2).join(":");
+          const cited = parseInt(rest.match(/cited=(\d+)/)?.[1] || "0", 10);
+          const verified = parseInt(rest.match(/verified=(\d+)/)?.[1] || "0", 10);
+          // removed = sentences + rows (granularité combinée pour le live).
+          setVerification({
+            citedRefs: cited,
+            verifiedRefs: verified,
+            unverifiedRefs: [],
+            removedSentences: Math.max(0, cited - verified),
+            removedRows: 0,
+          });
         }
       };
 

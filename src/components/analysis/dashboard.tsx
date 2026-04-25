@@ -211,8 +211,91 @@ export function AnalysisDashboard({
     data.montants.median !== null ||
     data.montants.max !== null;
 
+  const verification = data.verification;
+  const removedTotal = verification
+    ? verification.removedSentences + verification.removedRows
+    : 0;
+
   return (
     <div>
+      {/* ── BANDEAU CONTRÔLE ANTI-HALLUCINATION ─────────────── */}
+      {verification && verification.citedRefs > 0 && (
+        <div
+          className="rounded-md px-4 py-3 mb-4 text-[12px] leading-relaxed"
+          style={{
+            border: `1px solid ${
+              removedTotal > 0
+                ? "color-mix(in srgb, var(--bordeaux) 35%, transparent)"
+                : "color-mix(in srgb, var(--emerald) 30%, transparent)"
+            }`,
+            background:
+              removedTotal > 0
+                ? "color-mix(in srgb, var(--bordeaux) 6%, transparent)"
+                : "color-mix(in srgb, var(--emerald) 6%, transparent)",
+            color: "var(--ink)",
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.18em] mt-0.5 flex-shrink-0"
+              style={{
+                color: removedTotal > 0 ? "var(--bordeaux)" : "var(--emerald)",
+              }}
+            >
+              § Sourcing
+            </span>
+            <div className="flex-1">
+              <div className="font-semibold">
+                {verification.verifiedRefs} référence
+                {verification.verifiedRefs > 1 ? "s" : ""} sur{" "}
+                {verification.citedRefs} vérifiée
+                {verification.verifiedRefs > 1 ? "s" : ""} dans le corpus
+                Judilibre.
+              </div>
+              {removedTotal > 0 ? (
+                <div
+                  className="text-[11.5px] mt-1"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {verification.removedSentences > 0 && (
+                    <>
+                      {verification.removedSentences} phrase
+                      {verification.removedSentences > 1 ? "s" : ""} retirée
+                      {verification.removedSentences > 1 ? "s" : ""}
+                    </>
+                  )}
+                  {verification.removedSentences > 0 &&
+                    verification.removedRows > 0 &&
+                    " et "}
+                  {verification.removedRows > 0 && (
+                    <>
+                      {verification.removedRows} ligne
+                      {verification.removedRows > 1 ? "s" : ""} de tableau
+                      retirée{verification.removedRows > 1 ? "s" : ""}
+                    </>
+                  )}
+                  {" "}du rapport pour référence non trouvée dans le corpus.{" "}
+                  {verification.unverifiedRefs.length > 0 && (
+                    <span className="font-mono text-[10.5px]">
+                      Refs supprimées : {verification.unverifiedRefs.slice(0, 5).join(", ")}
+                      {verification.unverifiedRefs.length > 5 && "…"}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className="text-[11.5px] mt-1"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Toutes les décisions citées dans le rapport sont présentes
+                  dans le corpus Judilibre transmis au modèle.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── BANDEAU VOLUMÉTRIE + PÉRIODE ─────────────────────── */}
       {((meta?.analyzedCount ?? 0) > 0 || meta?.oldestDate) && (
         <div

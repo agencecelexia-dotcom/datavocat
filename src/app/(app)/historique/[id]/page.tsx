@@ -112,7 +112,13 @@ export default function AnalysisDetailPage() {
 
   const parsedData = useMemo(() => {
     if (!analysis?.response || analysis.status !== "done") return null;
-    return parseAnalysisResponse(analysis.response);
+    const parsed = parseAnalysisResponse(analysis.response);
+    // Merge la verification JSONB stockée en BDD (depuis migration 00018)
+    const a = analysis as unknown as {
+      verification?: ParsedAnalysis["verification"];
+    };
+    if (a.verification) parsed.verification = a.verification;
+    return parsed;
   }, [analysis]);
 
   const handleExport = async (format: "pdf" | "docx" | "xlsx") => {

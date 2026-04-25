@@ -4,8 +4,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { DATAVOCAT_SYSTEM_PROMPT } from "@/lib/claude/analyze-prompt";
 import { searchJudilibreForAnalysis } from "@/lib/judilibre/client";
+import type { JudilibreDecision } from "@/lib/judilibre/client";
 import { searchJusticeDatasets } from "@/lib/datagouv/mcp-client";
 import { trackClaudeUsage } from "@/lib/api-usage/track";
+import { computeCorpusStats, formatStatsForPrompt } from "@/lib/judilibre/stats";
+import { verifyAndCleanMarkdown } from "@/lib/judilibre/verify";
 
 export const maxDuration = 300;
 
@@ -64,13 +67,14 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id);
   }
 
-  // Search both sources in parallel with timeouts
+  // Search Judilibre + datagouv en parallèle, avec timeouts.
   const emptyJudilibre = {
     context: "",
     analyzedCount: 0,
     totalFound: 0,
     oldestDate: null as string | null,
     freshestDate: null as string | null,
+    decisions: [] as JudilibreDecision[],
   };
   const [judilibreResult, datagouvContext] = await Promise.all([
     Promise.race([
@@ -89,34 +93,47 @@ export async function POST(request: NextRequest) {
   ]);
 
   const judilibreContext = judilibreResult.context;
-  const hasJudilibre =
-    judilibreContext.includes("JUDILIBRE") &&
-    judilibreContext.includes("decisions trouvees");
+  const corpus = judilibreResult.decisions;
+  const hasJudilibre = corpus.length > 0;
   const hasDatagouv = datagouvContext.length > 50;
+
+  // Calcul des VRAIES statistiques sur le corpus Judilibre. Le bloc résultant
+  // est injecté dans le user message — Claude est instruit de réciter ces
+  // chiffres sans les modifier.
+  const corpusStats = hasJudilibre ? computeCorpusStats(corpus) : null;
+  const factsBlock = corpusStats ? formatStatsForPrompt(corpusStats) : "";
 
   // Stream Claude analysis
   const anthropic = getAnthropicClient();
 
-  let sourceBlock = "";
-  if (hasJudilibre) sourceBlock += `\n${judilibreContext}\n`;
-  if (hasDatagouv) sourceBlock += `\n${datagouvContext}\n`;
-
-  // Les règles générales (tableau de preuve, article 33, structure, style)
-  // sont dans le system prompt caché. On garde uniquement le dynamique ici :
-  // query utilisateur + bloc Judilibre + signal de disponibilité des sources.
-  const sourceInstruction = hasJudilibre
-    ? `Des decisions Judilibre sont fournies ci-dessous (${judilibreResult.analyzedCount} decisions reelles verifiables sur ${judilibreResult.totalFound} trouvees au total). Analyse-les en priorite, complete avec tes connaissances.`
-    : "Aucune decision Judilibre disponible pour cette recherche. Fournis une analyse complete basee sur tes connaissances de la jurisprudence francaise (arrets de principe, tendances, statistiques documentees).";
-
-  const userMessage = `DEMANDE DE L'AVOCAT :
+  // Construction du user message — strictement basée sur les sources fournies.
+  // Plus de signal "complete avec tes connaissances" : le prompt système
+  // interdit désormais toute citation hors corpus.
+  const userMessage = hasJudilibre
+    ? `DEMANDE DE L'AVOCAT :
 ${query}
-${sourceBlock}
-${sourceInstruction}`;
 
-  // Sonnet 4 par défaut pour l'analyse — test Haiku effectué, qualité
-  // insuffisante sur le cœur métier (tableau de preuve, raisonnement
-  // juridique, précision des références). Override via env ANALYZE_MODEL
-  // si besoin ponctuel.
+${judilibreContext}
+
+${factsBlock}
+
+${hasDatagouv ? `\n${datagouvContext}\n` : ""}
+
+RAPPEL : tu ne peux citer AUCUNE décision absente du CORPUS JUDILIBRE ci-dessus, ni inventer aucun chiffre absent du bloc FAITS VÉRIFIÉS. Toute référence non vérifiable sera supprimée du rapport final par un contrôle automatique.`
+    : `DEMANDE DE L'AVOCAT :
+${query}
+
+CORPUS JUDILIBRE : aucune décision n'a pu être récupérée pour cette requête.
+
+RAPPEL : tu ne peux citer aucune décision puisque le corpus est vide. Limite-toi à :
+- décrire la situation juridique de l'avocat
+- citer les textes de loi applicables (par leur numéro, sans rattacher à un arrêt nommé)
+- expliquer pourquoi l'analyse jurimétrique n'est pas réalisable sur ce sujet
+- inviter l'avocat à reformuler sa requête avec d'autres mots-clés.
+
+N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détectée comme hallucination par le contrôle automatique.`;
+
+  // Sonnet 4 par défaut pour l'analyse. Override via env ANALYZE_MODEL.
   const ANALYZE_MODEL =
     process.env.ANALYZE_MODEL || "claude-sonnet-4-20250514";
 
@@ -140,7 +157,6 @@ ${sourceInstruction}`;
     async start(controller) {
       try {
         // Préludes d'étapes — le front les intercepte pour animer le loader.
-        // Chaque ligne commence par "[STEP:" et finit par "]\n".
         controller.enqueue(
           encoder.encode(
             `[STEP:judilibre:done count=${judilibreResult.analyzedCount} total=${judilibreResult.totalFound}]\n`
@@ -166,11 +182,54 @@ ${sourceInstruction}`;
 
         controller.enqueue(encoder.encode("\n[STEP:claude:done]\n"));
 
-        // Save completed response (sans les balises [STEP:])
+        // ─── Vérification post-génération ───────────────────────────
+        // Toute référence ECLI/pourvoi citée par Claude qui n'est pas
+        // dans le corpus Judilibre fourni → la phrase est SUPPRIMÉE du
+        // rapport final. Idem pour les lignes de tableau.
+        const verification = hasJudilibre
+          ? verifyAndCleanMarkdown(fullResponse, corpus)
+          : {
+              cleanedMarkdown: fullResponse,
+              citedRefs: 0,
+              verifiedRefs: 0,
+              unverifiedRefs: [],
+              removedSentences: 0,
+              removedRows: 0,
+            };
+
+        const finalMarkdown = verification.cleanedMarkdown;
+
+        controller.enqueue(
+          encoder.encode(
+            `\n[STEP:verify:done cited=${verification.citedRefs} verified=${verification.verifiedRefs} removed=${verification.removedSentences + verification.removedRows}]\n`
+          )
+        );
+
+        // Save cleaned response + corpus + verification metadata
         if (id) {
-          await supabase
+          // Cast pour bypass des types Database non régénérés (judilibre_corpus,
+          // verification ne sont pas dans les types autogen).
+          const updateClient = supabase as unknown as {
+            from: (table: string) => {
+              update: (row: Record<string, unknown>) => {
+                eq: (col: string, val: unknown) => Promise<{ error: unknown }>;
+              };
+            };
+          };
+          await updateClient
             .from("analyses")
-            .update({ response: fullResponse, status: "done" })
+            .update({
+              response: finalMarkdown,
+              status: "done",
+              judilibre_corpus: corpus,
+              verification: {
+                citedRefs: verification.citedRefs,
+                verifiedRefs: verification.verifiedRefs,
+                unverifiedRefs: verification.unverifiedRefs,
+                removedSentences: verification.removedSentences,
+                removedRows: verification.removedRows,
+              },
+            })
             .eq("id", id);
         }
 
