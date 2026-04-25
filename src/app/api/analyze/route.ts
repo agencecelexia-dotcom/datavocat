@@ -216,6 +216,33 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
               };
             };
           };
+          // Composition du corpus pour avertir l'utilisateur quand le mix
+          // d'instances ne correspond pas à la juridiction de sa demande
+          // (ex: 100% Cass. alors que la question concerne le CPH).
+          const corpusComposition = corpusStats
+            ? {
+                total: corpusStats.total,
+                cassationCount: corpusStats.cassationGroup.total,
+                fondCount: corpusStats.fondGroup.total,
+                cassationPct:
+                  corpusStats.total > 0
+                    ? Math.round(
+                        (corpusStats.cassationGroup.total / corpusStats.total) *
+                          100
+                      )
+                    : 0,
+                fondPct:
+                  corpusStats.total > 0
+                    ? Math.round(
+                        (corpusStats.fondGroup.total / corpusStats.total) * 100
+                      )
+                    : 0,
+                cassationRate: corpusStats.cassationGroup.cassationRate,
+                fondAcceptanceRate:
+                  corpusStats.fondGroup.acceptanceRate,
+              }
+            : null;
+
           await updateClient
             .from("analyses")
             .update({
@@ -228,6 +255,7 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
                 unverifiedRefs: verification.unverifiedRefs,
                 removedSentences: verification.removedSentences,
                 removedRows: verification.removedRows,
+                corpusComposition,
               },
             })
             .eq("id", id);

@@ -197,7 +197,7 @@ export function AnalysisDashboard({
   meta?: DashboardMeta | null;
 }) {
   const taux = data.tauxSuccesGlobal ?? 0;
-  const risque = Math.max(0, 100 - taux);
+  const risque = Math.max(0, Math.round((100 - taux) * 10) / 10);
 
   const args = [...data.arguments].sort((a, b) => (b.taux ?? 0) - (a.taux ?? 0));
   const juris = [...data.juridictions].sort(
@@ -216,8 +216,72 @@ export function AnalysisDashboard({
     ? verification.removedSentences + verification.removedRows
     : 0;
 
+  // Détecte un déséquilibre Cassation / Fond qui rend les % trompeurs si
+  // la question concerne une autre instance que celle dominante du corpus.
+  const composition = verification?.corpusComposition ?? null;
+  const cassDominant =
+    !!composition && composition.cassationPct >= 70 && composition.fondPct < 30;
+  const fondDominant =
+    !!composition && composition.fondPct >= 70 && composition.cassationPct < 30;
+
   return (
     <div>
+      {/* ── BANDEAU AVERTISSEMENT COMPOSITION DU CORPUS ─────── */}
+      {composition && (cassDominant || fondDominant) && (
+        <div
+          className="rounded-md px-4 py-3 mb-4 text-[12px] leading-relaxed"
+          style={{
+            border: "1px solid color-mix(in srgb, var(--amber) 40%, transparent)",
+            background: "color-mix(in srgb, var(--amber) 8%, transparent)",
+            color: "var(--ink)",
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.18em] mt-0.5 flex-shrink-0"
+              style={{ color: "var(--amber)" }}
+            >
+              § Avertissement
+            </span>
+            <div className="flex-1">
+              <div className="font-semibold mb-1">
+                Corpus déséquilibré :{" "}
+                {cassDominant
+                  ? `${composition.cassationPct}% d'arrêts de la Cour de cassation`
+                  : `${composition.fondPct}% de décisions du fond (1ère inst. + CA)`}
+                .
+              </div>
+              <div
+                className="text-[11.5px] leading-relaxed"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                {cassDominant ? (
+                  <>
+                    Le pourcentage affiché correspond au{" "}
+                    <strong>taux de cassation</strong> calculé sur les arrêts de
+                    Cour de cassation —{" "}
+                    <strong>il ne préjuge pas des chances en 1ère instance</strong>{" "}
+                    (CPH, TJ, TC, TGI). La Cour de cassation juge le droit, pas
+                    les faits. Si votre dossier est devant un juge du fond, ces
+                    chiffres ne répondent pas à votre question — ils indiquent
+                    seulement quelles décisions du fond sont remises en cause par
+                    la Cassation.
+                  </>
+                ) : (
+                  <>
+                    Le pourcentage affiché correspond au{" "}
+                    <strong>taux d'acceptation par les juges du fond</strong> —{" "}
+                    <strong>il ne préjuge pas de l'issue d'un pourvoi en cassation</strong>.
+                    Si votre dossier est en Cassation, ces chiffres ne répondent
+                    pas à votre question.
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── BANDEAU CONTRÔLE ANTI-HALLUCINATION ─────────────── */}
       {verification && verification.citedRefs > 0 && (
         <div
@@ -316,14 +380,22 @@ export function AnalysisDashboard({
                   {" "}<span style={{ color: "var(--muted-foreground)" }}>(sur {meta!.totalFound} trouvées)</span>
                 </>
               )}
-              {data.sourceCount > 0 && (
-                <>
-                  {" "}·{" "}
-                  <span title="Décisions effectivement citées dans le rapport et l'annexe des sources">
-                    <span className="font-semibold">{data.sourceCount}</span> citées dans le rapport
-                  </span>
-                </>
-              )}
+              {(() => {
+                // Préfère le compteur du contrôle anti-hallucination (refs uniques
+                // vérifiées) au sourceCount qui peut sur-compter (ECLI + pourvoi
+                // + ref Cass. d'une même décision = 3 entrées).
+                const verifiedCount = data.verification?.verifiedRefs ?? null;
+                const displayCount = verifiedCount ?? data.sourceCount;
+                if (displayCount === 0) return null;
+                return (
+                  <>
+                    {" "}·{" "}
+                    <span title="Décisions uniques effectivement citées dans le rapport (dédupliquées)">
+                      <span className="font-semibold">{displayCount}</span> citées dans le rapport
+                    </span>
+                  </>
+                );
+              })()}
               {data.evidenceTable && data.evidenceTable.rows.length > 0 && (
                 <>
                   {" "}·{" "}
@@ -424,7 +496,9 @@ export function AnalysisDashboard({
             className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Risque d&apos;échec
+            {cassDominant
+              ? "Confirmation des décisions du fond"
+              : "Risque d'échec"}
           </div>
           <div className="flex items-baseline gap-1.5">
             <div
@@ -448,7 +522,19 @@ export function AnalysisDashboard({
             className="mt-3 text-[12px] leading-relaxed max-w-sm"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Calculé en miroir du taux de succès ({taux}%). Les facteurs de bascule ci-dessous permettent d&apos;anticiper l&apos;issue défavorable.
+            {cassDominant ? (
+              <>
+                Sur {composition?.cassationCount} arrêts de la Cour de cassation,{" "}
+                {risque}% confirment la décision attaquée (rejet du pourvoi).
+                Les {taux}% restants sont des cassations. <strong>Ces chiffres
+                concernent la Cassation uniquement, pas une procédure du fond.</strong>
+              </>
+            ) : (
+              <>
+                Calculé en miroir du taux de succès ({taux}%). Les facteurs de
+                bascule ci-dessous permettent d&apos;anticiper l&apos;issue défavorable.
+              </>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-6 flex-wrap">
@@ -463,7 +549,10 @@ export function AnalysisDashboard({
                   : "—"
             }
           />
-          <Metric label="Sources citées" value={String(data.sourceCount)} />
+          <Metric
+            label="Sources citées"
+            value={String(data.verification?.verifiedRefs ?? data.sourceCount)}
+          />
         </div>
       </div>
 

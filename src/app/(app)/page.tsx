@@ -809,7 +809,7 @@ export default function AnalyzePage() {
                   {[
                     { key: "text" as const, label: "Rapport" },
                     { key: "dashboard" as const, label: "Chiffres" },
-                    { key: "sources" as const, label: "Sources", count: parsedData.sourceCount },
+                    { key: "sources" as const, label: "Sources", count: parsedData.verification?.verifiedRefs ?? parsedData.sourceCount },
                     { key: "tableau" as const, label: "Tableau" },
                   ].map((t) => {
                     const active = activeView === t.key;

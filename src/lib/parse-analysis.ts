@@ -95,6 +95,15 @@ export interface ParsedAnalysis {
     unverifiedRefs: string[];
     removedSentences: number;
     removedRows: number;
+    corpusComposition?: {
+      total: number;
+      cassationCount: number;
+      fondCount: number;
+      cassationPct: number;
+      fondPct: number;
+      cassationRate: number | null;
+      fondAcceptanceRate: number | null;
+    } | null;
   } | null;
 }
 
