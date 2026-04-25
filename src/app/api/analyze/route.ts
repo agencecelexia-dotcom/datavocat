@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         },
       }).catch(() => emptyJudilibre),
       new Promise<typeof emptyJudilibre>((resolve) =>
-        setTimeout(() => resolve(emptyJudilibre), 30000)
+        setTimeout(() => resolve(emptyJudilibre), 60000)
       ),
     ]),
     Promise.race([

@@ -13,12 +13,18 @@
 const JUDILIBRE_BASE = "https://api.piste.gouv.fr/cassation/judilibre/v1.0";
 
 /**
- * Nombre maximum de décisions candidates pour le reranking Haiku.
- * Logique d'entonnoir : on ramasse large (~250-500 selon la complexité de
- * la requête), on dédoublonne par ECLI/RG, on garde les `JUDILIBRE_MAX_CONTEXT`
- * meilleures par score Judilibre, puis Haiku rerank pour `JUDILIBRE_RERANK_KEEP`.
+ * Nombre maximum de décisions candidates passées au filtre par pertinence Haiku.
+ * Logique d'entonnoir dynamique :
+ *   1. Récolte massive (multi-pages, plusieurs requêtes parallèles) → 500-1000
+ *   2. Dédoublonnage par ECLI/RG → ~300-600 uniques
+ *   3. On garde les `JUDILIBRE_MAX_CONTEXT` meilleures par score Judilibre
+ *   4. Haiku score chaque décision → corpus final entre 30 et 100 selon
+ *      la qualité disponible (cf. rerank.ts).
  */
-export const JUDILIBRE_MAX_CONTEXT = 200;
+export const JUDILIBRE_MAX_CONTEXT = 400;
+
+/** Nombre de pages Judilibre récoltées par requête (50 par page = max API). */
+export const JUDILIBRE_PAGES_PER_QUERY = 3;
 
 /** Fenêtre de fraîcheur en années : on récupère prioritairement les décisions des N dernières années. */
 export const JUDILIBRE_FRESHNESS_YEARS = 5;
@@ -322,6 +328,39 @@ function extractSearchQueries(userQuery: string): string[] {
 }
 
 /**
+ * Effectue une recherche Judilibre paginée (jusqu'à `maxPages` pages de 50)
+ * en utilisant le curseur `next_page` retourné par l'API. Retourne toutes
+ * les décisions concaténées + le `total` global de la requête.
+ *
+ * Échec en cours de pagination : on garde ce qu'on a déjà récolté et on
+ * arrête proprement (résilience).
+ */
+async function searchMultiPage(
+  baseParams: JudilibreSearchParams,
+  maxPages: number = JUDILIBRE_PAGES_PER_QUERY
+): Promise<JudilibreSearchResult> {
+  const allResults: JudilibreDecision[] = [];
+  let total = 0;
+  let cursor: string | undefined = undefined;
+  for (let page = 0; page < maxPages; page++) {
+    try {
+      const r: JudilibreSearchResult = await searchJudilibre({
+        ...baseParams,
+        batch: cursor,
+      });
+      total = Math.max(total, r.total);
+      allResults.push(...r.results);
+      if (!r.next_page) break;
+      cursor = r.next_page;
+      if (r.results.length < (baseParams.pageSize || 50)) break;
+    } catch {
+      break;
+    }
+  }
+  return { results: allResults, total, query: baseParams.query };
+}
+
+/**
  * Detect which Judilibre chamber is most relevant for the query.
  */
 function detectChamber(query: string): string[] | undefined {
@@ -479,12 +518,12 @@ export async function searchJudilibreForAnalysis(
       .toISOString()
       .slice(0, 10);
 
-    // Run all search strategies in parallel, priorité aux 5 dernières années.
-    // Si la query vise une juridiction du fond (CPH/TJ/TC) ou la Cassation,
-    // on cible explicitement Cass. ou CA pour éviter le piège du corpus
-    // 100% Cass. (cf. fix avril 2026).
+    // Récolte massive multi-pages (entonnoir) : on ramasse jusqu'à
+    // ~750 candidates via 5 recherches × 3 pages × 50 + 1 broad × 3 × 50.
+    // Le filtre Haiku (rerank.ts) sélectionnera ensuite les 30-100 plus
+    // pertinentes selon la qualité disponible.
     const searchPromises = searchQueries.map((q) =>
-      searchJudilibre({
+      searchMultiPage({
         query: q,
         operator: "or",
         sort: "score",
@@ -500,9 +539,9 @@ export async function searchJudilibreForAnalysis(
       )
     );
 
-    // Also run a broad search with OR on the full query (truncated)
+    // Broad search avec OR sur la query complète tronquée
     searchPromises.push(
-      searchJudilibre({
+      searchMultiPage({
         query: userQuery.slice(0, 200),
         operator: "or",
         sort: "score",
