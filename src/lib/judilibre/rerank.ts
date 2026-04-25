@@ -16,10 +16,10 @@ import { trackClaudeUsage } from "@/lib/api-usage/track";
 const RERANK_MODEL = "claude-haiku-4-5-20251001";
 
 /** Nombre de décisions conservées après reranking (passées à Sonnet). */
-export const JUDILIBRE_RERANK_KEEP = 60;
+export const JUDILIBRE_RERANK_KEEP = 80;
 
 /** Timeout global du reranking — on garde la requête rapide. */
-const RERANK_TIMEOUT_MS = 6000;
+const RERANK_TIMEOUT_MS = 8000;
 
 function compactSummary(dec: JudilibreDecision, idx: number): string {
   const chamber = dec.chamber || "";

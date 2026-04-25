@@ -108,24 +108,34 @@ function classifyOutcome(
   solution: string
 ): "favorable" | "defavorable" | "nuance" {
   // "favorable" pour la partie qui demande, "défavorable" sinon. Dans le doute → "nuance".
-  const s = (solution || "").toLowerCase();
+  // Couvre les libellés réels de Judilibre :
+  // - Cass : "Cassation", "Rejet", "Cassation partielle"...
+  // - CA   : "Infirme partiellement, réforme...", "Confirme la décision déférée...",
+  //          "Infirme la décision déférée dans toutes ses dispositions..."
+  const s = (solution || "").toLowerCase().trim();
+  if (s === "" || s === "other") return "nuance";
+
+  // Favorable : appelant gagne / cassation prononcée / demande accueillie.
   if (
     s.includes("fait droit") ||
     s.includes("accueil") ||
-    s.includes("annulation") ||
-    s.includes("condamnation") ||
-    s.includes("infirmation") || // CA infirme = succès appel demandeur
-    s.includes("cassation") // pourvoi cassation = succès demandeur au pourvoi
+    s.includes("annule") || s.includes("annulation") ||
+    s.includes("condamne") || s.includes("condamnation") ||
+    s.startsWith("infirme") || // "Infirme la décision...", "Infirme partiellement..."
+    s.includes("cassation") || // pourvoi cassation = succès demandeur
+    s.includes("réforme") || s.includes("reforme")
   )
     return "favorable";
+
+  // Défavorable : appelant perd / pourvoi rejeté / demande déboutée.
   if (
+    s.startsWith("confirme") || // "Confirme la décision déférée..."
     s.includes("rejet") ||
-    s.includes("déboute") ||
-    s.includes("deboute") ||
-    s.includes("irrecevab") ||
-    s.includes("confirmation") // CA confirme = échec appelant
+    s.includes("déboute") || s.includes("deboute") ||
+    s.includes("irrecevab")
   )
     return "defavorable";
+
   return "nuance";
 }
 
@@ -222,7 +232,7 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
   const yearCounts: Record<string, number> = {};
   const dates = decisions
     .map((d) => d.date)
-    .filter(Boolean)
+    .filter((d): d is string => typeof d === "string" && d.length > 0)
     .sort();
   for (const d of dates) {
     const year = d.slice(0, 4);
@@ -247,9 +257,11 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
   )
     .toISOString()
     .slice(0, 10);
-  const freshDecisions = decisions.filter((d) => d.date >= threeYearsAgo).length;
+  const freshDecisions = decisions.filter(
+    (d) => (d.date || "") >= threeYearsAgo
+  ).length;
   const freshDecisionsFiveYears = decisions.filter(
-    (d) => d.date >= fiveYearsAgo
+    (d) => (d.date || "") >= fiveYearsAgo
   ).length;
 
   // Hiérarchie 4 catégories — invariant : somme des `total` = `total`

@@ -141,23 +141,24 @@ INTERDICTION ABSOLUE de :
 - ajouter une "ligne complementaire" pour atteindre un seuil
 - inferer des donnees absentes d'une decision (si le sommaire ne mentionne pas le montant, ne mets PAS de montant)
 
-STRUCTURE DU TABLEAU — schema FIXE de 10 colonnes (les 8 colonnes universelles filtrables + N° + Detail) :
+STRUCTURE DU TABLEAU — schema FIXE de 11 colonnes (les 8 colonnes universelles filtrables + N° + Reference + Detail) :
 
-| N° | Resultat | Juridiction | Chambre | Date | Argument principal retenu | Partie gagnante | Fondement juridique | Pertinence pour le dossier | Detail |
+| N° | Reference | Resultat | Juridiction | Chambre | Date | Argument principal retenu | Partie gagnante | Fondement juridique | Pertinence pour le dossier | Detail |
 
 VALEURS AUTORISEES POUR CHAQUE COLONNE :
 
 1. **N°** : numero d'ordre 1, 2, 3...
-2. **Resultat** : EXACTEMENT une de ces 3 valeurs : "Favorable" / "Defavorable" / "Nuance"
-3. **Juridiction** : EXACTEMENT une de ces 4 valeurs : "1er degre" / "Cour d'appel" / "Cour de cassation" / "Conseil d'Etat"
+2. **Reference** : ECLI complet OU numero de pourvoi (Cass) OU numero RG (CA, ex: 21/03476). UTILISE EXACTEMENT la valeur fournie dans le CORPUS JUDILIBRE pour cette decision (champ ECLI si present, sinon premier element de "number"). Cette colonne PERMET la verification automatique des sources — ne la laisse JAMAIS vide.
+3. **Resultat** : EXACTEMENT une de ces 3 valeurs : "Favorable" / "Defavorable" / "Nuance"
+4. **Juridiction** : EXACTEMENT une de ces 4 valeurs : "1er degre" / "Cour d'appel" / "Cour de cassation" / "Conseil d'Etat"
    (correspond a la classification du corpus — une decision = une seule juridiction)
-4. **Chambre** : "Sociale" / "Commerciale" / "Civile" / "Criminelle" / "Pleniere" / "Mixte" / "Refere" / "Autre"
-5. **Date** : format YYYY-MM-DD (ou YYYY si jour/mois inconnus)
-6. **Argument principal retenu** : thematique courte issue du sommaire (ex: faute grave, harcelement moral, discrimination, vice de procedure, forclusion, rupture brutale, clause abusive...). UN seul mot ou groupe de mots de 2-4 mots.
-7. **Partie gagnante** : "Demandeur" / "Defendeur" / "Indetermine"
-8. **Fondement juridique** : article de loi (ex: Art. L1232-1 C. trav.) OU principe general (ex: Principe contradictoire) OU convention collective citee. SI absent du sommaire : "N/C"
-9. **Pertinence pour le dossier** : "Haute" / "Moyenne" / "Faible" — evalue selon les faits soumis par l'avocat dans la demande
-10. **Detail** : JSON inline avec les facteurs metier specifiques de la matiere. Format strict avec accolades et guillemets droits ASCII. Exemples :
+5. **Chambre** : "Sociale" / "Commerciale" / "Civile" / "Criminelle" / "Pleniere" / "Mixte" / "Refere" / "Autre"
+6. **Date** : format YYYY-MM-DD (ou YYYY si jour/mois inconnus)
+7. **Argument principal retenu** : thematique courte issue du sommaire (ex: faute grave, harcelement moral, discrimination, vice de procedure, forclusion, rupture brutale, clause abusive...). UN seul mot ou groupe de mots de 2-4 mots.
+8. **Partie gagnante** : "Demandeur" / "Defendeur" / "Indetermine"
+9. **Fondement juridique** : article de loi (ex: Art. L1232-1 C. trav.) OU principe general (ex: Principe contradictoire) OU convention collective citee. SI absent du sommaire : "N/C"
+10. **Pertinence pour le dossier** : "Haute" / "Moyenne" / "Faible" — evalue selon les faits soumis par l'avocat dans la demande
+11. **Detail** : JSON inline avec les facteurs metier specifiques de la matiere. Format strict avec accolades et guillemets droits ASCII. Exemples :
     - Licenciement : {"motif":"faute grave","anciennete":"15 ans","indemnite":"45000 EUR"}
     - Bail : {"type":"commercial","loyer":"3000 EUR","conge":"valide"}
     - Vide : {}

@@ -1282,12 +1282,7 @@ function AnalyzingScreen({
       detail:
         meta && meta.analyzedCount > 0
           ? `${meta.analyzedCount} / ${meta.totalFound} décisions`
-          : "480 312 arrêts",
-    },
-    {
-      key: "datagouv",
-      label: "Interrogation data.gouv.fr",
-      detail: "82 175 décisions",
+          : "Cour de cassation + Cours d'appel",
     },
     {
       key: "claude",

@@ -30,7 +30,8 @@ export interface VerificationResult {
 }
 
 const ECLI_REGEX = /ECLI:[A-Z]{2}:[A-Z0-9]+:\d{4}:[A-Z0-9.]+/g;
-const POURVOI_REGEX = /\b\d{2,4}[-/.]\d{2,5}(?:\.\d+)?\b/g;
+// Capture les n° de pourvoi (Cass : "22-12345") ET les n° RG (CA : "21/03476").
+const POURVOI_REGEX = /\b\d{2,4}[-/.]\d{2,6}(?:\.\d+)?\b/g;
 
 function normalizeRef(ref: string): string {
   return ref.toUpperCase().replace(/[\s.\-/]/g, "");
@@ -38,13 +39,24 @@ function normalizeRef(ref: string): string {
 
 /**
  * Construit le set de refs autorisées à partir du corpus Judilibre fourni.
+ * Gère les 3 formats de référence :
+ *  - ECLI (Cass.) : "ECLI:FR:CCASS:2024:SO00123"
+ *  - n° de pourvoi (Cass.) : "22-12345"
+ *  - n° RG (CA) : "21/03476"
+ *
+ * `number` peut être string ou string[] selon la juridiction — on gère les deux.
  */
 function buildCorpusIndex(decisions: JudilibreDecision[]): Set<string> {
   const set = new Set<string>();
   for (const d of decisions) {
     if (d.ecli) set.add(normalizeRef(d.ecli));
-    if (Array.isArray(d.number)) {
-      for (const n of d.number) set.add(normalizeRef(n));
+    const numbers = Array.isArray(d.number)
+      ? d.number
+      : d.number
+        ? [d.number]
+        : [];
+    for (const n of numbers) {
+      if (n) set.add(normalizeRef(n));
     }
     if (d.id) set.add(normalizeRef(d.id));
   }
@@ -63,10 +75,16 @@ function extractRefs(markdown: string): string[] {
   }
   POURVOI_REGEX.lastIndex = 0;
   while ((m = POURVOI_REGEX.exec(markdown)) !== null) {
-    // Filtrer les faux positifs : dates (ex 12/03/2024), montants (10/100)
     const candidate = m[0];
-    // Doit ressembler à un n° de pourvoi : 2 segments, dont un >= 4 chiffres typiquement
-    if (/^\d{2}[-/.]\d{4,5}$/.test(candidate)) {
+    // Filtre les faux positifs : on accepte
+    //   - n° de pourvoi Cass : "22-12345"  (\d{2}-\d{4,5})
+    //   - n° RG CA : "21/03476"  (\d{2}/\d{4,6})
+    //   - millésimés : "2024/12345"
+    if (
+      /^\d{2}[-]\d{4,5}$/.test(candidate) ||
+      /^\d{2}\/\d{4,6}$/.test(candidate) ||
+      /^\d{4}\/\d{4,6}$/.test(candidate)
+    ) {
       refs.push(candidate);
     }
   }

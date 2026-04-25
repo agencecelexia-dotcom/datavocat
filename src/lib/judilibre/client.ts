@@ -12,8 +12,13 @@
 
 const JUDILIBRE_BASE = "https://api.piste.gouv.fr/cassation/judilibre/v1.0";
 
-/** Nombre maximum de décisions injectées dans le contexte Claude par analyse. */
-export const JUDILIBRE_MAX_CONTEXT = 100;
+/**
+ * Nombre maximum de décisions candidates pour le reranking Haiku.
+ * Logique d'entonnoir : on ramasse large (~250-500 selon la complexité de
+ * la requête), on dédoublonne par ECLI/RG, on garde les `JUDILIBRE_MAX_CONTEXT`
+ * meilleures par score Judilibre, puis Haiku rerank pour `JUDILIBRE_RERANK_KEEP`.
+ */
+export const JUDILIBRE_MAX_CONTEXT = 200;
 
 /** Fenêtre de fraîcheur en années : on récupère prioritairement les décisions des N dernières années. */
 export const JUDILIBRE_FRESHNESS_YEARS = 5;
@@ -58,14 +63,21 @@ export interface JudilibreDecision {
   highlights?: Record<string, string[]>;
   jurisdiction: string;
   chamber: string;
-  number: string[];
-  ecli: string;
-  formation: string;
-  publication: string[];
+  /**
+   * Numéro de la décision. Peut être :
+   *   - tableau de pourvois (Cass.) ex: ["22-12345", "22-67890"]
+   *   - string unique (CA, RG) ex: "21/03476"
+   * Le code doit gérer les deux formats.
+   */
+  number: string | string[];
+  ecli?: string; // Présent pour Cass., souvent absent pour CA
+  formation?: string;
+  publication?: string[];
   solution: string;
   solution_alt?: string;
-  date: string;
-  type: string;
+  date?: string;
+  decision_date?: string; // Variante PISTE pour certains CA
+  type?: string;
   text?: string;
   themes?: string[];
   sommaire?: string;
@@ -73,6 +85,27 @@ export interface JudilibreDecision {
   visa?: string[];
   rapprochements?: string[];
   files?: { id: string; type: string; url: string }[];
+}
+
+/**
+ * Normalise un champ `number` qui peut être string OU string[] en tableau de strings.
+ */
+export function normalizeNumber(n: string | string[] | undefined): string[] {
+  if (!n) return [];
+  return Array.isArray(n) ? n : [n];
+}
+
+/**
+ * Normalise une décision Judilibre : remplit les champs manquants à partir
+ * de leurs équivalents (date ← decision_date), garantit que `number` est un
+ * tableau, etc.
+ */
+export function normalizeDecision(d: JudilibreDecision): JudilibreDecision {
+  return {
+    ...d,
+    date: d.date || d.decision_date || "",
+    number: normalizeNumber(d.number),
+  };
 }
 
 export interface JudilibreSearchResult {
@@ -159,8 +192,13 @@ export async function searchJudilibre(
 
   const data = await res.json();
 
+  // Normalisation des décisions retournées : harmonise date / decision_date
+  // et number string|string[] (les CA et la Cass. n'ont pas le même format).
+  const rawResults: JudilibreDecision[] = data.results || [];
+  const results = rawResults.map(normalizeDecision);
+
   return {
-    results: data.results || [],
+    results,
     total: data.total || 0,
     next_page: data.next_page,
     query: params.query,
@@ -451,7 +489,7 @@ export async function searchJudilibreForAnalysis(
         operator: "or",
         sort: "score",
         order: "desc",
-        pageSize: 40,
+        pageSize: 50,
         chamber,
         jurisdiction: targetJurisdiction,
         dateStart: dateStartRecent,
@@ -469,7 +507,7 @@ export async function searchJudilibreForAnalysis(
         operator: "or",
         sort: "score",
         order: "desc",
-        pageSize: 40,
+        pageSize: 50,
         jurisdiction: targetJurisdiction,
         dateStart: dateStartRecent,
         dateEnd,
@@ -506,7 +544,7 @@ export async function searchJudilibreForAnalysis(
           operator: "or",
           sort: "score",
           order: "desc",
-          pageSize: 40,
+          pageSize: 50,
           chamber,
           jurisdiction: targetJurisdiction,
         }).catch(
@@ -543,7 +581,7 @@ export async function searchJudilibreForAnalysis(
             operator: "or",
             sort: "score",
             order: "desc",
-            pageSize: 30,
+            pageSize: 50,
             chamber,
             jurisdiction: ["ca"],
             dateStart: dateStartRecent,
@@ -641,7 +679,7 @@ export async function searchJudilibreForAnalysis(
             operator: "or",
             sort: "score",
             order: "desc",
-            pageSize: 30,
+            pageSize: 50,
             chamber,
             jurisdiction: targetJurisdiction,
           }).catch(
@@ -665,7 +703,7 @@ export async function searchJudilibreForAnalysis(
             operator: "or",
             sort: "score",
             order: "desc",
-            pageSize: 30,
+            pageSize: 50,
             jurisdiction: targetJurisdiction,
           }).catch(
             () =>
@@ -688,7 +726,7 @@ export async function searchJudilibreForAnalysis(
             operator: "or",
             sort: "score",
             order: "desc",
-            pageSize: 30,
+            pageSize: 50,
           }).catch(
             () =>
               ({ results: [], total: 0, query: q } as JudilibreSearchResult)
