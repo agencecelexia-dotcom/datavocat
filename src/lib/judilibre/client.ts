@@ -442,10 +442,11 @@ export function detectTargetJurisdiction(query: string): string[] | undefined {
 
   // Cassation explicite ET pas de fond → on cible Cass.
   if (hasCass && !hasFond) return ["cc"];
-  // Fond / appel → on cible CA (les CPH/TJ/TC ne sont pas dans Judilibre,
-  // mais les arrêts de CA traitent ces matières en appel).
-  if (hasFond && !hasCass) return ["ca"];
-  // Les deux mentionnés ou aucun → laisse Judilibre chercher dans tout.
+  // Fond / appel → on cible CA + TJ (1er degré judiciaire) puisque
+  // Judilibre indexe désormais aussi les TJ.
+  if (hasFond && !hasCass) return ["ca", "tj"];
+  // Les deux mentionnés ou aucun → undefined : la stratégie par défaut
+  // ouvrira plusieurs vagues (CA + TJ + Cass) pour un corpus mixte.
   return undefined;
 }
 
@@ -521,21 +522,36 @@ export async function searchJudilibreForAnalysis(
     // Récolte multi-stratégies + multi-pages.
     //
     // STRATÉGIE par défaut : si l'utilisateur n'a pas explicitement précisé
-    // une juridiction (pas de "pourvoi"/"CPH"/"CA" dans la query), on lance
-    // DEUX vagues parallèles :
-    //   - une dédiée Cour de cassation (jurisdiction=cc) — pour la doctrine
-    //     et l'évolution du droit
-    //   - une dédiée Cours d'appel (jurisdiction=ca) — pour la jurisprudence
-    //     du fond, base réelle de la jurimétrie
+    // une juridiction, on lance DES VAGUES PARALLÈLES sur 3 niveaux pour
+    // couvrir TOUTE la hiérarchie judiciaire indexée par Judilibre :
+    //   - CA (jurisdiction=ca) — jurisprudence du fond
+    //   - TJ (jurisdiction=tj) — 1er degré judiciaire (récent dans Judilibre)
+    //   - Cass (jurisdiction=cc) — juge du droit
+    // (+ TCOM si la matière est commerciale)
     //
-    // Cela garantit un corpus mixte, indispensable à une vraie analyse
-    // jurimétrique. Sinon Judilibre renvoie ~80% de Cass par défaut et
-    // l'analyse devient trompeuse.
+    // Le filtre Haiku rerank-by-score décidera ensuite quoi garder selon
+    // la pertinence sémantique réelle.
     //
-    // Si une cible est explicite, on ne fait QUE cette vague.
-    const jurisdictions: Array<string[] | undefined> = targetJurisdiction
-      ? [targetJurisdiction]
-      : [["ca"], ["cc"]];
+    // Si une cible est explicite (pourvoi → cc seul ; appel → ca+tj), on
+    // restreint à cette cible.
+    let jurisdictions: Array<string[] | undefined>;
+    if (targetJurisdiction) {
+      // Cas explicite — on découpe la cible en vagues parallèles pour
+      // équilibrer les volumes (sinon une vague unique [ca,tj] privilégie ca).
+      jurisdictions = targetJurisdiction.map((j) => [j]);
+    } else {
+      // Cas par défaut — 3 vagues mixtes pour couvrir le fond + le droit.
+      jurisdictions = [["ca"], ["tj"], ["cc"]];
+      // Si la matière est commerciale, on ajoute TCOM (1er degré commercial).
+      const ql = userQuery.toLowerCase();
+      if (
+        /commerc|société|societe|fonds de commerce|bail commercial|liquidation|redressement|faillite|insolvab|concurrence/.test(
+          ql
+        )
+      ) {
+        jurisdictions.push(["tcom"]);
+      }
+    }
 
     // Pour les CA on garde le filtre chambre (chambre sociale, com, civ…)
     // qui aide à la pertinence. Pour la Cass, le filtre chambre est aussi

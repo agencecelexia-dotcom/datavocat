@@ -94,16 +94,21 @@ const HIERARCHY_LABELS: Record<HierarchyCategory, string> = {
 
 /**
  * Classe une décision Judilibre dans une des 4 catégories.
- * - "cc" → cassation
- * - "ca" → courAppel
- * - "ce" → conseilEtat (placeholder, jamais vraiment présent dans Judilibre)
- * - autre code → premierDegre (rare dans Judilibre, mais on prévoit le cas)
+ * Codes Judilibre supportés (testés contre l'API en avril 2026) :
+ * - "cc" → cassation (~480 000)
+ * - "ca" → courAppel (~82 000)
+ * - "tj" → 1er degré, tribunal judiciaire (volumes en croissance)
+ * - "tcom" → 1er degré, tribunal de commerce
+ * - "cph" → 1er degré, conseil de prud'hommes (encore vide côté API)
+ * - "ce" → conseilEtat (vide, ordre admin sur ArianneWeb)
+ * - autre code → premierDegre par défaut
  */
 function classifyHierarchy(d: JudilibreDecision): HierarchyCategory {
   const j = (d.jurisdiction || "").toLowerCase();
   if (j === "cc") return "cassation";
   if (j === "ca") return "courAppel";
   if (j === "ce") return "conseilEtat";
+  // tj, tcom, cph, autres codes → 1er degré
   return "premierDegre";
 }
 
