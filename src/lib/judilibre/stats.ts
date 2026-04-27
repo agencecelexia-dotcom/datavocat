@@ -18,6 +18,10 @@
  */
 
 import type { JudilibreDecision } from "./client";
+import {
+  extractMontantsFromCorpus,
+  type MontantExtraction,
+} from "./extractMontants";
 
 export type HierarchyCategory =
   | "premierDegre"
@@ -115,6 +119,12 @@ export interface CorpusStats {
     favorables: number;
     rate: number;
   }>;
+  /**
+   * Montants en euros extraits arithmétiquement des sommaires.
+   * Trois catégories : généraux indemnitaires, article 700 CPC, dommages-intérêts.
+   * Si aucun montant n'est trouvé, samples=0 et les valeurs sont null.
+   */
+  montantsStats: MontantExtraction;
 }
 
 const CHAMBER_LABELS: Record<string, string> = {
@@ -203,6 +213,11 @@ function classifyOutcome(
     return "defavorable";
 
   return "nuance";
+}
+
+function formatEuros(v: number | null): string {
+  if (v === null || v === undefined) return "non disponible";
+  return `${new Intl.NumberFormat("fr-FR").format(v)} €`;
 }
 
 function pct(part: number, whole: number): number {
@@ -560,6 +575,7 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     regionalVariations,
     chamberVariations,
     themeVariations,
+    montantsStats: extractMontantsFromCorpus(decisions),
   };
 }
 
@@ -704,11 +720,43 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
   }
   lines.push("");
 
-  lines.push("MONTANTS / ARTICLE 700 :");
-  lines.push(
-    `Aucun calcul automatique de montants n'est possible à partir des sommaires Judilibre. Si le corpus mentionne explicitement des montants dans certaines décisions, l'avocat les retrouvera dans le tableau de preuve. Sinon, écris "non documenté dans le corpus analysé".`
-  );
-  lines.push("");
+  // Montants extraits arithmétiquement des sommaires (regex + filtre indemnitaire).
+  const m = stats.montantsStats;
+  if (m.montants.samples > 0) {
+    lines.push(
+      `MONTANTS DÉTECTÉS DANS LES SOMMAIRES (échantillon : ${m.montants.samples} décision${m.montants.samples > 1 ? "s" : ""}) :`,
+    );
+    lines.push(`- Min : ${formatEuros(m.montants.min)}`);
+    lines.push(`- Médiane : ${formatEuros(m.montants.median)}`);
+    lines.push(`- Max : ${formatEuros(m.montants.max)}`);
+    lines.push("");
+  } else {
+    lines.push("MONTANTS DÉTECTÉS DANS LES SOMMAIRES : aucun montant indemnitaire détecté arithmétiquement dans le corpus (samples=0).");
+    lines.push("");
+  }
+  if (m.article700.sampleSize > 0) {
+    lines.push(
+      `ARTICLE 700 CPC (échantillon : ${m.article700.sampleSize} décision${m.article700.sampleSize > 1 ? "s" : ""}) :`,
+    );
+    lines.push(
+      `- Taux de condamnation : ${m.article700.tauxCondamnation ?? 0}% (corpus de ${stats.total} décisions)`,
+    );
+    lines.push(`- Montant moyen : ${formatEuros(m.article700.montantMoyen)}`);
+    lines.push(`- Montant médian : ${formatEuros(m.article700.montantMedian)}`);
+    lines.push("");
+  } else {
+    lines.push("ARTICLE 700 CPC : aucun montant détecté arithmétiquement (samples=0).");
+    lines.push("");
+  }
+  if (m.dommagesInterets.samples > 0) {
+    lines.push(
+      `DOMMAGES-INTÉRÊTS DÉTECTÉS (échantillon : ${m.dommagesInterets.samples}) :`,
+    );
+    lines.push(`- Min : ${formatEuros(m.dommagesInterets.min)}`);
+    lines.push(`- Médiane : ${formatEuros(m.dommagesInterets.median)}`);
+    lines.push(`- Max : ${formatEuros(m.dommagesInterets.max)}`);
+    lines.push("");
+  }
 
   // ─── Tendances temporelles (Niveau 3 jurimétrie avancée) ───
   if (stats.temporalTrend.buckets.length >= 3) {
