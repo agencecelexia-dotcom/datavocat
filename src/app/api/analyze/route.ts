@@ -415,6 +415,10 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
                 fiabilite: fiabiliteFormula,
                 tauxSuccesRetenu: corpusStats?.tauxSuccesRetenu ?? null,
                 tauxSuccesSource: corpusStats?.tauxSuccesSource ?? null,
+                temporalTrend: corpusStats?.temporalTrend ?? null,
+                regionalVariations: corpusStats?.regionalVariations ?? null,
+                chamberVariations: corpusStats?.chamberVariations ?? null,
+                themeVariations: corpusStats?.themeVariations ?? null,
               },
             })
             .eq("id", id);

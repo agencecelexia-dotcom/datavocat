@@ -133,6 +133,36 @@ export interface ParsedAnalysis {
     tauxSuccesRetenu?: number | null;
     /** Source du taux : "fond" (1er degré + CA), "mixte", "cassation". */
     tauxSuccesSource?: "fond" | "mixte" | "cassation" | null;
+    /** Tendance temporelle (Niveau 3 jurimétrie). */
+    temporalTrend?: {
+      buckets: Array<{
+        year: string;
+        total: number;
+        favorables: number;
+        rate: number;
+      }>;
+      direction: "ascending" | "descending" | "flat" | "insufficient";
+      deltaPct: number;
+      medianYear: string | null;
+    } | null;
+    regionalVariations?: Array<{
+      label: string;
+      total: number;
+      favorables: number;
+      rate: number;
+    }> | null;
+    chamberVariations?: Array<{
+      label: string;
+      total: number;
+      favorables: number;
+      rate: number;
+    }> | null;
+    themeVariations?: Array<{
+      label: string;
+      total: number;
+      favorables: number;
+      rate: number;
+    }> | null;
   } | null;
 }
 

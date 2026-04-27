@@ -120,9 +120,18 @@ La hierarchie francaise est : 1er degre / Cour d'appel / Cour de cassation / Con
 [Recopie depuis FAITS VERIFIES le total et le taux de cassation. Rappelle qu'un rejet de pourvoi confirme la decision attaquee, il ne s'agit pas d'un succes au fond]
 
 **Conseil d'Etat**
-[Reste a 0 — la source administrative n'est pas branchee sur ce logiciel. Indique : "non disponible — extension a venir"]
+[Si le corpus contient des decisions du Conseil d'Etat (CETAT branche en avril 2026), recopie le total et le taux. Sinon, indique "non documente dans le corpus analyse"]
 
 INVARIANT : la somme des 4 categories doit egaler le total annonce dans l'introduction. Verifie avant de produire la reponse. NE FUSIONNE JAMAIS plusieurs categories dans un taux unique.
+
+### Tendance temporelle (OBLIGATOIRE si fournie dans FAITS VERIFIES)
+[Si le bloc FAITS VERIFIES contient une section "TENDANCE TEMPORELLE", recopie integralement les buckets annuels avec leurs taux. Indique la direction (en hausse / en baisse / stable) avec la variation en points exacte. Cette information est CRUCIALE pour l'avocat : elle indique si la jurisprudence evolue dans son sens ou non.]
+
+### Variations regionales (OBLIGATOIRE si fournie)
+[Si le bloc FAITS VERIFIES contient "VARIATIONS REGIONALES", recopie les taux par cour d'appel. Identifie explicitement la CA la plus favorable et la plus defavorable, avec l'ecart en points. Cette information aide l'avocat a evaluer le risque selon la juridiction de saisine.]
+
+### Variations par chambre et theme (si fournies)
+[Si le bloc FAITS VERIFIES contient "VARIATIONS PAR CHAMBRE" ou "VARIATIONS PAR THEME", recopie les principales. Indique les chambres ou themes les plus discriminants pour le succes au fond.]
 
 ### Montants
 [Si des montants sont presents dans le corpus, recopie min / mediane / max depuis FAITS VERIFIES. Sinon : "non documente dans le corpus analyse"]

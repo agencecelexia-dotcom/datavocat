@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ParsedAnalysis } from "@/lib/parse-analysis";
-import { TrendingUp, Gavel } from "lucide-react";
+import { TrendsBlock } from "./trends-block";
 
 // ── Formatters ───────────────────────────────────────────────────────
 const fmtEur = (v: number | null) =>
@@ -791,6 +791,9 @@ export function AnalysisDashboard({
           )}
         </div>
       )}
+
+      {/* ── Tendances jurimétriques (Niveau 3) ──────────────── */}
+      <TrendsBlock data={data} />
 
       {/* ── Pipeline procédural ─────────────────────────────── */}
       {data.instances.length > 0 && (

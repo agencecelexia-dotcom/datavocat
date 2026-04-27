@@ -72,6 +72,49 @@ export interface CorpusStats {
   tauxSuccesRetenu: number | null;
   /** Source du taux retenu (informatif, pour l'UI). */
   tauxSuccesSource: "fond" | "cassation" | "mixte" | null;
+  /**
+   * Tendance temporelle : taux d'acceptation par année (au fond).
+   * Chaque entrée a au moins 3 décisions pour être statistiquement
+   * significative (sinon agrégée dans "Avant"). La direction (up/down/flat)
+   * est calculée par régression linéaire simple sur les 5 dernières années.
+   */
+  temporalTrend: {
+    buckets: Array<{ year: string; total: number; favorables: number; rate: number }>;
+    direction: "ascending" | "descending" | "flat" | "insufficient";
+    /** Variation de taux entre 1ère et dernière période (en points %). */
+    deltaPct: number;
+    /** Année médiane (50% des décisions sont avant/après). */
+    medianYear: string | null;
+  };
+  /**
+   * Variations régionales : taux par cour d'appel.
+   * Identifie les CA les plus favorables et les plus défavorables.
+   */
+  regionalVariations: Array<{
+    label: string;
+    total: number;
+    favorables: number;
+    rate: number;
+  }>;
+  /**
+   * Variations par chambre / formation (Cass. + CA).
+   */
+  chamberVariations: Array<{
+    label: string;
+    total: number;
+    favorables: number;
+    rate: number;
+  }>;
+  /**
+   * Variations par thème juridique (champ Judilibre `themes`).
+   * Aide à identifier les sous-sujets discriminants.
+   */
+  themeVariations: Array<{
+    label: string;
+    total: number;
+    favorables: number;
+    rate: number;
+  }>;
 }
 
 const CHAMBER_LABELS: Record<string, string> = {
@@ -345,6 +388,159 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     tauxSuccesSource = "cassation";
   }
 
+  // ─── Niveau 3 : analyses statistiques avancées ──────────────
+  // Tendance temporelle : on regroupe les décisions du fond par année
+  // (les Cass. ont une logique différente, on les exclut). Si une année
+  // n'a pas assez de décisions (< 3), on l'agrège à l'année précédente.
+  const fondDecisions = decisions.filter(
+    (d) => classifyHierarchy(d) === "premierDegre" || classifyHierarchy(d) === "courAppel"
+  );
+
+  const yearlyAccum: Record<
+    string,
+    { total: number; favorables: number }
+  > = {};
+  for (const d of fondDecisions) {
+    const y = (d.date || "").slice(0, 4);
+    if (!y) continue;
+    const o = classifyOutcome(d.solution_alt || d.solution || "");
+    if (!yearlyAccum[y]) yearlyAccum[y] = { total: 0, favorables: 0 };
+    yearlyAccum[y].total++;
+    if (o === "favorable") yearlyAccum[y].favorables++;
+  }
+  const sortedYears = Object.keys(yearlyAccum).sort();
+  const yearBuckets = sortedYears
+    .filter((y) => yearlyAccum[y].total >= 2) // exclure bruit
+    .map((y) => ({
+      year: y,
+      total: yearlyAccum[y].total,
+      favorables: yearlyAccum[y].favorables,
+      rate: pct(yearlyAccum[y].favorables, yearlyAccum[y].total),
+    }));
+
+  // Direction de tendance : régression linéaire simple sur les 5 dernières années
+  let direction:
+    | "ascending"
+    | "descending"
+    | "flat"
+    | "insufficient" = "insufficient";
+  let deltaPct = 0;
+  if (yearBuckets.length >= 3) {
+    const recent = yearBuckets.slice(-5);
+    const xs = recent.map((_, i) => i);
+    const ys = recent.map((b) => b.rate);
+    const n = xs.length;
+    const meanX = xs.reduce((a, b) => a + b, 0) / n;
+    const meanY = ys.reduce((a, b) => a + b, 0) / n;
+    let num = 0;
+    let den = 0;
+    for (let i = 0; i < n; i++) {
+      num += (xs[i] - meanX) * (ys[i] - meanY);
+      den += (xs[i] - meanX) ** 2;
+    }
+    const slope = den === 0 ? 0 : num / den;
+    deltaPct = Math.round((recent[n - 1].rate - recent[0].rate) * 10) / 10;
+    if (slope > 1.5) direction = "ascending";
+    else if (slope < -1.5) direction = "descending";
+    else direction = "flat";
+  } else if (yearBuckets.length > 0) {
+    direction = "insufficient";
+  }
+
+  // Année médiane (50 % des décisions sont avant)
+  let medianYear: string | null = null;
+  if (fondDecisions.length > 0) {
+    const sortedDates = fondDecisions
+      .map((d) => d.date || "")
+      .filter(Boolean)
+      .sort();
+    medianYear =
+      sortedDates[Math.floor(sortedDates.length / 2)]?.slice(0, 4) || null;
+  }
+
+  // Variations régionales (par CA)
+  const regionalAccum: Record<
+    string,
+    { total: number; favorables: number }
+  > = {};
+  for (const d of decisions) {
+    if (classifyHierarchy(d) !== "courAppel") continue;
+    let label = "CA inconnue";
+    const j = (d.jurisdiction || "").toLowerCase();
+    if (j === "ca") {
+      // Tente d'extraire le ressort depuis chamber ou autres champs
+      // (Judilibre ne donne pas toujours le ressort explicite ; c'est
+      // une limitation de l'API)
+      const ch = (d.chamber || "").trim();
+      label = ch ? `CA ${ch}` : "CA";
+    } else if (j === "caa") {
+      label = "CAA";
+    }
+    if (!regionalAccum[label]) regionalAccum[label] = { total: 0, favorables: 0 };
+    regionalAccum[label].total++;
+    const o = classifyOutcome(d.solution_alt || d.solution || "");
+    if (o === "favorable") regionalAccum[label].favorables++;
+  }
+  const regionalVariations = Object.entries(regionalAccum)
+    .filter(([, v]) => v.total >= 2)
+    .map(([label, v]) => ({
+      label,
+      total: v.total,
+      favorables: v.favorables,
+      rate: pct(v.favorables, v.total),
+    }))
+    .sort((a, b) => b.rate - a.rate);
+
+  // Variations par chambre / formation
+  const chamberAccum: Record<
+    string,
+    { total: number; favorables: number }
+  > = {};
+  for (const d of decisions) {
+    const ch = CHAMBER_LABELS[d.chamber] || d.chamber || "Autre";
+    if (!chamberAccum[ch]) chamberAccum[ch] = { total: 0, favorables: 0 };
+    chamberAccum[ch].total++;
+    const o = classifyOutcome(d.solution_alt || d.solution || "");
+    if (o === "favorable") chamberAccum[ch].favorables++;
+  }
+  const chamberVariations = Object.entries(chamberAccum)
+    .filter(([, v]) => v.total >= 3)
+    .map(([label, v]) => ({
+      label,
+      total: v.total,
+      favorables: v.favorables,
+      rate: pct(v.favorables, v.total),
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  // Variations par thème (champ Judilibre `themes`)
+  const themeAccum: Record<
+    string,
+    { total: number; favorables: number }
+  > = {};
+  for (const d of decisions) {
+    const themes = d.themes || [];
+    for (const t of themes.slice(0, 3)) {
+      // top 3 thèmes max par décision pour éviter explosion
+      const label = t.split(" - ")[0]?.trim() || t.trim();
+      if (!label) continue;
+      if (!themeAccum[label]) themeAccum[label] = { total: 0, favorables: 0 };
+      themeAccum[label].total++;
+      const o = classifyOutcome(d.solution_alt || d.solution || "");
+      if (o === "favorable") themeAccum[label].favorables++;
+    }
+  }
+  const themeVariations = Object.entries(themeAccum)
+    .filter(([, v]) => v.total >= 3)
+    .map(([label, v]) => ({
+      label,
+      total: v.total,
+      favorables: v.favorables,
+      rate: pct(v.favorables, v.total),
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
+
   return {
     total,
     bySolution,
@@ -360,6 +556,10 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     coherencePct,
     tauxSuccesRetenu,
     tauxSuccesSource,
+    temporalTrend: { buckets: yearBuckets, direction, deltaPct, medianYear },
+    regionalVariations,
+    chamberVariations,
+    themeVariations,
   };
 }
 
@@ -509,6 +709,67 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
     `Aucun calcul automatique de montants n'est possible à partir des sommaires Judilibre. Si le corpus mentionne explicitement des montants dans certaines décisions, l'avocat les retrouvera dans le tableau de preuve. Sinon, écris "non documenté dans le corpus analysé".`
   );
   lines.push("");
+
+  // ─── Tendances temporelles (Niveau 3 jurimétrie avancée) ───
+  if (stats.temporalTrend.buckets.length >= 3) {
+    lines.push("TENDANCE TEMPORELLE (taux d'acceptation au fond par année) :");
+    for (const b of stats.temporalTrend.buckets) {
+      lines.push(`- ${b.year} : ${b.favorables}/${b.total} favorables (${b.rate}%)`);
+    }
+    const dirLabel =
+      stats.temporalTrend.direction === "ascending"
+        ? `📈 EN HAUSSE (+${stats.temporalTrend.deltaPct} pts sur la période)`
+        : stats.temporalTrend.direction === "descending"
+          ? `📉 EN BAISSE (${stats.temporalTrend.deltaPct} pts sur la période)`
+          : stats.temporalTrend.direction === "flat"
+            ? `➡️ STABLE (variation ${stats.temporalTrend.deltaPct} pts, non significative)`
+            : "Données insuffisantes pour conclure";
+    lines.push(`Direction : ${dirLabel}`);
+    if (stats.temporalTrend.medianYear) {
+      lines.push(`Année médiane du corpus : ${stats.temporalTrend.medianYear}`);
+    }
+    lines.push("");
+  }
+
+  // ─── Variations régionales (CA) ───
+  if (stats.regionalVariations.length >= 2) {
+    lines.push("VARIATIONS RÉGIONALES (taux d'acceptation par cour d'appel) :");
+    for (const v of stats.regionalVariations.slice(0, 8)) {
+      lines.push(
+        `- ${v.label} : ${v.favorables}/${v.total} favorables (${v.rate}%)`
+      );
+    }
+    const max = stats.regionalVariations[0];
+    const min = stats.regionalVariations[stats.regionalVariations.length - 1];
+    if (max && min && max.label !== min.label) {
+      lines.push(
+        `Écart : ${max.label} (${max.rate}%) vs ${min.label} (${min.rate}%) = ${Math.round((max.rate - min.rate) * 10) / 10} pts`
+      );
+    }
+    lines.push("");
+  }
+
+  // ─── Variations par chambre / formation ───
+  if (stats.chamberVariations.length >= 2) {
+    lines.push("VARIATIONS PAR CHAMBRE / FORMATION (taux d'acceptation) :");
+    for (const v of stats.chamberVariations.slice(0, 6)) {
+      lines.push(
+        `- ${v.label} : ${v.favorables}/${v.total} favorables (${v.rate}%)`
+      );
+    }
+    lines.push("");
+  }
+
+  // ─── Variations par thème juridique ───
+  if (stats.themeVariations.length >= 2) {
+    lines.push("VARIATIONS PAR THÈME JURIDIQUE (taux par sous-sujet du corpus) :");
+    for (const v of stats.themeVariations.slice(0, 8)) {
+      lines.push(
+        `- ${v.label} : ${v.favorables}/${v.total} favorables (${v.rate}%)`
+      );
+    }
+    lines.push("");
+  }
 
   lines.push("══════════════════════════════════════════════════════════════════════");
   return lines.join("\n");
