@@ -375,79 +375,121 @@ function detectChamber(query: string): string[] | undefined {
 }
 
 /**
- * Detect target jurisdiction from query.
+ * Détecte la matière juridique pour adapter les juridictions cibles.
+ * Les juridictions de fond pertinentes dépendent de la matière :
+ * une affaire de licenciement passe par CPH+CA soc+Cass soc (pas TJ ni TCOM),
+ * un bail commercial par TJ+CA+Cass+TCOM, un divorce par TJ+CA civ1+Cass civ1, etc.
+ */
+type Matter =
+  | "social" // CPH compétent : licenciement, harcèlement, contrat de travail
+  | "commercial" // TCOM compétent : société, faillite, bail commercial
+  | "famille" // TJ compétent : divorce, succession, autorité parentale
+  | "civil" // TJ compétent : contrats civils, baux d'habitation, copropriété
+  | "penal" // T. correctionnel : infractions
+  | "admin" // TA compétent : urbanisme, fiscal, fonction publique
+  | "unknown";
+
+function detectMatter(query: string): Matter {
+  const q = query.toLowerCase();
+  if (
+    /licenciement|salari[ée]|employeur|harc[èe]lement|prud['']hommes|cph|contrat\s+de\s+travail|d[ée]mission|rupture\s+conventionnelle|inaptitude|discrimination\s+(?:professionnelle|au\s+travail|à\s+l['']embauche)|accord\s+collectif|convention\s+collective/.test(
+      q
+    )
+  )
+    return "social";
+  if (
+    /bail\s+commercial|fonds\s+de\s+commerce|tribunal\s+de\s+commerce|tcom|soci[ée]t[ée]|associ[ée]s?|liquidation|redressement|procédure\s+collective|faillite|concurrence\s+d[ée]loyale|rupture\s+brutale/.test(
+      q
+    )
+  )
+    return "commercial";
+  if (
+    /divorce|succession|h[ée]ritage|garde\s+(?:d['']enfant|alternée)|autorit[ée]\s+parentale|pension\s+alimentaire|prestation\s+compensatoire|filiation|adoption/.test(
+      q
+    )
+  )
+    return "famille";
+  if (
+    /infraction|d[ée]lit|contravention|prison|emprisonnement|tribunal\s+correctionnel|peine|amende\s+pénale|recel|vol|escroquerie|abus\s+de\s+confiance|violences/.test(
+      q
+    )
+  )
+    return "penal";
+  if (
+    /permis\s+de\s+construire|urbanisme|expropriation|fonction\s+publique|fonctionnaire|fiscal|impôt|tva|march[ée]\s+public|[ée]tranger|oqtf|asile|cnil|rgpd|conseil\s+d['']\s*[ée]tat|tribunal\s+administratif|cour\s+administrative|excès\s+de\s+pouvoir/.test(
+      q
+    )
+  )
+    return "admin";
+  if (
+    /bail|copropri[ée]t[ée]|loyer|locataire|propri[ée]taire|trouble\s+de\s+voisinage|servitude|construction|vice\s+caché|responsabilit[ée]\s+civile|dommages?[\s-]?int[ée]r[êe]ts/.test(
+      q
+    )
+  )
+    return "civil";
+  return "unknown";
+}
+
+/**
+ * Detect target jurisdictions from query, AVEC sensibilité à la matière.
  *
- * Judilibre n'indexe que la Cour de cassation (jurisdiction=cc) et les Cours
- * d'appel (jurisdiction=ca). Les CPH, TJ, TC, TGI ne sont PAS indexés
- * directement — pour ces cas, on bascule sur les CA (qui statuent en appel
- * de ces juridictions et sont indexées). Cela évite le piège du corpus
- * 100% Cass. quand la question concerne le fond.
+ * Principe : on cible TOUJOURS les niveaux pertinents pour une jurimétrie
+ * complète :
+ *  - le juge du droit (Cass. ou CE) — pour les principes
+ *  - le juge d'appel (CA ou CAA) — pour le fond consolidé
+ *  - le juge de 1ère instance compétent pour la matière
  *
- * Retourne :
- * - ["cc"] : la query parle clairement de Cassation (pourvoi, cassation, Cass.)
- * - ["ca"] : la query parle d'appel OU d'une juridiction du fond (CPH, TJ, etc.)
- * - undefined : pas de signal clair, on cherche dans les deux.
+ * Mais ON EXCLUT les juridictions non compétentes pour la matière
+ * (ex: pour un licenciement, on ne cherche pas dans TJ qui ne juge
+ * pas le contrat de travail — sinon le rerank est noyé de bruit).
+ *
+ * Retourne `undefined` quand on ne sait rien : la pipeline lance alors
+ * 3 vagues mixtes par défaut (ca + tj + cc).
  */
 export function detectTargetJurisdiction(query: string): string[] | undefined {
   const q = query.toLowerCase();
 
-  // Signaux Cassation : pourvoi en cours / décision de cassation
-  const cassSignals = [
-    "pourvoi",
-    "cassation",
-    "cour de cassation",
-    "cass.",
-    "cass ",
-    "moyen de cassation",
-    "rejet du pourvoi",
-  ];
-  // Signaux Fond / Appel : juridictions de fond (jamais dans Judilibre direct)
-  // ou Cour d'appel.
-  const fondAppelSignals = [
-    "cph", // Conseil de prud'hommes
-    "prud'hommes",
-    "prudhommes",
-    "prud'homme",
-    "tj ", // Tribunal judiciaire
-    "tribunal judiciaire",
-    "tgi", // Tribunal de grande instance (ancien)
-    "tribunal de grande instance",
-    "tc ", // Tribunal de commerce
-    "tribunal de commerce",
-    "ta ", // Tribunal administratif (côté CA admin = pas Judilibre, mais on tente CA)
-    "tribunal administratif",
-    "ti ", // Tribunal d'instance (ancien)
-    "tribunal d'instance",
-    "tribunal correctionnel",
-    "tribunal pour enfants",
-    "premiere instance",
-    "première instance",
-    "1ere instance",
-    "1ère instance",
-    "1re instance",
-    "cour d'appel",
-    "ca paris",
-    "ca lyon",
-    "ca marseille",
-    "ca rennes",
-    "appel",
-    "interjeter appel",
-    "saisine de la cour",
-    "infirmation",
-    "confirmation",
-  ];
+  const hasExplicitCass =
+    /pourvoi|cassation|cour\s+de\s+cassation|cass\.|moyen\s+de\s+cassation|rejet\s+du\s+pourvoi/.test(
+      q
+    );
+  const matter = detectMatter(query);
 
-  const hasCass = cassSignals.some((s) => q.includes(s));
-  const hasFond = fondAppelSignals.some((s) => q.includes(s));
+  // Cassation explicite SANS mention de fond → seulement Cass.
+  if (
+    hasExplicitCass &&
+    !/cph|prud['']hommes|tj |tgi|tribunal\s+(?:judiciaire|de\s+commerce|administratif)|cour\s+d['']appel|appel/.test(
+      q
+    )
+  )
+    return ["cc"];
 
-  // Cassation explicite ET pas de fond → on cible Cass.
-  if (hasCass && !hasFond) return ["cc"];
-  // Fond / appel → on cible CA + TJ (1er degré judiciaire) puisque
-  // Judilibre indexe désormais aussi les TJ.
-  if (hasFond && !hasCass) return ["ca", "tj"];
-  // Les deux mentionnés ou aucun → undefined : la stratégie par défaut
-  // ouvrira plusieurs vagues (CA + TJ + Cass) pour un corpus mixte.
-  return undefined;
+  // Sélection par matière — on couvre TOUJOURS la Cass. (sauf si on a déjà
+  // un signal admin pur qui n'a pas de Cass.). Adapte les juges du fond.
+  switch (matter) {
+    case "social":
+      // CPH (vide pour l'instant) → on s'appuie sur CA chambre soc + Cass. soc.
+      return ["ca", "cc"];
+    case "commercial":
+      // Fond commercial : TCOM + CA chambre com + Cass. com
+      return ["ca", "tcom", "cc"];
+    case "famille":
+    case "civil":
+      // Fond civil : TJ + CA + Cass.
+      return ["ca", "tj", "cc"];
+    case "penal":
+      // Pénal : Tribunal correctionnel (pas dans Judilibre) → CA + Cass. crim
+      return ["ca", "cc"];
+    case "admin":
+      // Admin : géré séparément via Légifrance CETAT (CE + CAA + TA).
+      // Pas de filtre Judilibre = on n'interroge pas Judilibre côté admin
+      // (mais on garde Cass. au cas où le contentieux est mixte).
+      return ["cc"];
+    case "unknown":
+    default:
+      // Pas de signal clair → undefined, la pipeline ouvrira plusieurs vagues.
+      return undefined;
+  }
 }
 
 export interface JudilibreAnalysisContext {
