@@ -22,8 +22,22 @@
 import { getAnthropicClient } from "@/lib/claude/client";
 import type { JudilibreDecision } from "@/lib/judilibre/client";
 import { trackClaudeUsage } from "@/lib/api-usage/track";
+import {
+  embedDocuments,
+  embedQuery,
+  cosineSimilarity,
+  isVoyageAvailable,
+} from "@/lib/embeddings/voyage";
 
 const RERANK_MODEL = "claude-haiku-4-5-20251001";
+
+/**
+ * Pondération du score combiné Haiku (relevance) + Voyage (similarité sémantique).
+ * Niveau 4 : si Voyage est disponible, le score final est mixé 50/50.
+ * Sinon, on retombe sur Haiku seul (multiplicateur 1).
+ */
+const HAIKU_WEIGHT = 0.5;
+const VOYAGE_WEIGHT = 0.5;
 
 /** Plage cible du corpus final transmis à Sonnet (Règle 5). */
 export const JUDILIBRE_TARGET_MIN = 30;
@@ -47,8 +61,42 @@ function compactSummary(dec: JudilibreDecision, idx: number): string {
 
 interface ScoredDecision {
   decision: JudilibreDecision;
-  score: number; // 0-10
+  score: number; // 0-10 (combiné)
+  haikuScore: number; // 0-10
+  semanticScore: number | null; // 0-10 (cosinus × 10), null si Voyage indispo
   index: number;
+}
+
+/**
+ * Rerank sémantique via Voyage AI (Niveau 4).
+ * Embedde la requête + chaque sommaire, calcule la similarité cosinus.
+ * Retourne un score 0-10 par décision (ou null si Voyage indispo).
+ */
+async function semanticScores(
+  userQuery: string,
+  decisions: JudilibreDecision[],
+): Promise<number[] | null> {
+  if (!isVoyageAvailable()) return null;
+
+  const docs = decisions.map((d) => {
+    const sol = (d.solution_alt || d.solution || "").slice(0, 120);
+    const sommaire = (d.sommaire || "").slice(0, 800);
+    const themes = (d.themes || []).slice(0, 5).join(", ");
+    return [sol, themes, sommaire].filter(Boolean).join(" — ");
+  });
+
+  const [queryVec, docVecs] = await Promise.all([
+    embedQuery(userQuery),
+    embedDocuments(docs),
+  ]);
+  if (!queryVec || !docVecs) return null;
+
+  // Cosinus ∈ [-1, 1] en théorie mais ≈ [0, 1] en pratique pour Voyage.
+  // On clamp à [0, 1] puis on étend à [0, 10] pour aligner avec Haiku.
+  return docVecs.map((vec) => {
+    const cos = cosineSimilarity(queryVec, vec);
+    return Math.max(0, Math.min(1, cos)) * 10;
+  });
 }
 
 /**
@@ -181,23 +229,47 @@ export async function rerankDecisions(args: {
   // Si on est déjà sous le minimum, on garde tout.
   if (decisions.length <= JUDILIBRE_TARGET_MIN) return decisions;
 
-  // Score chaque décision via Haiku
-  const scores = await scoreDecisions(userQuery, decisions, {
-    userId: args.userId,
-    userEmail: args.userEmail,
-  });
+  // Score Haiku (pertinence factuelle) + Voyage (similarité sémantique)
+  // en parallèle. Voyage est null si VOYAGE_API_KEY absent.
+  const [haikuScores, voyageScores] = await Promise.all([
+    scoreDecisions(userQuery, decisions, {
+      userId: args.userId,
+      userEmail: args.userEmail,
+    }),
+    semanticScores(userQuery, decisions),
+  ]);
 
-  if (!scores) {
-    // Fallback : on retourne les MAX premières dans l'ordre Judilibre.
+  if (!haikuScores) {
+    // Haiku a échoué — si Voyage a marché, on l'utilise seul.
+    if (voyageScores) {
+      const fallback = decisions
+        .map((decision, index) => ({ decision, s: voyageScores[index], index }))
+        .sort((a, b) => b.s - a.s || a.index - b.index)
+        .slice(0, JUDILIBRE_TARGET_MAX)
+        .map((x) => x.decision);
+      return fallback;
+    }
+    // Aucun signal — on retourne les MAX premières dans l'ordre Judilibre.
     return decisions.slice(0, JUDILIBRE_TARGET_MAX);
   }
 
-  // Trie par score décroissant (stable : préserve l'ordre Judilibre à score égal)
-  const scored: ScoredDecision[] = decisions.map((decision, index) => ({
-    decision,
-    score: scores[index],
-    index,
-  }));
+  // Score combiné : Haiku + (cosinus × 10) pondérés 50/50.
+  // Si Voyage est indisponible, on retombe sur Haiku seul.
+  const scored: ScoredDecision[] = decisions.map((decision, index) => {
+    const haiku = haikuScores[index];
+    const semantic = voyageScores ? voyageScores[index] : null;
+    const combined =
+      semantic !== null
+        ? haiku * HAIKU_WEIGHT + semantic * VOYAGE_WEIGHT
+        : haiku;
+    return {
+      decision,
+      score: combined,
+      haikuScore: haiku,
+      semanticScore: semantic,
+      index,
+    };
+  });
   scored.sort((a, b) => b.score - a.score || a.index - b.index);
 
   // Cherche le seuil qui donne entre MIN et MAX décisions.

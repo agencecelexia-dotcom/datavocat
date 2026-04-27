@@ -116,6 +116,7 @@ PISTE_CLIENT_SECRET=         # OAuth2 client secret PISTE
 PISTE_KEY_ID=                # API key PISTE (header KeyId)
 PISTE_SANDBOX=true           # "true" pour sandbox, supprimer pour prod
 QSTASH_TOKEN=                # Optionnel (extraction async)
+VOYAGE_API_KEY=              # Optionnel — embeddings semantique voyage-law-2 (Niveau 4 jurimetrie)
 NEXT_PUBLIC_APP_URL=
 ```
 
