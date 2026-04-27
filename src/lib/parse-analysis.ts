@@ -181,7 +181,16 @@ export interface ParsedAnalysis {
  * Prioritizes direct Legifrance links when possible, falls back to Judilibre search.
  */
 export function buildSourceUrl(ref: string): string {
-  // ECLI references -> Legifrance search/all qui redirige vers la fiche JURITEXT.
+  // 1) IDs Légifrance directs : on connaît la fiche, on link sans passer
+  //    par le moteur de recherche. Plus rapide et plus fiable.
+  const cetatMatch = ref.match(/CETATEXT\d{12,}/);
+  if (cetatMatch) return `https://www.legifrance.gouv.fr/ceta/id/${cetatMatch[0]}`;
+  const juriMatch = ref.match(/JURI(?:TEXT|CA|HISTO)\d{12,}/);
+  if (juriMatch) return `https://www.legifrance.gouv.fr/juri/id/${juriMatch[0]}`;
+  const constitMatch = ref.match(/CONSTEXT\d{12,}/);
+  if (constitMatch) return `https://www.legifrance.gouv.fr/cons/id/${constitMatch[0]}`;
+
+  // 2) ECLI -> Legifrance search/all qui redirige vers la fiche JURITEXT.
   // L'ancien format /juri/id/ECLI:... ne fonctionne plus depuis la refonte
   // Legifrance. Le format search/all retourne la bonne décision.
   const ecliMatch = ref.match(/ECLI:[A-Z]{2}:[A-Z]+:\d{4}:[A-Z0-9.]+/);
@@ -189,13 +198,13 @@ export function buildSourceUrl(ref: string): string {
     return `https://www.legifrance.gouv.fr/search/all?tab_selection=all&searchField=ALL&query=${encodeURIComponent(ecliMatch[0])}&page=1&init=true`;
   }
 
-  // Pourvoi numbers -> Legifrance search/all avec le n° de pourvoi
+  // 3) Pourvoi numbers -> Legifrance search/all avec le n° de pourvoi
   const pourvoiMatch = ref.match(/(\d{2,4}[-/.]\d{2,5}(?:\.\d+)?)/);
   if (pourvoiMatch) {
     return `https://www.legifrance.gouv.fr/search/all?tab_selection=all&searchField=ALL&query=${encodeURIComponent(pourvoiMatch[1])}&page=1&init=true`;
   }
 
-  // Cass. references -> Legifrance search/all avec la référence brute
+  // 4) Fallback : recherche brute
   return `https://www.legifrance.gouv.fr/search/all?tab_selection=all&searchField=ALL&query=${encodeURIComponent(ref)}&page=1&init=true`;
 }
 
