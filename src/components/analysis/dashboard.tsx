@@ -351,6 +351,63 @@ export function AnalysisDashboard({
         </div>
       )}
 
+      {/* ── SOURCES ADDITIONNELLES (légifrance / qpc / kali) ── */}
+      {verification?.additionalSources &&
+        (verification.additionalSources.legifranceArticles > 0 ||
+          verification.additionalSources.qpc > 0 ||
+          verification.additionalSources.kali > 0) && (
+          <div
+            className="rounded-md px-4 py-3 mb-4"
+            style={{
+              border: "1px solid var(--line)",
+              background: "var(--paper)",
+            }}
+          >
+            <div
+              className="font-mono text-[10px] uppercase tracking-[0.18em] mb-2"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              § Contexte juridique consulté
+            </div>
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-[12px]">
+              {verification.additionalSources.legifranceArticles > 0 && (
+                <span title="Articles de loi récupérés depuis Légifrance et fournis intégralement à l'IA">
+                  <span className="font-semibold tabular-nums">
+                    {verification.additionalSources.legifranceArticles}
+                  </span>{" "}
+                  article{verification.additionalSources.legifranceArticles > 1 ? "s" : ""}{" "}
+                  de loi <span style={{ color: "var(--muted-foreground)" }}>(Légifrance)</span>
+                </span>
+              )}
+              {verification.additionalSources.qpc > 0 && (
+                <span title="Décisions QPC du Conseil constitutionnel touchant au sujet de la demande">
+                  <span className="font-semibold tabular-nums">
+                    {verification.additionalSources.qpc}
+                  </span>{" "}
+                  décision{verification.additionalSources.qpc > 1 ? "s" : ""} QPC{" "}
+                  <span style={{ color: "var(--muted-foreground)" }}>(Cons. const.)</span>
+                </span>
+              )}
+              {verification.additionalSources.kali > 0 && (
+                <span title="Articles de convention collective applicable récupérés depuis Légifrance KALI">
+                  <span className="font-semibold tabular-nums">
+                    {verification.additionalSources.kali}
+                  </span>{" "}
+                  article{verification.additionalSources.kali > 1 ? "s" : ""} de convention
+                  collective <span style={{ color: "var(--muted-foreground)" }}>(KALI)</span>
+                </span>
+              )}
+            </div>
+            <div
+              className="mt-1.5 text-[11px]"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              Ces sources sont fournies à l&apos;IA en contexte mais n&apos;entrent pas dans
+              le calcul des taux statistiques.
+            </div>
+          </div>
+        )}
+
       {/* ── BANDEAU AVERTISSEMENT COMPOSITION DU CORPUS ─────── */}
       {composition && (cassDominant || fondDominant) && (
         <div

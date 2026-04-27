@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
   // on récupère leur texte intégral à jour pour donner à Claude la matière
   // exacte (anti-hallucination des fondements juridiques).
   let legifranceBlock = "";
+  let legifranceArticleCount = 0;
   if (isLegifranceAvailable()) {
     const refs = extractArticleRefs(query).slice(0, 5); // cap dur 5 articles
     if (refs.length > 0) {
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest) {
         })
       );
       if (fetched.length > 0) {
+        legifranceArticleCount = fetched.length;
         legifranceBlock =
           `\n\n═══ TEXTES DE LOI VÉRIFIÉS (Légifrance, à jour) ═══\n` +
           `Les articles suivants sont cités dans la demande. Leur texte intégral et à jour est ci-dessous. ` +
@@ -164,12 +166,15 @@ export async function POST(request: NextRequest) {
   // applicable, une convention collective peut majorer indemnités/délais.
   let qpcBlock = "";
   let kaliBlock = "";
+  let qpcCount = 0;
+  let kaliCount = 0;
   if (isLegifranceAvailable() && hasJudilibre) {
     const [qpcDecisions, kaliArticles] = await Promise.all([
       searchConstitutional(query.slice(0, 200), 5).catch(() => []),
       searchKaliConvention(query.slice(0, 200), 3).catch(() => []),
     ]);
     if (qpcDecisions.length > 0) {
+      qpcCount = Math.min(qpcDecisions.length, 3);
       const lines = qpcDecisions.slice(0, 3).map((d) => {
         const num = Array.isArray(d.number) ? d.number[0] : d.number || d.id;
         const date = d.date || "date N/C";
@@ -184,6 +189,7 @@ export async function POST(request: NextRequest) {
         `\n══════════════════════════════════════════════════════════════════════\n`;
     }
     if (kaliArticles.length > 0) {
+      kaliCount = Math.min(kaliArticles.length, 3);
       const lines = kaliArticles.slice(0, 3).map((a) => {
         return `### ${a.titreConvention}\n${a.texte}\nSource : ${a.url}`;
       });
@@ -419,6 +425,11 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
                 regionalVariations: corpusStats?.regionalVariations ?? null,
                 chamberVariations: corpusStats?.chamberVariations ?? null,
                 themeVariations: corpusStats?.themeVariations ?? null,
+                additionalSources: {
+                  legifranceArticles: legifranceArticleCount,
+                  qpc: qpcCount,
+                  kali: kaliCount,
+                },
               },
             })
             .eq("id", id);

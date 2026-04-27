@@ -163,6 +163,16 @@ export interface ParsedAnalysis {
       favorables: number;
       rate: number;
     }> | null;
+    /**
+     * Sources de contexte additionnelles consultées au-delà du corpus
+     * jurimétrique principal (qui apparaît dans corpusComposition).
+     * Donne à l'avocat la visibilité sur les fonds Légifrance enrichis.
+     */
+    additionalSources?: {
+      legifranceArticles: number;
+      qpc: number;
+      kali: number;
+    } | null;
   } | null;
 }
 
