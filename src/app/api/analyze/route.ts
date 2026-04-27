@@ -9,6 +9,9 @@ import { searchJusticeDatasets } from "@/lib/datagouv/mcp-client";
 import { trackClaudeUsage } from "@/lib/api-usage/track";
 import { computeCorpusStats, formatStatsForPrompt } from "@/lib/judilibre/stats";
 import { verifyAndCleanMarkdown } from "@/lib/judilibre/verify";
+import { extractArticleRefs } from "@/lib/legifrance/extractRefs";
+import { searchArticle } from "@/lib/legifrance/client";
+import { isLegifranceAvailable } from "@/lib/legifrance/oauth";
 
 export const maxDuration = 300;
 
@@ -109,6 +112,48 @@ export async function POST(request: NextRequest) {
   const corpusStats = hasJudilibre ? computeCorpusStats(corpus) : null;
   const factsBlock = corpusStats ? formatStatsForPrompt(corpusStats) : "";
 
+  // Enrichissement Légifrance : si la query mentionne des articles de loi,
+  // on récupère leur texte intégral à jour pour donner à Claude la matière
+  // exacte (anti-hallucination des fondements juridiques).
+  let legifranceBlock = "";
+  if (isLegifranceAvailable()) {
+    const refs = extractArticleRefs(query).slice(0, 5); // cap dur 5 articles
+    if (refs.length > 0) {
+      const fetched: string[] = [];
+      await Promise.all(
+        refs.map(async (ref) => {
+          try {
+            const hits = await searchArticle({
+              query: ref.num,
+              codeName: ref.code,
+              pageSize: 1,
+            });
+            const hit = hits[0];
+            if (hit?.textePlain) {
+              const codeLabel = hit.titreTexte || ref.code || "Texte";
+              const numLabel = hit.num || ref.num;
+              fetched.push(
+                `### Article ${numLabel} — ${codeLabel}\n` +
+                  `${hit.textePlain.slice(0, 1500)}\n` +
+                  (hit.url ? `Source : ${hit.url}\n` : "")
+              );
+            }
+          } catch {
+            // fail-silent : Légifrance optionnel
+          }
+        })
+      );
+      if (fetched.length > 0) {
+        legifranceBlock =
+          `\n\n═══ TEXTES DE LOI VÉRIFIÉS (Légifrance, à jour) ═══\n` +
+          `Les articles suivants sont cités dans la demande. Leur texte intégral et à jour est ci-dessous. ` +
+          `Tu peux t'y référer pour fonder tes observations sur le contenu réel des textes.\n\n` +
+          fetched.join("\n") +
+          `══════════════════════════════════════════════════════════════════════\n`;
+      }
+    }
+  }
+
   // Stream Claude analysis
   const anthropic = getAnthropicClient();
 
@@ -122,10 +167,10 @@ ${query}
 ${judilibreContext}
 
 ${factsBlock}
-
+${legifranceBlock}
 ${hasDatagouv ? `\n${datagouvContext}\n` : ""}
 
-RAPPEL : tu ne peux citer AUCUNE décision absente du CORPUS JUDILIBRE ci-dessus, ni inventer aucun chiffre absent du bloc FAITS VÉRIFIÉS. Toute référence non vérifiable sera supprimée du rapport final par un contrôle automatique.`
+RAPPEL : tu ne peux citer AUCUNE décision absente du CORPUS JUDILIBRE ci-dessus, ni inventer aucun chiffre absent du bloc FAITS VÉRIFIÉS. Toute référence non vérifiable sera supprimée du rapport final par un contrôle automatique. Pour les textes de loi cités, le bloc TEXTES DE LOI VÉRIFIÉS contient leur contenu intégral à jour — utilise-le.`
     : `DEMANDE DE L'AVOCAT :
 ${query}
 
