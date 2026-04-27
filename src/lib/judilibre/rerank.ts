@@ -27,7 +27,7 @@ const RERANK_MODEL = "claude-haiku-4-5-20251001";
 
 /** Plage cible du corpus final transmis à Sonnet (Règle 5). */
 export const JUDILIBRE_TARGET_MIN = 30;
-export const JUDILIBRE_TARGET_MAX = 100;
+export const JUDILIBRE_TARGET_MAX = 150;
 
 /** Compatibilité historique — utilisé en quelques endroits comme indicateur. */
 export const JUDILIBRE_RERANK_KEEP = JUDILIBRE_TARGET_MAX;

@@ -115,6 +115,8 @@ function classifyHierarchy(d: JudilibreDecision): HierarchyCategory {
   if (j === "ca" || j === "caa") return "courAppel";
   if (j === "ce") return "conseilEtat";
   // tj, tcom, cph, ta, autres codes → 1er degré
+  // (constit n'arrive pas ici : les décisions CONSTIT sont injectées
+  // dans le prompt comme contexte séparé, hors stats hiérarchiques)
   return "premierDegre";
 }
 

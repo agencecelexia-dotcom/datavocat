@@ -15,13 +15,13 @@ const JUDILIBRE_BASE = "https://api.piste.gouv.fr/cassation/judilibre/v1.0";
 /**
  * Nombre maximum de décisions candidates passées au filtre par pertinence Haiku.
  * Logique d'entonnoir dynamique :
- *   1. Récolte massive (multi-pages, plusieurs requêtes parallèles) → 500-1000
- *   2. Dédoublonnage par ECLI/RG → ~300-600 uniques
+ *   1. Récolte massive (multi-pages, plusieurs requêtes parallèles + JURI/CETAT) → 1000-2000
+ *   2. Dédoublonnage par ECLI/RG/ID → ~400-800 uniques
  *   3. On garde les `JUDILIBRE_MAX_CONTEXT` meilleures par score Judilibre
- *   4. Haiku score chaque décision → corpus final entre 30 et 100 selon
+ *   4. Haiku score chaque décision → corpus final entre 30 et 150 selon
  *      la qualité disponible (cf. rerank.ts).
  */
-export const JUDILIBRE_MAX_CONTEXT = 400;
+export const JUDILIBRE_MAX_CONTEXT = 600;
 
 /** Nombre de pages Judilibre récoltées par requête (50 par page = max API). */
 export const JUDILIBRE_PAGES_PER_QUERY = 3;
@@ -389,7 +389,7 @@ type Matter =
   | "admin" // TA compétent : urbanisme, fiscal, fonction publique
   | "unknown";
 
-function detectMatter(query: string): Matter {
+export function detectMatter(query: string): Matter {
   const q = query.toLowerCase();
   if (
     /licenciement|salari[ée]|employeur|harc[èe]lement|prud['']hommes|cph|contrat\s+de\s+travail|d[ée]mission|rupture\s+conventionnelle|inaptitude|discrimination\s+(?:professionnelle|au\s+travail|à\s+l['']embauche)|accord\s+collectif|convention\s+collective/.test(
@@ -545,16 +545,32 @@ export async function searchJudilibreForAnalysis(
   }
 
   try {
-    const searchQueries = extractSearchQueries(userQuery);
+    const baseQueries = extractSearchQueries(userQuery);
     const chamber = detectChamber(userQuery);
     const targetJurisdiction = detectTargetJurisdiction(userQuery);
+    // Recherche enrichie : ajoute des sous-requêtes juridiques connexes
+    // (cause réelle et sérieuse, indemnité, préavis…) selon la matière
+    // détectée. Capte plus d'arrêts pertinents que la query utilisateur seule.
+    const matter = detectMatter(userQuery);
+    const { enrichSearchQueries } = await import(
+      "@/lib/judilibre/enrichQueries"
+    );
+    const searchQueries = enrichSearchQueries(baseQueries, matter, 3);
 
-    // Si la query relève du contentieux administratif, on lance aussi une
-    // vague Légifrance CETAT (Conseil d'État + CAA + TA, ~270k décisions
-    // que Judilibre n'indexe pas).
+    // Vagues Légifrance complémentaires lancées en parallèle :
+    //
+    //  - CETAT : si matière administrative (CE + CAA + TA, ~270k décisions
+    //    que Judilibre n'indexe pas)
+    //  - JURI : jurisprudence judiciaire historique Légifrance, complète
+    //    Judilibre (arrêts < 1990, inédits, certains 2017+ non publiés)
+    //    → fusionné dans le corpus principal sous jurisdiction=cc
+    //
+    // CONSTIT et KALI sont récupérés AILLEURS (route analyze) car ils
+    // servent de contexte au prompt, pas de matière statistique.
     const { isAdminMatter, searchAdminJurisprudence } = await import(
       "@/lib/legifrance/jurisprudence"
     );
+    const { searchJuriHistorique } = await import("@/lib/legifrance/multifond");
     const isAdmin = isAdminMatter(userQuery);
     const adminPromise: Promise<JudilibreDecision[]> = isAdmin
       ? searchAdminJurisprudence({
@@ -562,6 +578,11 @@ export async function searchJudilibreForAnalysis(
           pageSize: 50,
         }).catch(() => [])
       : Promise.resolve([]);
+    // JURI historique : on lance toujours (sauf admin pur) — gain net
+    // pour les sujets qui ont une jurisprudence ancienne fondatrice.
+    const juriPromise: Promise<JudilibreDecision[]> = isAdmin
+      ? Promise.resolve([])
+      : searchJuriHistorique(userQuery.slice(0, 200), 30).catch(() => []);
 
     // Fenêtre de fraîcheur : 5 ans par défaut pour capter les décisions 2024-2025
     // et au-delà, tout en gardant la possibilité d'élargir par requête.
@@ -744,14 +765,19 @@ export async function searchJudilibreForAnalysis(
       }
     }
 
-    // Récupération de la vague administrative (CETAT) si applicable.
-    // Les décisions sont au format JudilibreDecision avec jurisdiction
-    // "ce" / "caa" / "ta" — elles passent ensuite par le rerank Haiku
+    // Récupération des vagues Légifrance complémentaires (parallèle).
+    // CETAT : décisions administratives — jurisdiction "ce/caa/ta".
+    // JURI : décisions judiciaires historiques — jurisdiction "cc" (Cass.).
+    // Toutes au format JudilibreDecision, passent par le rerank Haiku
     // comme les autres et sont classées dans la hiérarchie 4 catégories.
-    const adminDecisions = await adminPromise;
-    if (adminDecisions.length > 0) {
+    const [adminDecisions, juriDecisions] = await Promise.all([
+      adminPromise,
+      juriPromise,
+    ]);
+
+    const mergeBatch = (batch: JudilibreDecision[], label: string) => {
       let added = 0;
-      for (const dec of adminDecisions) {
+      for (const dec of batch) {
         const key = dec.id;
         if (!seenEcli.has(key)) {
           seenEcli.add(key);
@@ -759,13 +785,15 @@ export async function searchJudilibreForAnalysis(
           added++;
         }
       }
-      totalAcrossSearches += adminDecisions.length;
-      if (process.env.NODE_ENV !== "production") {
+      totalAcrossSearches += batch.length;
+      if (process.env.NODE_ENV !== "production" && added > 0) {
         console.info(
-          `[Datavocat] +${added} décisions administratives (CETAT) ajoutées au corpus`
+          `[Datavocat] +${added} décisions ${label} ajoutées au corpus`
         );
       }
-    }
+    };
+    mergeBatch(adminDecisions, "administratives (CETAT)");
+    mergeBatch(juriDecisions, "judiciaires historiques (JURI)");
 
     if (uniqueDecisions.length === 0) {
       // Last resort: single-word searches on the most important terms

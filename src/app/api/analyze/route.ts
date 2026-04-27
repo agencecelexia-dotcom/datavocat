@@ -12,6 +12,10 @@ import { verifyAndCleanMarkdown } from "@/lib/judilibre/verify";
 import { extractArticleRefs } from "@/lib/legifrance/extractRefs";
 import { searchArticle } from "@/lib/legifrance/client";
 import { isLegifranceAvailable } from "@/lib/legifrance/oauth";
+import {
+  searchConstitutional,
+  searchKaliConvention,
+} from "@/lib/legifrance/multifond";
 
 export const maxDuration = 300;
 
@@ -154,6 +158,45 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Enrichissement contexte : QPC pertinentes + convention collective applicable.
+  // Ces blocs sont du CONTEXTE (pas comptabilisés dans les stats jurimétriques)
+  // mais essentiels à une analyse honnête : une QPC peut invalider une norme
+  // applicable, une convention collective peut majorer indemnités/délais.
+  let qpcBlock = "";
+  let kaliBlock = "";
+  if (isLegifranceAvailable() && hasJudilibre) {
+    const [qpcDecisions, kaliArticles] = await Promise.all([
+      searchConstitutional(query.slice(0, 200), 5).catch(() => []),
+      searchKaliConvention(query.slice(0, 200), 3).catch(() => []),
+    ]);
+    if (qpcDecisions.length > 0) {
+      const lines = qpcDecisions.slice(0, 3).map((d) => {
+        const num = Array.isArray(d.number) ? d.number[0] : d.number || d.id;
+        const date = d.date || "date N/C";
+        return `### ${num} — ${date}\n${(d.sommaire || "").slice(0, 600)}`;
+      });
+      qpcBlock =
+        `\n\n═══ JURISPRUDENCE CONSTITUTIONNELLE (QPC pertinentes) ═══\n` +
+        `Ces décisions du Conseil constitutionnel touchent au sujet de la demande. ` +
+        `Elles peuvent invalider une norme applicable ou en imposer une réserve d'interprétation. ` +
+        `Mentionne-les si elles affectent la stratégie.\n\n` +
+        lines.join("\n\n") +
+        `\n══════════════════════════════════════════════════════════════════════\n`;
+    }
+    if (kaliArticles.length > 0) {
+      const lines = kaliArticles.slice(0, 3).map((a) => {
+        return `### ${a.titreConvention}\n${a.texte}\nSource : ${a.url}`;
+      });
+      kaliBlock =
+        `\n\n═══ CONVENTION COLLECTIVE APPLICABLE (Légifrance KALI) ═══\n` +
+        `Articles de convention collective pertinents pour la matière. ` +
+        `Une convention collective peut majorer les indemnités, les délais de préavis, ou imposer des procédures spécifiques. ` +
+        `Tu DOIS en tenir compte dans la lecture du contentieux.\n\n` +
+        lines.join("\n\n") +
+        `\n══════════════════════════════════════════════════════════════════════\n`;
+    }
+  }
+
   // Stream Claude analysis
   const anthropic = getAnthropicClient();
 
@@ -167,10 +210,10 @@ ${query}
 ${judilibreContext}
 
 ${factsBlock}
-${legifranceBlock}
+${legifranceBlock}${qpcBlock}${kaliBlock}
 ${hasDatagouv ? `\n${datagouvContext}\n` : ""}
 
-RAPPEL : tu ne peux citer AUCUNE décision absente du CORPUS JUDILIBRE ci-dessus, ni inventer aucun chiffre absent du bloc FAITS VÉRIFIÉS. Toute référence non vérifiable sera supprimée du rapport final par un contrôle automatique. Pour les textes de loi cités, le bloc TEXTES DE LOI VÉRIFIÉS contient leur contenu intégral à jour — utilise-le.`
+RAPPEL : tu ne peux citer AUCUNE décision absente du CORPUS JUDILIBRE ci-dessus, ni inventer aucun chiffre absent du bloc FAITS VÉRIFIÉS. Toute référence non vérifiable sera supprimée du rapport final par un contrôle automatique. Pour les textes de loi cités, le bloc TEXTES DE LOI VÉRIFIÉS contient leur contenu intégral à jour — utilise-le. Le bloc JURISPRUDENCE CONSTITUTIONNELLE peut être cité pour signaler une QPC affectant la matière. Le bloc CONVENTION COLLECTIVE doit guider l'analyse des indemnités, préavis et procédures spécifiques.`
     : `DEMANDE DE L'AVOCAT :
 ${query}
 
