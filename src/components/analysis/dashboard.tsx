@@ -197,7 +197,12 @@ export function AnalysisDashboard({
   data: ParsedAnalysis;
   meta?: DashboardMeta | null;
 }) {
-  const taux = data.tauxSuccesGlobal ?? 0;
+  // Taux de succès — priorité au calcul canonique côté serveur
+  // (verification.tauxSuccesRetenu, calculé arithmétiquement sur la
+  // hiérarchie 4 catégories), regex sur texte Claude en fallback.
+  const taux =
+    data.verification?.tauxSuccesRetenu ?? data.tauxSuccesGlobal ?? 0;
+  const tauxSource = data.verification?.tauxSuccesSource ?? null;
   const risque = Math.max(0, Math.round((100 - taux) * 10) / 10);
 
   const args = [...data.arguments].sort((a, b) => (b.taux ?? 0) - (a.taux ?? 0));
@@ -674,50 +679,79 @@ export function AnalysisDashboard({
         style={{ borderBottom: "1px solid var(--line)" }}
         data-risques-section
       >
-        <div>
-          <div
-            className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            {cassDominant
-              ? "Confirmation des décisions du fond"
-              : "Risque d'échec"}
-          </div>
-          <div className="flex items-baseline gap-1.5">
+        <div className="grid grid-cols-2 gap-6">
+          <div>
             <div
-              className="font-serif font-medium tabular-nums"
-              style={{
-                fontSize: "44px",
-                color: "var(--bordeaux)",
-                lineHeight: 1,
-              }}
+              className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
+              style={{ color: "var(--gold)" }}
             >
-              {risque}
+              {cassDominant ? "Taux de cassation" : "Taux de succès"}
             </div>
+            <div className="flex items-baseline gap-1.5">
+              <div
+                className="font-serif font-medium tabular-nums"
+                style={{
+                  fontSize: "44px",
+                  color: "var(--emerald)",
+                  lineHeight: 1,
+                }}
+              >
+                {taux}
+              </div>
+              <div
+                className="font-serif text-[22px]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                %
+              </div>
+            </div>
+            {tauxSource && (
+              <div
+                className="mt-2 font-mono text-[9.5px] uppercase tracking-[0.15em]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Source : {tauxSource === "fond" ? "1er degré + CA" : tauxSource === "mixte" ? "fond (excl. cassation)" : "Cassation uniquement"}
+              </div>
+            )}
+          </div>
+          <div>
             <div
-              className="font-serif text-[22px]"
+              className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
               style={{ color: "var(--muted-foreground)" }}
             >
-              %
+              {cassDominant ? "Confirmation décisions" : "Risque d'échec"}
             </div>
-          </div>
-          <div
-            className="mt-3 text-[12px] leading-relaxed max-w-sm"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            {cassDominant ? (
-              <>
-                Sur {composition?.cassationCount} arrêts de la Cour de cassation,{" "}
-                {risque}% confirment la décision attaquée (rejet du pourvoi).
-                Les {taux}% restants sont des cassations. <strong>Ces chiffres
-                concernent la Cassation uniquement, pas une procédure du fond.</strong>
-              </>
-            ) : (
-              <>
-                Calculé en miroir du taux de succès ({taux}%). Les facteurs de
-                bascule ci-dessous permettent d&apos;anticiper l&apos;issue défavorable.
-              </>
-            )}
+            <div className="flex items-baseline gap-1.5">
+              <div
+                className="font-serif font-medium tabular-nums"
+                style={{
+                  fontSize: "44px",
+                  color: "var(--bordeaux)",
+                  lineHeight: 1,
+                }}
+              >
+                {risque}
+              </div>
+              <div
+                className="font-serif text-[22px]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                %
+              </div>
+            </div>
+            <div
+              className="mt-3 text-[12px] leading-relaxed"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              {cassDominant ? (
+                <>
+                  Sur {composition?.cassationCount} arrêts de la Cour de cassation,{" "}
+                  {risque}% confirment la décision attaquée. <strong>Ces chiffres concernent la Cassation uniquement.</strong>
+                </>
+              ) : (
+                <>Miroir du taux de succès — anticipation de l&apos;issue défavorable.</>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-6 flex-wrap">
