@@ -129,6 +129,27 @@ function parseTitleCetat(title: string): {
 }
 
 /**
+ * Infère la solution de la décision admin à partir du dispositif (en fin
+ * de texte). On limite aux 300 derniers caractères pour éviter les faux
+ * positifs (ex: "la décision attaquée annule…" dans la motivation).
+ *
+ * Les valeurs retournées sont conformes au vocabulaire de classifyOutcome
+ * (stats.ts) : "Annulation"/"Accueil" → favorable ; "Rejet"/"Non-lieu" →
+ * défavorable ; "Sursis"/"" → nuance.
+ */
+function inferCetatSolution(text: string): string {
+  if (!text) return "";
+  const t = text.toLowerCase().slice(-300);
+  if (/\b(annule|annulation\s+(?:est\s+)?prononc)/.test(t)) return "Annulation";
+  if (/\bsursoit\s+à\s+statuer/.test(t)) return "Sursis";
+  if (/\bnon[-\s]?lieu/.test(t)) return "Non-lieu";
+  if (/\b(rejette|rejeté|déboute|débouté)/.test(t)) return "Rejet";
+  if (/\b(fait\s+droit|accueille|accueil)/.test(t)) return "Accueil";
+  if (/\bcondamne\b/.test(t)) return "Condamnation";
+  return "";
+}
+
+/**
  * Strippe HTML, conserve <mark> comme indication de pertinence (puis le retire).
  */
 function cleanText(html: string): string {
@@ -158,14 +179,15 @@ function cetatToJudilibreDecision(r: CetatResult): JudilibreDecision | null {
     t.title || ""
   );
   const text = cleanText(r.text || "");
+  const solution = inferCetatSolution(text);
   return {
     id: t.id,
     jurisdiction,
     chamber: chamber || "Administrative",
     number: numero ? [numero] : [t.id],
     ecli: undefined,
-    solution: "",
-    solution_alt: "",
+    solution,
+    solution_alt: solution,
     date,
     sommaire: text.slice(0, 500),
     themes: [],
