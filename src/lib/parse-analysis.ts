@@ -76,6 +76,7 @@ export interface ParsedAnalysis {
     name: string;
     taux: number | null;
     delai: string | null;
+    n: number | null;
   }>;
   instances: Array<{ name: string; taux: number | null; total: number | null; gagnees: number | null }>;
   montants: { min: number | null; median: number | null; max: number | null };
@@ -798,15 +799,38 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
   else if (text.match(/confiance\s*:\s*moyen/i)) result.confiance = "moyen";
   else if (text.match(/confiance\s*:\s*faible/i)) result.confiance = "faible";
 
-  // Try to extract argument success rates from "Par argument" section
+  // ─── Par argument juridique ───────────────────────────────
+  // Format strict (Axe 3) : "- Discrimination : 5 invoqués, 3 retenus (60%)"
+  // Fallback ancien : "- Discrimination : 60%"
   const argSection = text.match(/### Par argument.*?(?=###|## |$)/is);
   if (argSection) {
-    const argLines = argSection[0].matchAll(
-      /[-•*]\s*\*?\*?(.+?)\*?\*?\s*[:\-—]\s*(\d{1,3}(?:[.,]\d+)?)\s*%/g
+    const seenArgs = new Set<string>();
+    // 1) Format strict
+    const strict = argSection[0].matchAll(
+      /[-•*]\s*\*?\*?(.+?)\*?\*?\s*:\s*(\d+)\s*invoqu[ée]s?\s*,\s*(\d+)\s*retenus?\s*\((\d+(?:[.,]\d+)?)\s*%\)/gi,
     );
-    for (const m of argLines) {
+    for (const m of strict) {
+      const name = m[1].trim().replace(/\*+/g, "");
+      seenArgs.add(name.toLowerCase());
       result.arguments.push({
-        name: m[1].trim().replace(/\*+/g, ""),
+        name,
+        invoque: parseInt(m[2], 10),
+        retenu: parseInt(m[3], 10),
+        taux: parseFloat(m[4].replace(",", ".")),
+      });
+    }
+    // 2) Fallback ancien format (rétro-compat cache d'analyses)
+    const legacy = argSection[0].matchAll(
+      /[-•*]\s*\*?\*?(.+?)\*?\*?\s*[:\-—]\s*(\d{1,3}(?:[.,]\d+)?)\s*%/g,
+    );
+    for (const m of legacy) {
+      const name = m[1].trim().replace(/\*+/g, "");
+      // Skip si déjà capturé par le format strict
+      if (seenArgs.has(name.toLowerCase())) continue;
+      // Skip si la ligne contient "invoqués" (déjà tenté par le strict — évite doublon partiel)
+      if (/invoqu[ée]s?/i.test(m[0])) continue;
+      result.arguments.push({
+        name,
         taux: parseFloat(m[2].replace(",", ".")),
         invoque: null,
         retenu: null,
@@ -814,38 +838,86 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     }
   }
 
-  // Extract jurisdiction stats
+  // ─── Par juridiction ──────────────────────────────────────
+  // Format strict : "- CA Paris : 12 décisions (75%)"
+  // Fallback ancien : "- CA Paris : 75%"
   const jurSection = text.match(/### Par juridiction.*?(?=###|## |$)/is);
   if (jurSection) {
-    const jurLines = jurSection[0].matchAll(
-      /[-•*]\s*\*?\*?(.+?)\*?\*?\s*[:\-—]\s*(\d{1,3}(?:[.,]\d+)?)\s*%/g
+    const seenJur = new Set<string>();
+    const strict = jurSection[0].matchAll(
+      /[-•*]\s*\*?\*?(.+?)\*?\*?\s*:\s*(\d+)\s+d[ée]cisions?\s*\((\d+(?:[.,]\d+)?)\s*%\)/gi,
     );
-    for (const m of jurLines) {
+    for (const m of strict) {
+      const name = m[1].trim().replace(/\*+/g, "");
+      seenJur.add(name.toLowerCase());
       result.juridictions.push({
-        name: m[1].trim().replace(/\*+/g, ""),
+        name,
+        n: parseInt(m[2], 10),
+        taux: parseFloat(m[3].replace(",", ".")),
+        delai: null,
+      });
+    }
+    const legacy = jurSection[0].matchAll(
+      /[-•*]\s*\*?\*?(.+?)\*?\*?\s*[:\-—]\s*(\d{1,3}(?:[.,]\d+)?)\s*%/g,
+    );
+    for (const m of legacy) {
+      const name = m[1].trim().replace(/\*+/g, "");
+      if (seenJur.has(name.toLowerCase())) continue;
+      if (/d[ée]cisions?\s*\(/i.test(m[0])) continue;
+      result.juridictions.push({
+        name,
         taux: parseFloat(m[2].replace(",", ".")),
         delai: null,
+        n: null,
       });
     }
   }
 
-  // Extract instance stats
+  // ─── Par instance (4 catégories — REGLE 2) ─────────────────
+  // Format strict : "- 1er degré : 20 décisions, 14 favorables (70%)"
+  //              ou "- Cour de cassation : 12 décisions, 4 cassations (33%)"
+  // Fallback ancien : extraction par regex contextuelle approximative.
   const instSection = text.match(/### Par instance.*?(?=###|## |$)/is);
   if (instSection) {
     const instText = instSection[0];
-    const instLines = instText.matchAll(
-      /[-•*]\s*\*?\*?(.+?)\*?\*?\s*[:\-—]\s*(\d{1,3}(?:[.,]\d+)?)\s*%/g
+    const seenInst = new Set<string>();
+    // 1) Format strict (favorables OU cassations comme M)
+    const strict = instText.matchAll(
+      /[-•*]\s*\*?\*?(.+?)\*?\*?\s*:\s*(\d+)\s+d[ée]cisions?,\s*(\d+)\s+(?:favorables?|cassations?)\s*\((\d+(?:[.,]\d+)?)\s*%\)/gi,
     );
-    for (const m of instLines) {
+    for (const m of strict) {
       const name = m[1].trim().replace(/\*+/g, "");
+      seenInst.add(name.toLowerCase());
+      result.instances.push({
+        name,
+        total: parseInt(m[2], 10),
+        gagnees: parseInt(m[3], 10),
+        taux: parseFloat(m[4].replace(",", ".")),
+      });
+    }
+    // 2) Fallback ancien : taux %, contexte total/gagnées par lookahead
+    const legacy = instText.matchAll(
+      /[-•*]\s*\*?\*?(.+?)\*?\*?\s*[:\-—]\s*(\d{1,3}(?:[.,]\d+)?)\s*%/g,
+    );
+    for (const m of legacy) {
+      const name = m[1].trim().replace(/\*+/g, "");
+      if (seenInst.has(name.toLowerCase())) continue;
+      if (/d[ée]cisions?,\s*\d/i.test(m[0])) continue;
       const taux = parseFloat(m[2].replace(",", "."));
-      // Try to extract total and gagnees from surrounding context
       const nameEscaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const contextMatch = instText.match(
-        new RegExp(nameEscaped + "[\\s\\S]{0,200}?(\\d+)\\s*(?:decisions?|d[ée]cisions?)\\s*(?:analys[ée]es?|total)?[\\s\\S]{0,100}?(\\d+)\\s*(?:decisions?|d[ée]cisions?)\\s*(?:gagn[ée]es?|favorable)", "i")
+        new RegExp(
+          nameEscaped +
+            "[\\s\\S]{0,200}?(\\d+)\\s*(?:decisions?|d[ée]cisions?)\\s*(?:analys[ée]es?|total)?[\\s\\S]{0,100}?(\\d+)\\s*(?:decisions?|d[ée]cisions?)\\s*(?:gagn[ée]es?|favorable)",
+          "i",
+        ),
       );
       const totalMatch = instText.match(
-        new RegExp(nameEscaped + "[\\s\\S]{0,300}?(?:sur|Sur)\\s+(\\d+)\\s+(?:decisions?|d[ée]cisions?)", "i")
+        new RegExp(
+          nameEscaped +
+            "[\\s\\S]{0,300}?(?:sur|Sur)\\s+(\\d+)\\s+(?:decisions?|d[ée]cisions?)",
+          "i",
+        ),
       );
       let total: number | null = null;
       let gagnees: number | null = null;
@@ -854,7 +926,8 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
         gagnees = parseInt(contextMatch[2]);
       } else if (totalMatch) {
         total = parseInt(totalMatch[1]);
-        gagnees = total !== null && taux !== null ? Math.round(total * taux / 100) : null;
+        gagnees =
+          total !== null && taux !== null ? Math.round((total * taux) / 100) : null;
       }
       result.instances.push({ name, taux, total, gagnees });
     }

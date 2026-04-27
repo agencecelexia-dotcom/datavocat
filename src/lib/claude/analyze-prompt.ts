@@ -101,28 +101,30 @@ Si la valeur est "non calculable" : ecris "Taux non calculable sur ce corpus" et
 NE FABRIQUE PAS de chiffre alternatif si la valeur retenue ne te plait pas.]
 
 ### Par argument juridique
-[Pour chaque argument identifie dans le corpus, indique le ratio retenu/invoque a partir des decisions presentes — pas d'estimation hors corpus. Si aucune donnee : "non documente dans le corpus analyse"]
+[Recopie EXACTEMENT le bloc "TAUX PAR ARGUMENT JURIDIQUE" de FAITS VERIFIES.
+FORMAT STRICT (un par ligne) :
+- {NOM} : {N} invoqués, {M} retenus ({TAUX}%)
+Si la section est absente de FAITS VERIFIES (corpus trop petit) : ecris "non documente dans le corpus analyse".]
 
 ### Par juridiction
-[Recopie la repartition du bloc FAITS VERIFIES. Pas d'invention de juridictions absentes]
+[Recopie le bloc "RÉPARTITION PAR JURIDICTION (top 8)" de FAITS VERIFIES.
+FORMAT STRICT (un par ligne) :
+- {LABEL} : {N} décisions ({PCT}%)
+Pas d'invention de juridictions absentes du corpus.]
 
 ### Par instance (4 categories mutuellement exclusives — REGLE 2)
 
 La hierarchie francaise est : 1er degre / Cour d'appel / Cour de cassation / Conseil d'Etat. UNE decision n'appartient qu'a UNE SEULE categorie.
 
-**1er degre (CPH, TJ, TC, TGI, TI, T. correctionnel)**
-[Recopie depuis FAITS VERIFIES le total et le taux d'acceptation. Si total < 10 : "donnees insuffisantes pour ce groupe"]
+FORMAT STRICT pour CHACUNE des 4 categories non vides :
+- 1er degré : {N} décisions, {M} favorables ({TAUX}%)
+- Cour d'appel : {N} décisions, {M} favorables ({TAUX}%)
+- Cour de cassation : {N} décisions, {M} cassations ({TAUX}%)
+- Conseil d'État : {N} décisions, {M} favorables ({TAUX}%)
 
-**Cour d'appel**
-[Recopie depuis FAITS VERIFIES le total et le taux d'acceptation. Si total < 10 : "donnees insuffisantes pour ce groupe"]
+Recopie depuis FAITS VERIFIES (sections "1er DEGRÉ", "COUR D'APPEL", "COUR DE CASSATION", et la ligne de Conseil d'Etat). Si une categorie a 0 decisions, omets la ligne. Pour la Cassation, "favorables" = "cassations" (succes du pourvoi).
 
-**Cour de cassation (juge du droit)**
-[Recopie depuis FAITS VERIFIES le total et le taux de cassation. Rappelle qu'un rejet de pourvoi confirme la decision attaquee, il ne s'agit pas d'un succes au fond]
-
-**Conseil d'Etat**
-[Si le corpus contient des decisions du Conseil d'Etat (CETAT branche en avril 2026), recopie le total et le taux. Sinon, indique "non documente dans le corpus analyse"]
-
-INVARIANT : la somme des 4 categories doit egaler le total annonce dans l'introduction. Verifie avant de produire la reponse. NE FUSIONNE JAMAIS plusieurs categories dans un taux unique.
+INVARIANT : la somme des N affiches doit egaler le total annonce dans l'introduction. Verifie avant de produire la reponse. NE FUSIONNE JAMAIS plusieurs categories dans un taux unique.
 
 ### Tendance temporelle (OBLIGATOIRE si fournie dans FAITS VERIFIES)
 [Si le bloc FAITS VERIFIES contient une section "TENDANCE TEMPORELLE", recopie integralement les buckets annuels avec leurs taux. Indique la direction (en hausse / en baisse / stable) avec la variation en points exacte. Cette information est CRUCIALE pour l'avocat : elle indique si la jurisprudence evolue dans son sens ou non.]
@@ -134,11 +136,20 @@ INVARIANT : la somme des 4 categories doit egaler le total annonce dans l'introd
 [Si le bloc FAITS VERIFIES contient "VARIATIONS PAR CHAMBRE" ou "VARIATIONS PAR THEME", recopie les principales. Indique les chambres ou themes les plus discriminants pour le succes au fond.]
 
 ### Montants
-[Si des montants sont presents dans le corpus, recopie min / mediane / max depuis FAITS VERIFIES. Sinon : "non documente dans le corpus analyse"]
+[Recopie EXACTEMENT le bloc "MONTANTS DÉTECTÉS DANS LES SOMMAIRES" de FAITS VERIFIES.
+FORMAT STRICT :
+- Min : {X} €
+- Médiane : {Y} €
+- Max : {Z} €
+Si FAITS VERIFIES indique "samples=0" : ecris "non documente dans le corpus analyse" et passe a la section suivante.]
 
 ### Article 700 du CPC
-[Si le corpus contient des informations sur l'article 700, recopie : taux de condamnation, montant moyen, montant median depuis FAITS VERIFIES.]
-[Si le corpus n'en contient pas : ecris "non documente dans le corpus analyse" — n'invente AUCUN chiffre.]
+[Recopie EXACTEMENT le bloc "ARTICLE 700 CPC" de FAITS VERIFIES.
+FORMAT STRICT :
+- Taux de condamnation : {X}%
+- Montant moyen : {Y} €
+- Montant médian : {Z} €
+Si FAITS VERIFIES indique "samples=0" : ecris "non documente dans le corpus analyse". N'invente AUCUN chiffre absent du bloc.]
 
 ## Tableau de preuve statistique (REGLE 4 — schema fixe)
 
