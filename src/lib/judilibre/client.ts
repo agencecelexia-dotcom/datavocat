@@ -507,6 +507,20 @@ export async function searchJudilibreForAnalysis(
     const chamber = detectChamber(userQuery);
     const targetJurisdiction = detectTargetJurisdiction(userQuery);
 
+    // Si la query relève du contentieux administratif, on lance aussi une
+    // vague Légifrance CETAT (Conseil d'État + CAA + TA, ~270k décisions
+    // que Judilibre n'indexe pas).
+    const { isAdminMatter, searchAdminJurisprudence } = await import(
+      "@/lib/legifrance/jurisprudence"
+    );
+    const isAdmin = isAdminMatter(userQuery);
+    const adminPromise: Promise<JudilibreDecision[]> = isAdmin
+      ? searchAdminJurisprudence({
+          query: userQuery.slice(0, 200),
+          pageSize: 50,
+        }).catch(() => [])
+      : Promise.resolve([]);
+
     // Fenêtre de fraîcheur : 5 ans par défaut pour capter les décisions 2024-2025
     // et au-delà, tout en gardant la possibilité d'élargir par requête.
     const now = new Date();
@@ -685,6 +699,29 @@ export async function searchJudilibreForAnalysis(
             }
           }
         }
+      }
+    }
+
+    // Récupération de la vague administrative (CETAT) si applicable.
+    // Les décisions sont au format JudilibreDecision avec jurisdiction
+    // "ce" / "caa" / "ta" — elles passent ensuite par le rerank Haiku
+    // comme les autres et sont classées dans la hiérarchie 4 catégories.
+    const adminDecisions = await adminPromise;
+    if (adminDecisions.length > 0) {
+      let added = 0;
+      for (const dec of adminDecisions) {
+        const key = dec.id;
+        if (!seenEcli.has(key)) {
+          seenEcli.add(key);
+          uniqueDecisions.push(dec);
+          added++;
+        }
+      }
+      totalAcrossSearches += adminDecisions.length;
+      if (process.env.NODE_ENV !== "production") {
+        console.info(
+          `[Datavocat] +${added} décisions administratives (CETAT) ajoutées au corpus`
+        );
       }
     }
 

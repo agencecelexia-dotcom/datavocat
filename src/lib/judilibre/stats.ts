@@ -11,10 +11,10 @@
  * "non documenté dans le corpus analysé".
  *
  * Hiérarchie : 4 catégories mutuellement exclusives sur le modèle français :
- *   - 1er degré (CPH, TJ, TC, TGI, TI, T. correctionnel) — rare dans Judilibre
- *   - Cour d'appel — bien indexée
- *   - Cour de cassation — bien indexée
- *   - Conseil d'État — placeholder, source administrative non branchée
+ *   - 1er degré : ordre judiciaire (TJ, TC, CPH, TGI…) + ordre administratif (TA)
+ *   - Cour d'appel : ordre judiciaire (CA) + ordre administratif (CAA)
+ *   - Cour de cassation : juge du droit ordre judiciaire
+ *   - Conseil d'État : juge du droit ordre administratif (via Légifrance CETAT)
  */
 
 import type { JudilibreDecision } from "./client";
@@ -54,7 +54,7 @@ export interface CorpusStats {
     premierDegre: CategoryStats;
     courAppel: CategoryStats;
     cassation: CategoryStats;
-    conseilEtat: CategoryStats & { sourceAvailable: false };
+    conseilEtat: CategoryStats & { sourceAvailable: boolean };
   };
   /** Récence < 5 ans pour la composante D de l'indice de fiabilité. */
   freshDecisionsFiveYears: number;
@@ -93,22 +93,28 @@ const HIERARCHY_LABELS: Record<HierarchyCategory, string> = {
 };
 
 /**
- * Classe une décision Judilibre dans une des 4 catégories.
- * Codes Judilibre supportés (testés contre l'API en avril 2026) :
- * - "cc" → cassation (~480 000)
- * - "ca" → courAppel (~82 000)
- * - "tj" → 1er degré, tribunal judiciaire (volumes en croissance)
- * - "tcom" → 1er degré, tribunal de commerce
- * - "cph" → 1er degré, conseil de prud'hommes (encore vide côté API)
- * - "ce" → conseilEtat (vide, ordre admin sur ArianneWeb)
- * - autre code → premierDegre par défaut
+ * Classe une décision (Judilibre OU Légifrance CETAT) dans une des 4 catégories.
+ *
+ * Codes ordre judiciaire (Judilibre, testés en avril 2026) :
+ *   - "cc" → cassation (~480 000)
+ *   - "ca" → courAppel (~82 000)
+ *   - "tj" → 1er degré, tribunal judiciaire
+ *   - "tcom" → 1er degré, tribunal de commerce
+ *   - "cph" → 1er degré, conseil de prud'hommes (encore vide côté API)
+ *
+ * Codes ordre administratif (Légifrance CETAT, branchés avril 2026) :
+ *   - "ce" → conseilEtat (Conseil d'État, juge du droit admin)
+ *   - "caa" → courAppel (Cour administrative d'appel — équivalent CA)
+ *   - "ta" → premierDegre (Tribunal administratif — équivalent TJ)
+ *
+ * Tout autre code → premierDegre par défaut.
  */
 function classifyHierarchy(d: JudilibreDecision): HierarchyCategory {
   const j = (d.jurisdiction || "").toLowerCase();
   if (j === "cc") return "cassation";
-  if (j === "ca") return "courAppel";
+  if (j === "ca" || j === "caa") return "courAppel";
   if (j === "ce") return "conseilEtat";
-  // tj, tcom, cph, autres codes → 1er degré
+  // tj, tcom, cph, ta, autres codes → 1er degré
   return "premierDegre";
 }
 
@@ -295,8 +301,8 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     courAppel: statsFromDecisions(buckets.courAppel),
     cassation: statsFromDecisions(buckets.cassation),
     conseilEtat: {
-      ...emptyCategoryStats(),
-      sourceAvailable: false as const,
+      ...statsFromDecisions(buckets.conseilEtat),
+      sourceAvailable: true,
     },
   };
 
@@ -412,18 +418,25 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
   lines.push("RÉPARTITION PAR INSTANCE (4 catégories mutuellement exclusives) :");
   const h = stats.hierarchy;
   lines.push(
-    `- 1er degré (CPH, TJ, TC, TGI, TI, T. correctionnel) : ${h.premierDegre.total} décisions (${pct(h.premierDegre.total, stats.total)}%)`
+    `- 1er degré (TJ, TC, CPH, TGI, TA…) : ${h.premierDegre.total} décisions (${pct(h.premierDegre.total, stats.total)}%)`
   );
   lines.push(
-    `- Cour d'appel : ${h.courAppel.total} décisions (${pct(h.courAppel.total, stats.total)}%)`
+    `- Cour d'appel (CA + CAA) : ${h.courAppel.total} décisions (${pct(h.courAppel.total, stats.total)}%)`
   );
   lines.push(
     `- Cour de cassation : ${h.cassation.total} arrêts (${pct(h.cassation.total, stats.total)}%)`
   );
   lines.push(
-    `- Conseil d'État : 0 (source administrative non branchée — extension à venir)`
+    `- Conseil d'État : ${h.conseilEtat.total} arrêts (${pct(h.conseilEtat.total, stats.total)}%)`
   );
-  lines.push(`Vérification : ${h.premierDegre.total} + ${h.courAppel.total} + ${h.cassation.total} + 0 = ${h.premierDegre.total + h.courAppel.total + h.cassation.total} (doit = ${stats.total}).`);
+  const sumAll =
+    h.premierDegre.total +
+    h.courAppel.total +
+    h.cassation.total +
+    h.conseilEtat.total;
+  lines.push(
+    `Vérification : ${h.premierDegre.total} + ${h.courAppel.total} + ${h.cassation.total} + ${h.conseilEtat.total} = ${sumAll} (doit = ${stats.total}).`
+  );
   lines.push("");
 
   // Détail par catégorie non vide
