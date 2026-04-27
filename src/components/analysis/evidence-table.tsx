@@ -61,18 +61,29 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [filterPertinence, setFilterPertinence] = useState<"all" | "favorable" | "defavorable" | "nuance">("all");
-  // Filtres avancés cumulables (Règle 4)
+  // Filtre Resultat (favorable/defavorable/nuance) — la colonne canonique est "Résultat",
+  // fallback sur "Pertinence" pour les analyses produites avec l'ancien schema.
+  const [filterResultat, setFilterResultat] = useState<"all" | "favorable" | "defavorable" | "nuance">("all");
+  // Filtres avancés cumulables (Règle 4 — 8 filtres au total)
   const [filterJuridiction, setFilterJuridiction] = useState<Set<string>>(new Set());
   const [filterChambre, setFilterChambre] = useState<Set<string>>(new Set());
   const [filterArgument, setFilterArgument] = useState<Set<string>>(new Set());
   const [filterPartie, setFilterPartie] = useState<string>("all");
+  const [filterFondement, setFilterFondement] = useState<Set<string>>(new Set());
+  const [filterPertinenceDossier, setFilterPertinenceDossier] = useState<string>("all");
+  const [filterDateFrom, setFilterDateFrom] = useState<string>("");
+  const [filterDateTo, setFilterDateTo] = useState<string>("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   // Mode condensé : colonnes essentielles par défaut, expand par ligne pour le détail.
   const [compactMode, setCompactMode] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
-  const hasPertinence = data.headers.some((h) => h.toLowerCase().includes("pertinence"));
+  // Colonne "Résultat" (favorable/defavorable/nuance) — priorité au header explicite,
+  // fallback sur "Pertinence" (rétro-compat) si seule colonne disponible.
+  const colResultat =
+    findColumn(data.headers, [/^r[eé]sultat$/i, /^resultat$/i]) ||
+    findColumn(data.headers, [/^pertinence$/i]);
+  const hasResultat = colResultat !== null;
 
   // Résolution dynamique des colonnes pour les filtres avancés.
   const colJuridiction = findColumn(data.headers, [
@@ -86,6 +97,16 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
     /partie/i,
     /gain/i,
   ]);
+  const colFondement = findColumn(data.headers, [
+    /fondement/i,
+    /article|texte|principe/i,
+  ]);
+  // Pertinence pour le dossier (Haute/Moyenne/Faible) — distincte de "Résultat".
+  const colPertinenceDossier = findColumn(data.headers, [
+    /pertinence\s+pour\s+le\s+dossier/i,
+    /pertinence\s+dossier/i,
+  ]);
+  const colDate = findColumn(data.headers, [/^date$/i, /date/i]);
 
   // Valeurs uniques (triées) pour peupler les selects multi.
   const uniq = (col: string | null): string[] => {
@@ -101,12 +122,18 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
   const chambreOptions = uniq(colChambre);
   const argumentOptions = uniq(colArgument);
   const partieOptions = uniq(colPartie);
+  const fondementOptions = uniq(colFondement);
+  const pertinenceDossierOptions = uniq(colPertinenceDossier);
 
   const hasAnyAdvancedFilter =
     filterJuridiction.size > 0 ||
     filterChambre.size > 0 ||
     filterArgument.size > 0 ||
-    filterPartie !== "all";
+    filterPartie !== "all" ||
+    filterFondement.size > 0 ||
+    filterPertinenceDossier !== "all" ||
+    filterDateFrom !== "" ||
+    filterDateTo !== "";
 
   const compactHeaders = useMemo(
     () => data.headers.filter(isCompactColumn),
@@ -128,34 +155,16 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
     });
   };
 
-  // Compute stats
-  const stats = useMemo(() => {
-    const pertCol = data.headers.find((h) => h.toLowerCase().includes("pertinence"));
-    if (!pertCol) return null;
-
-    let favorable = 0;
-    let defavorable = 0;
-    let nuance = 0;
-    for (const row of data.rows) {
-      const v = (row[pertCol] || "").toLowerCase();
-      if (v.includes("favorable") && !v.includes("defavorable") && !v.includes("défavorable")) favorable++;
-      else if (v.includes("defavorable") || v.includes("défavorable")) defavorable++;
-      else nuance++;
-    }
-    return { total: data.rows.length, favorable, defavorable, nuance };
-  }, [data]);
-
   const filtered = useMemo(() => {
     let rows = data.rows;
 
-    // Filter by pertinence
-    if (filterPertinence !== "all" && hasPertinence) {
-      const pertCol = data.headers.find((h) => h.toLowerCase().includes("pertinence"))!;
+    // Filter par Resultat (favorable/defavorable/nuance)
+    if (filterResultat !== "all" && colResultat) {
       rows = rows.filter((row) => {
-        const v = (row[pertCol] || "").toLowerCase();
-        if (filterPertinence === "favorable") return v.includes("favorable") && !v.includes("defavorable") && !v.includes("défavorable");
-        if (filterPertinence === "defavorable") return v.includes("defavorable") || v.includes("défavorable");
-        if (filterPertinence === "nuance") return v.includes("nuanc");
+        const v = (row[colResultat] || "").toLowerCase();
+        if (filterResultat === "favorable") return v.includes("favorable") && !v.includes("defavorable") && !v.includes("défavorable");
+        if (filterResultat === "defavorable") return v.includes("defavorable") || v.includes("défavorable");
+        if (filterResultat === "nuance") return v.includes("nuanc");
         return true;
       });
     }
@@ -172,6 +181,26 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
     }
     if (filterPartie !== "all" && colPartie) {
       rows = rows.filter((r) => (r[colPartie] || "").trim() === filterPartie);
+    }
+    if (filterFondement.size > 0 && colFondement) {
+      rows = rows.filter((r) => filterFondement.has((r[colFondement] || "").trim()));
+    }
+    if (filterPertinenceDossier !== "all" && colPertinenceDossier) {
+      rows = rows.filter(
+        (r) => (r[colPertinenceDossier] || "").trim() === filterPertinenceDossier,
+      );
+    }
+    if ((filterDateFrom || filterDateTo) && colDate) {
+      rows = rows.filter((r) => {
+        const raw = (r[colDate] || "").trim();
+        // On supporte YYYY-MM-DD ou YYYY ; toute autre forme passe le filtre.
+        const m = raw.match(/(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/);
+        if (!m) return true;
+        const iso = `${m[1]}-${m[2] ?? "01"}-${m[3] ?? "01"}`;
+        if (filterDateFrom && iso < filterDateFrom) return false;
+        if (filterDateTo && iso > filterDateTo) return false;
+        return true;
+      });
     }
 
     // Search
@@ -195,21 +224,50 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
     return rows;
   }, [
     data.rows,
-    data.headers,
     searchTerm,
     sortCol,
     sortDir,
-    filterPertinence,
-    hasPertinence,
+    filterResultat,
+    colResultat,
     filterJuridiction,
     filterChambre,
     filterArgument,
     filterPartie,
+    filterFondement,
+    filterPertinenceDossier,
+    filterDateFrom,
+    filterDateTo,
     colJuridiction,
     colChambre,
     colArgument,
     colPartie,
+    colFondement,
+    colPertinenceDossier,
+    colDate,
   ]);
+
+  // Stats — calculées sur la sélection (Règle 4 « stats sur sélection »)
+  // pour que les chips reflètent la vue courante de l'avocat.
+  const stats = useMemo(() => {
+    if (!colResultat) return null;
+    let favorable = 0;
+    let defavorable = 0;
+    let nuance = 0;
+    for (const row of filtered) {
+      const v = (row[colResultat] || "").toLowerCase();
+      if (v.includes("favorable") && !v.includes("defavorable") && !v.includes("défavorable")) favorable++;
+      else if (v.includes("defavorable") || v.includes("défavorable")) defavorable++;
+      else nuance++;
+    }
+    return {
+      total: filtered.length,
+      totalAll: data.rows.length,
+      favorable,
+      defavorable,
+      nuance,
+      isFiltered: filtered.length !== data.rows.length,
+    };
+  }, [filtered, data.rows, colResultat]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -241,16 +299,28 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
         </p>
       </div>
 
-      {/* Stats chip line */}
+      {/* Stats chip line — recalculées sur la sélection filtrée */}
       {stats && (
         <div
           className="flex flex-wrap items-center gap-x-6 gap-y-2 py-3 pb-4"
           style={{ borderBottom: "1px solid var(--line)" }}
         >
-          <StatChip label="Total" value={stats.total} color="var(--ink)" />
+          <StatChip
+            label={stats.isFiltered ? `Sélection / ${stats.totalAll}` : "Total"}
+            value={stats.total}
+            color="var(--ink)"
+          />
           <StatChip label="Favorables" value={stats.favorable} color={EMERALD} />
           <StatChip label="Défavorables" value={stats.defavorable} color={BORDEAUX} />
           <StatChip label="Nuancées" value={stats.nuance} color={AMBER} />
+          {stats.isFiltered && (
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.15em]"
+              style={{ color: "var(--gold)" }}
+            >
+              Stats sur sélection
+            </span>
+          )}
         </div>
       )}
 
@@ -275,8 +345,8 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
           />
         </div>
 
-        {/* Pertinence filter */}
-        {hasPertinence && (
+        {/* Resultat filter */}
+        {hasResultat && (
           <div data-tour="evidence-filters" className="flex items-center gap-1.5">
             <Filter
               className="h-3.5 w-3.5"
@@ -288,11 +358,11 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
               { key: "defavorable" as const, label: "Défavorables", count: stats?.defavorable, tooltip: "Décisions contraires — utiles pour anticiper les moyens adverses" },
               { key: "nuance" as const, label: "Nuancées", count: stats?.nuance, tooltip: "Décisions à l'issue mitigée (cassation partielle, gain partiel)" },
             ].map((f) => {
-              const active = filterPertinence === f.key;
+              const active = filterResultat === f.key;
               return (
                 <button
                   key={f.key}
-                  onClick={() => setFilterPertinence(f.key)}
+                  onClick={() => setFilterResultat(f.key)}
                   title={f.tooltip}
                   className="px-3 py-1 text-[11.5px] transition-colors cursor-pointer"
                   style={{
@@ -314,11 +384,14 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
         )}
       </div>
 
-      {/* Filtres avancés cumulables (Règle 4) */}
+      {/* Filtres avancés cumulables (Règle 4 — 8 filtres) */}
       {(juridictionOptions.length > 0 ||
         chambreOptions.length > 0 ||
         argumentOptions.length > 0 ||
-        partieOptions.length > 0) && (
+        partieOptions.length > 0 ||
+        fondementOptions.length > 0 ||
+        pertinenceDossierOptions.length > 0 ||
+        colDate !== null) && (
         <div>
           <button
             onClick={() => setShowAdvanced((v) => !v)}
@@ -385,6 +458,71 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
                   </select>
                 </div>
               )}
+              {fondementOptions.length > 0 && (
+                <FilterMultiSelect
+                  label="Fondement juridique"
+                  options={fondementOptions}
+                  selected={filterFondement}
+                  onChange={setFilterFondement}
+                />
+              )}
+              {pertinenceDossierOptions.length > 0 && (
+                <div>
+                  <div
+                    className="font-mono text-[9.5px] uppercase tracking-[0.15em] mb-1.5"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Pertinence pour le dossier
+                  </div>
+                  <select
+                    value={filterPertinenceDossier}
+                    onChange={(e) => setFilterPertinenceDossier(e.target.value)}
+                    className="w-full text-[12px] py-1.5 px-2 rounded"
+                    style={{
+                      border: "1px solid var(--line)",
+                      background: "var(--card)",
+                    }}
+                  >
+                    <option value="all">Toutes</option>
+                    {pertinenceDossierOptions.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {colDate && (
+                <div>
+                  <div
+                    className="font-mono text-[9.5px] uppercase tracking-[0.15em] mb-1.5"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Période (date)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={filterDateFrom}
+                      onChange={(e) => setFilterDateFrom(e.target.value)}
+                      className="flex-1 text-[12px] py-1.5 px-2 rounded"
+                      style={{
+                        border: "1px solid var(--line)",
+                        background: "var(--card)",
+                      }}
+                    />
+                    <span style={{ color: "var(--muted-foreground)" }}>→</span>
+                    <input
+                      type="date"
+                      value={filterDateTo}
+                      onChange={(e) => setFilterDateTo(e.target.value)}
+                      className="flex-1 text-[12px] py-1.5 px-2 rounded"
+                      style={{
+                        border: "1px solid var(--line)",
+                        background: "var(--card)",
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               {hasAnyAdvancedFilter && (
                 <button
                   onClick={() => {
@@ -392,6 +530,10 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
                     setFilterChambre(new Set());
                     setFilterArgument(new Set());
                     setFilterPartie("all");
+                    setFilterFondement(new Set());
+                    setFilterPertinenceDossier("all");
+                    setFilterDateFrom("");
+                    setFilterDateTo("");
                   }}
                   className="sm:col-span-2 text-[11px] font-mono uppercase tracking-[0.1em] cursor-pointer self-start"
                   style={{ color: "var(--bordeaux)" }}
@@ -413,7 +555,7 @@ export function EvidenceTable({ data }: { data: EvidenceTableData }) {
       )}
 
       {/* Légende persistante des filtres */}
-      {hasPertinence && (
+      {hasResultat && (
         <div
           className="rounded-md px-3 py-2 text-[11px] leading-relaxed"
           style={{
