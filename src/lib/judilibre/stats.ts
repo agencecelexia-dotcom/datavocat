@@ -125,6 +125,18 @@ export interface CorpusStats {
    * Si aucun montant n'est trouvé, samples=0 et les valeurs sont null.
    */
   montantsStats: MontantExtraction;
+  /**
+   * Taux par moyen juridique : pour chaque thème Judilibre du corpus,
+   * compte combien de décisions le citent (invoque) et combien donnent
+   * une issue favorable (retenu). taux = retenu/invoque × 100.
+   * Top 8, filtré à invoque ≥ 2 pour exclure le bruit statistique.
+   */
+  argumentStats: Array<{
+    name: string;
+    invoque: number;
+    retenu: number;
+    taux: number;
+  }>;
 }
 
 const CHAMBER_LABELS: Record<string, string> = {
@@ -556,6 +568,37 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     .sort((a, b) => b.total - a.total)
     .slice(0, 10);
 
+  // Taux par moyen juridique (Axe 2) : top 8 thèmes du corpus,
+  // ratio retenu/invoqué. Plus large que themeVariations (qui prend 1 label
+  // par décision) : on prend tous les thèmes de chaque décision.
+  const argAccum: Record<string, { invoque: number; retenu: number }> = {};
+  for (const d of decisions) {
+    const themes = d.themes || [];
+    const outcome = classifyOutcome(d.solution_alt || d.solution || "");
+    const seenInDecision = new Set<string>();
+    for (const t of themes) {
+      const label = (t.split(" - ")[0] || t).trim();
+      if (!label) continue;
+      // 1 thème compté 1 fois par décision (évite double comptage si Judilibre
+      // répète le même label sous des hiérarchies différentes).
+      if (seenInDecision.has(label)) continue;
+      seenInDecision.add(label);
+      if (!argAccum[label]) argAccum[label] = { invoque: 0, retenu: 0 };
+      argAccum[label].invoque++;
+      if (outcome === "favorable") argAccum[label].retenu++;
+    }
+  }
+  const argumentStats = Object.entries(argAccum)
+    .filter(([, v]) => v.invoque >= 2)
+    .map(([name, v]) => ({
+      name,
+      invoque: v.invoque,
+      retenu: v.retenu,
+      taux: pct(v.retenu, v.invoque),
+    }))
+    .sort((a, b) => b.invoque - a.invoque)
+    .slice(0, 8);
+
   return {
     total,
     bySolution,
@@ -576,6 +619,7 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     chamberVariations,
     themeVariations,
     montantsStats: extractMontantsFromCorpus(decisions),
+    argumentStats,
   };
 }
 
@@ -814,6 +858,17 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
     for (const v of stats.themeVariations.slice(0, 8)) {
       lines.push(
         `- ${v.label} : ${v.favorables}/${v.total} favorables (${v.rate}%)`
+      );
+    }
+    lines.push("");
+  }
+
+  // ─── Taux par moyen juridique (Axe 2) ───
+  if (stats.argumentStats.length > 0) {
+    lines.push("TAUX PAR ARGUMENT JURIDIQUE (top 8 — invoqués ≥ 2) :");
+    for (const a of stats.argumentStats) {
+      lines.push(
+        `- ${a.name} : ${a.invoque} invoqués, ${a.retenu} retenus (${a.taux}%)`,
       );
     }
     lines.push("");
