@@ -198,6 +198,23 @@ SYNTHESE (obligatoire, sous le tableau) :
 **Facteurs determinants** : [Identifie les 3-5 facteurs du tableau qui ont le plus d'impact sur l'issue du litige — explique POURQUOI ces facteurs sont determinants en reference aux colonnes du tableau]
 **Ce que cela signifie pour votre dossier** : [Interpretation en 2-3 phrases, basee uniquement sur ce que les decisions du corpus revelent]
 
+## Recommandations chiffrees
+3 a 5 recommandations actionnables, CHACUNE appuyee sur un chiffre concret du corpus ET une reference sourcee.
+
+FORMAT STRICT (un par ligne) :
+- {ACTION concrete} : {chiffre concret du corpus, ex. "médiane 1 800 €" ou "retenu dans 12/18 cas"} (source : {ECLI ou n° pourvoi du corpus})
+
+Exemples valides :
+- Demander un article 700 ≥ 1 800 € : médiane corpus 1 800 €, n=12 (source : ECLI:FR:CCASS:2023:SO00547)
+- Mettre en avant le harcèlement moral : retenu dans 4/8 cas du corpus soit 50% (source : 21-12345)
+- Saisir le CPH avant 12 mois : délai médian observé 11 mois (source : ECLI:FR:CCASS:2024:SO00789)
+
+Regles imperatives :
+- Chaque ligne DOIT contenir un chiffre (€, %, ratio, durée).
+- Chaque ligne DOIT citer au moins une reference du corpus entre parenthèses apres "source :".
+- N'INVENTE jamais de chiffre absent du bloc FAITS VERIFIES ou du corpus.
+- Si tu ne peux pas trouver 3 recommandations chiffrees, ecris-en moins (1 ou 2 sourcees valent mieux que 5 vagues).
+
 ## Points d'attention strategiques
 Minimum 3 points d'attention distincts et argumentes, TOUS appuyes sur des decisions du CORPUS JUDILIBRE (pas de generalites hors corpus).
 

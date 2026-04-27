@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ParsedAnalysis } from "@/lib/parse-analysis";
+import { buildSourceUrl } from "@/lib/parse-analysis";
 import { TrendsBlock } from "./trends-block";
 
 // ── Formatters ───────────────────────────────────────────────────────
@@ -904,6 +905,55 @@ export function AnalysisDashboard({
               </div>
             ))}
           </div>
+        </Section>
+      )}
+
+      {/* ── Recommandations chiffrées (Axe 5) ───────────────── */}
+      {data.recommandationsChiffrees && data.recommandationsChiffrees.length > 0 && (
+        <Section title="Recommandations chiffrées">
+          <ol className="space-y-3">
+            {data.recommandationsChiffrees.map((r, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span
+                  className="shrink-0 font-mono text-[11px] tabular-nums mt-0.5"
+                  style={{ color: "var(--gold)" }}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div
+                    className="text-[14px] leading-snug"
+                    style={{ color: "var(--ink)" }}
+                  >
+                    {r.action}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span
+                      className="font-mono text-[12px] font-semibold px-2 py-0.5 rounded"
+                      style={{
+                        background: "color-mix(in srgb, var(--gold) 14%, transparent)",
+                        color: "var(--ink)",
+                      }}
+                    >
+                      {r.chiffre}
+                    </span>
+                    {r.source && (
+                      <a
+                        href={buildSourceUrl(r.source)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[10.5px] hover:underline"
+                        style={{ color: "var(--muted-foreground)" }}
+                        title="Ouvrir la décision sur Légifrance"
+                      >
+                        Source : {r.source}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
         </Section>
       )}
 

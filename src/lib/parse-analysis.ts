@@ -81,6 +81,16 @@ export interface ParsedAnalysis {
   instances: Array<{ name: string; taux: number | null; total: number | null; gagnees: number | null }>;
   montants: { min: number | null; median: number | null; max: number | null };
   recommandation: string;
+  /**
+   * Recommandations chiffrées (Axe 5) : actions concrètes assorties d'un
+   * chiffre du corpus et d'une référence sourcée. Le parser extrait le triplet
+   * (action, chiffre, source) depuis la section ## Recommandations chiffrees.
+   */
+  recommandationsChiffrees: Array<{
+    action: string;
+    chiffre: string;
+    source: string | null;
+  }>;
   decisionsClés: string;
   limites: string;
   sources: SourceReference[];
@@ -704,6 +714,7 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     instances: [],
     montants: { min: null, median: null, max: null },
     recommandation: "",
+    recommandationsChiffrees: [],
     decisionsClés: "",
     limites: "",
     sources: [],
@@ -750,8 +761,49 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     if (lowerTitle.includes("recherche") || (lowerTitle === "sources")) {
       result.recherche = content;
     }
-    // Compatible avec anciens titres ("Recommandations") et nouveaux ("Points d'attention")
+    // Section dédiée aux recommandations chiffrées (Axe 5) — format strict :
+    // "- {ACTION} : {CHIFFRE} (source : {REF})". Une seule passe extrait
+    // les triplets ; les lignes sans chiffre sont ignorées.
     if (
+      lowerTitle.includes("recommandations chiffr") ||
+      lowerTitle.includes("recommandation chiffr")
+    ) {
+      const lines = content
+        .split(/\n/)
+        .map((l) => l.trim())
+        .filter((l) => /^[-•*]\s+/.test(l));
+      for (const line of lines) {
+        const stripped = line.replace(/^[-•*]\s+/, "");
+        // Tente d'abord le format strict "ACTION : CHIFFRE (source : REF)"
+        const m = stripped.match(
+          /^(.+?)\s*:\s*(.+?)(?:\s*\(\s*source\s*:\s*([^)]+?)\s*\))\s*$/i,
+        );
+        if (m) {
+          const action = m[1].trim();
+          const chiffre = m[2].trim();
+          const source = m[3].trim();
+          // Filtre : on n'accepte que les lignes contenant un chiffre dans
+          // la partie "chiffre" — sinon ce n'est pas une recommandation chiffrée.
+          if (/\d/.test(chiffre)) {
+            result.recommandationsChiffrees.push({ action, chiffre, source });
+          }
+          continue;
+        }
+        // Variante sans source explicite "ACTION : CHIFFRE" (avec chiffre obligatoire)
+        const m2 = stripped.match(/^(.+?)\s*:\s*(.+)$/);
+        if (m2 && /\d/.test(m2[2])) {
+          result.recommandationsChiffrees.push({
+            action: m2[1].trim(),
+            chiffre: m2[2].trim(),
+            source: null,
+          });
+        }
+      }
+      // Garde aussi la section dans recommandation (texte brut) pour rétro-compat affichage.
+      if (!result.recommandation) result.recommandation = content;
+    }
+    // Compatible avec anciens titres ("Recommandations") et nouveaux ("Points d'attention")
+    else if (
       lowerTitle.includes("recommandation") ||
       lowerTitle.includes("points d'attention") ||
       lowerTitle.includes("point d'attention") ||
