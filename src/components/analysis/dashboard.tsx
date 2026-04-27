@@ -313,9 +313,9 @@ export function AnalysisDashboard({
               },
               {
                 label: "Conseil d'État",
-                count: 0,
-                hint: "Source administrative non branchée",
-                disabled: true,
+                count: composition.conseilEtat ?? 0,
+                hint: "CE, CAA, TA — source Légifrance CETAT",
+                disabled: false,
               },
             ].map((cat) => (
               <div

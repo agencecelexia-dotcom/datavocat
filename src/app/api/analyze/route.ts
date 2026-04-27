@@ -328,7 +328,7 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
                 premierDegre: corpusStats.hierarchy.premierDegre.total,
                 courAppel: corpusStats.hierarchy.courAppel.total,
                 cassation: corpusStats.hierarchy.cassation.total,
-                conseilEtat: 0,
+                conseilEtat: corpusStats.hierarchy.conseilEtat.total,
                 // Champs hérités pour rétro-compat.
                 cassationCount: corpusStats.hierarchy.cassation.total,
                 fondCount:
