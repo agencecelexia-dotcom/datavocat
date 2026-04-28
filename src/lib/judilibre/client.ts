@@ -14,17 +14,22 @@ const JUDILIBRE_BASE = "https://api.piste.gouv.fr/cassation/judilibre/v1.0";
 
 /**
  * Nombre maximum de décisions candidates passées au filtre par pertinence Haiku.
+ * Règle 2 (avril 2026) : plafond historique de 150 SUPPRIMÉ.
  * Logique d'entonnoir dynamique :
- *   1. Récolte massive (multi-pages, plusieurs requêtes parallèles + JURI/CETAT) → 1000-2000
- *   2. Dédoublonnage par ECLI/RG/ID → ~400-800 uniques
+ *   1. Récolte massive (multi-pages, requêtes parallèles + JURI/CETAT) → 1500-3000
+ *   2. Dédoublonnage par ECLI/RG/ID → ~600-1200 uniques
  *   3. On garde les `JUDILIBRE_MAX_CONTEXT` meilleures par score Judilibre
- *   4. Haiku score chaque décision → corpus final entre 30 et 150 selon
- *      la qualité disponible (cf. rerank.ts).
+ *   4. Haiku + Voyage scorent chaque décision → corpus final entre 30 et
+ *      JUDILIBRE_TARGET_MAX selon qualité disponible (cf. rerank.ts).
+ *
+ * Le plafond a été monté à 1000 (vs 600) pour autoriser le rerank à
+ * choisir parmi un vivier plus large sur les matières à fort volume
+ * (licenciement, rupture conventionnelle, harcèlement…).
  */
-export const JUDILIBRE_MAX_CONTEXT = 600;
+export const JUDILIBRE_MAX_CONTEXT = 1000;
 
 /** Nombre de pages Judilibre récoltées par requête (50 par page = max API). */
-export const JUDILIBRE_PAGES_PER_QUERY = 3;
+export const JUDILIBRE_PAGES_PER_QUERY = 5;
 
 /** Fenêtre de fraîcheur en années : on récupère prioritairement les décisions des N dernières années. */
 export const JUDILIBRE_FRESHNESS_YEARS = 5;

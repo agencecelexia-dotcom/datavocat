@@ -61,7 +61,7 @@ export default function AuthLayout({
                 { icon: Search, label: "Recherche intelligente", detail: "Moteur Judilibre + data.gouv.fr" },
                 { icon: BarChart3, label: "Statistiques en temps réel", detail: "Taux de succès par argument & juridiction" },
                 { icon: Target, label: "Points d'attention stratégiques", detail: "Fondés sur la jurisprudence réelle" },
-                { icon: FileText, label: "Export multi-format", detail: "PDF, DOCX, CSV, JSON" },
+                { icon: FileText, label: "Export multi-format", detail: "PDF, DOCX, Excel" },
               ].map((item, i) => {
                 const Icon = item.icon;
                 return (

@@ -362,7 +362,7 @@ export async function POST(request: NextRequest) {
       spacing: { before: 200 },
       children: [
         new TextRun({
-          text: "Genere par Datavocat — Analyse jurimetrique assistee par IA",
+          text: "Genere par Datavocat — Analyse jurisprudentielle assistee par IA",
           italics: true,
           size: 18,
           color: "6b7280",

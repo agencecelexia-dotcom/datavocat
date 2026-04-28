@@ -39,9 +39,16 @@ const RERANK_MODEL = "claude-haiku-4-5-20251001";
 const HAIKU_WEIGHT = 0.5;
 const VOYAGE_WEIGHT = 0.5;
 
-/** Plage cible du corpus final transmis à Sonnet (Règle 5). */
+/** Plage cible du corpus final transmis à Sonnet (Règle 2 v3 / 2026-04). */
 export const JUDILIBRE_TARGET_MIN = 30;
-export const JUDILIBRE_TARGET_MAX = 150;
+/**
+ * Plafond du corpus retenu après rerank.
+ * Règle 2 (avril 2026) : plafond historique de 150 SUPPRIMÉ. On laisse
+ * Sonnet absorber jusqu'à 700 décisions pertinentes pour les matières à
+ * fort volume (droit du travail commun). Sonnet 4.6 1M context absorbe
+ * facilement (chaque décision ≈ 1k char).
+ */
+export const JUDILIBRE_TARGET_MAX = 700;
 
 /** Compatibilité historique — utilisé en quelques endroits comme indicateur. */
 export const JUDILIBRE_RERANK_KEEP = JUDILIBRE_TARGET_MAX;

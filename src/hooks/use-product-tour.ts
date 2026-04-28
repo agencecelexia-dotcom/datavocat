@@ -97,7 +97,7 @@ const TOUR_STEPS: TourStep[] = [
     target: "tour-export-buttons",
     title: "8. Exportez votre travail",
     description:
-      "Quatre formats disponibles : PDF, DOCX (rapport complet), CSV (tableau de preuve), JSON (analyse complete pour outils externes).",
+      "Trois formats disponibles : PDF (rapport editorial), DOCX (rapport complet), Excel (tableau de preuve filtrable).",
     showButton: true,
     buttonLabel: "Suivant",
   },

@@ -349,7 +349,7 @@ function SlideTitleHero({
           className="mb-3 text-center font-serif text-4xl font-bold tracking-tight text-white sm:text-5xl"
           style={{ animation: "slideUp 0.6s ease-out 0.2s both" }}
         >
-          Analyse Jurimetrique
+          Analyse Jurisprudentielle
         </h1>
 
         {/* Gold divider */}
@@ -445,7 +445,7 @@ function SlideTitleHero({
           </span>
           <span style={{ color: "rgba(255,255,255,0.15)" }}>&middot;</span>
           <span className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.25)" }}>
-            Analyse Jurimetrique
+            Analyse Jurisprudentielle
           </span>
         </div>
       </div>
@@ -1529,7 +1529,7 @@ function SlideFiabilite({ data }: { data: ParsedAnalysis }) {
         >
           L&apos;indice de fiabilite est calcule automatiquement en fonction du nombre de sources,
           de la taille de l&apos;echantillon et de la qualite des donnees disponibles.
-          L&apos;analyse jurimetrique ne remplace pas le conseil juridique de l&apos;avocat.
+          L&apos;analyse jurisprudentielle ne remplace pas le conseil juridique de l&apos;avocat.
         </p>
       </div>
     </Slide>
@@ -1837,7 +1837,7 @@ function SlideSynthese({ data }: { data: ParsedAnalysis }) {
           >
             Ce rapport est genere par intelligence artificielle a titre indicatif.
             Il ne constitue pas un avis juridique et doit etre valide par un professionnel du droit.
-            L&apos;analyse jurimetrique ne remplace pas le conseil juridique de l&apos;avocat.
+            L&apos;analyse jurisprudentielle ne remplace pas le conseil juridique de l&apos;avocat.
           </p>
 
           {/* Branding footer */}
@@ -1851,7 +1851,7 @@ function SlideSynthese({ data }: { data: ParsedAnalysis }) {
             </span>
             <span style={{ color: "rgba(255,255,255,0.15)" }}>&middot;</span>
             <span className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.2)" }}>
-              Analyse Jurimetrique
+              Analyse Jurisprudentielle
             </span>
           </div>
         </div>
@@ -2046,7 +2046,7 @@ export function AnalysisSlides({
             className="text-[9px] uppercase tracking-[0.15em]"
             style={{ color: `${GOLD}70` }}
           >
-            Analyse Jurimetrique
+            Analyse Jurisprudentielle
           </span>
         </div>
         <span

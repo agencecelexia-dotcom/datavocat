@@ -36,7 +36,7 @@ export function TrendsBlock({ data }: { data: ParsedAnalysis }) {
           § Analyse statistique avancée
         </div>
         <h2 className="font-serif text-[24px] font-medium tracking-tight">
-          Tendances <span className="dv-italic">jurimétriques.</span>
+          Tendances <span className="dv-italic">jurisprudentielles.</span>
         </h2>
         <p
           className="mt-2 text-[13px] leading-relaxed max-w-2xl"

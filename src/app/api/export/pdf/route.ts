@@ -577,7 +577,7 @@ function AnalysisDocument(props: {
         React.createElement(
           Text,
           { style: styles.stubText },
-          "Le tableau de preuve statistique — avec l'ensemble des décisions analysées et leurs facteurs juridiques discriminants — est disponible dans les exports CSV et DOCX, formats mieux adaptés à la consultation et au filtrage d'un corpus de cette densité."
+          "Le tableau de preuve — avec l'ensemble des décisions analysées et leurs facteurs juridiques discriminants — est disponible dans l'export DOCX et l'export Excel, formats mieux adaptés à la consultation et au filtrage d'un corpus de cette densité."
         )
       );
     }
@@ -663,13 +663,13 @@ function AnalysisDocument(props: {
           React.createElement(
             Text,
             { style: styles.coverTitle },
-            "Analyse\njurimétrique"
+            "Analyse\njurisprudentielle"
           ),
           React.createElement(View, { style: styles.coverRule }),
           React.createElement(
             Text,
             { style: styles.coverStandFirst },
-            "Dossier confidentiel établi à partir des décisions de la Cour de cassation et des juges du fond, pour appréciation par le cabinet."
+            "Dossier confidentiel établi à partir des décisions de la Cour de cassation et des juges du fond."
           )
         ),
 
