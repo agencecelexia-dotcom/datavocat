@@ -2,6 +2,9 @@
  * Parse a DATAVOCAT structured markdown response into visual data
  */
 
+import type { JudilibreDecision } from "./judilibre/client";
+import { buildCorpusIndex, checkRef } from "./judilibre/verify";
+
 export interface SourceReference {
   type: "ecli" | "pourvoi" | "decision";
   reference: string;
@@ -220,33 +223,85 @@ export function buildSourceUrl(ref: string): string {
 }
 
 /**
- * Extract all source references (ECLI, pourvoi numbers) from text
+ * Extract all source references (ECLI, pourvoi numbers) from text.
+ *
+ * Axe B (avril 2026) : si `corpus` est fourni, les références extraites sont
+ * filtrées via `checkRef` — on ne garde que celles qui ont une décision
+ * correspondante dans le corpus (juridiction + année cohérentes). Pour
+ * celles-là, on construit une URL Légifrance directe à partir de l'ID
+ * canonique de la décision matchée (au lieu d'une recherche `search/all`).
+ *
+ * Sans corpus, comportement legacy (matching par regex sur le texte).
  */
-function extractSources(text: string): SourceReference[] {
+function extractSources(
+  text: string,
+  corpus?: JudilibreDecision[],
+): SourceReference[] {
+  type CheckedRef = ReturnType<typeof checkRef>;
+  let checkRefFn: ((ref: string, ctxYear: number | null) => CheckedRef) | null = null;
+  let corpusById: Map<string, JudilibreDecision> | null = null;
+
+  if (corpus && corpus.length > 0) {
+    const index = buildCorpusIndex(corpus);
+    corpusById = new Map(corpus.map((d) => [d.id, d]));
+    checkRefFn = (ref, ctxYear) => checkRef(ref, index, ctxYear);
+  }
+
   const sources: SourceReference[] = [];
   const seen = new Set<string>();
 
-  // Extract ECLI references (e.g., ECLI:FR:CCASS:2023:SO00123)
-  const ecliRegex =
-    /ECLI:[A-Z]{2}:[A-Z]+:\d{4}:[A-Z0-9.]+/g;
+  /** Construit une URL fiable : si corpus, on prend l'ID canonique de la décision matchée. */
+  const safeUrl = (ref: string, matchedDecisionId?: string): string => {
+    if (matchedDecisionId && corpusById) {
+      const d = corpusById.get(matchedDecisionId);
+      if (d) {
+        // ID Légifrance direct si dispo (CETATEXT/JURITEXT/CONSTEXT)
+        if (/^CETATEXT\d+/.test(d.id))
+          return `https://www.legifrance.gouv.fr/ceta/id/${d.id}`;
+        if (/^JURI(?:TEXT|CA|HISTO)\d+/.test(d.id))
+          return `https://www.legifrance.gouv.fr/juri/id/${d.id}`;
+        if (/^CONSTEXT\d+/.test(d.id))
+          return `https://www.legifrance.gouv.fr/cons/id/${d.id}`;
+        if (d.ecli) return buildSourceUrl(d.ecli);
+      }
+    }
+    return buildSourceUrl(ref);
+  };
+
+  /** Extrait l'année du contexte autour de l'index — ±150 chars. */
+  const yearAround = (idx: number): number | null => {
+    const start = Math.max(0, idx - 150);
+    const end = Math.min(text.length, idx + 150);
+    const window = text.slice(start, end);
+    const m = window.match(/\b(19|20)\d{2}\b/);
+    return m ? parseInt(m[0], 10) : null;
+  };
+
+  // ECLI references
+  const ecliRegex = /ECLI:[A-Z]{2}:[A-Z]+:\d{4}:[A-Z0-9.]+/g;
   for (const match of text.matchAll(ecliRegex)) {
     const ecli = match[0];
     if (seen.has(ecli)) continue;
     seen.add(ecli);
 
-    // Try to extract surrounding context for date/chamber/solution
-    const context = extractContext(text, match.index!, ecli);
+    const idx = match.index!;
+    if (checkRefFn) {
+      const check = checkRefFn(ecli, yearAround(idx));
+      if (!check.valid) continue; // hallucination — on n'expose pas
+    }
+
+    const context = extractContext(text, idx, ecli);
     sources.push({
       type: "ecli",
       reference: ecli,
-      url: buildSourceUrl(ecli),
+      url: safeUrl(ecli),
       date: context.date,
       chamber: context.chamber,
       solution: context.solution,
     });
   }
 
-  // Extract pourvoi numbers (e.g., n° 21-12.345, 21-12345, 2021-12345)
+  // Pourvoi numbers
   const pourvoiRegex =
     /(?:n[°o]\s*|(?:pourvoi|Pourvoi)\s+(?:n[°o]\s*)?)(\d{2,4}[-/.]\d{2,5}(?:\.\d+)?)/g;
   for (const match of text.matchAll(pourvoiRegex)) {
@@ -255,25 +310,30 @@ function extractSources(text: string): SourceReference[] {
     if (seen.has(ref)) continue;
     seen.add(ref);
 
-    const context = extractContext(text, match.index!, match[0]);
+    const idx = match.index!;
+    if (checkRefFn) {
+      const check = checkRefFn(ref, yearAround(idx));
+      if (!check.valid) continue;
+    }
+
+    const context = extractContext(text, idx, match[0]);
     sources.push({
       type: "pourvoi",
       reference: fullRef,
-      url: buildSourceUrl(ref),
+      url: safeUrl(ref),
       date: context.date,
       chamber: context.chamber,
       solution: context.solution,
     });
   }
 
-  // Extract Cass. references without pourvoi number (e.g., "Cass. soc., 25 novembre 2020")
+  // Cass. references without pourvoi (legacy, pas filtrable sans n°)
   const cassRegex =
     /Cass\.\s*(soc|civ\s*[123]|com|crim|ass\.\s*plén|ch\.\s*mixte)[.,]\s*(\d{1,2}\s+(?:janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)\s+\d{4})/gi;
   for (const match of text.matchAll(cassRegex)) {
     const ref = match[0].trim().replace(/,?\s*$/, "");
     if (seen.has(ref)) continue;
     seen.add(ref);
-
     sources.push({
       type: "decision",
       reference: ref,
@@ -702,7 +762,10 @@ function buildEvidenceTableFromBasicSources(sources: SourceReference[]): Evidenc
   };
 }
 
-export function parseAnalysisResponse(text: string): ParsedAnalysis {
+export function parseAnalysisResponse(
+  text: string,
+  corpus?: JudilibreDecision[],
+): ParsedAnalysis {
   const result: ParsedAnalysis = {
     situation: "",
     recherche: "",
@@ -1024,8 +1087,9 @@ export function parseAnalysisResponse(text: string): ParsedAnalysis {
     result.article700 = null;
   }
 
-  // Extract sources
-  result.sources = extractSources(text);
+  // Extract sources — Axe B : si le corpus est fourni, on filtre les refs
+  // hallucinées et on construit des URLs Légifrance directes via l'ID canonique.
+  result.sources = extractSources(text, corpus);
   result.sourceCount = result.sources.length;
 
   // Extract detailed sources from "Annexe des sources" section

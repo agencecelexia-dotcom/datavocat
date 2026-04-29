@@ -141,6 +141,20 @@ function juriToDecision(r: LegifranceSearchResult): JudilibreDecision | null {
   const t = r.titles?.[0];
   if (!t?.id) return null;
   const title = t.title || "";
+
+  // Axe C : déduire la juridiction depuis le titre. JURI contient à la fois
+  // des arrêts Cass et des arrêts CA historiques. Forcer "cc" pour tout
+  // le monde fausse les stats hiérarchiques et les liens.
+  let jurisdiction: string;
+  if (/^cour\s+de\s+cassation/i.test(title) || /^cass\./i.test(title)) {
+    jurisdiction = "cc";
+  } else if (/^cour\s+d['’]\s*appel/i.test(title) || /^c\.?a\./i.test(title)) {
+    jurisdiction = "ca";
+  } else {
+    // Fallback : JURI est dominée par la Cass quand le titre est ambigu.
+    jurisdiction = "cc";
+  }
+
   // Détection chambre depuis le titre
   let chamber = "";
   const cm = title.match(/Chambre\s+([a-zéèêà]+)/i);
@@ -151,15 +165,23 @@ function juriToDecision(r: LegifranceSearchResult): JudilibreDecision | null {
     else if (c.startsWith("crim")) chamber = "crim";
     else if (c.startsWith("civ")) chamber = "civ1";
   }
-  // Numéro de pourvoi à la fin (ex: "90-45.687")
+  // Numéro de pourvoi (Cass) ou RG (CA)
   let numero = "";
-  const nm = title.match(/(\d{2,4}[-.]\d{2,5}(?:\.\d+)?)/);
-  if (nm) numero = nm[1];
+  if (jurisdiction === "ca") {
+    // Format RG : "21/03476"
+    const rgm = title.match(/(\d{2,4}\/\d{4,6})/);
+    if (rgm) numero = rgm[1];
+  }
+  if (!numero) {
+    // Fallback : format pourvoi "90-45.687"
+    const nm = title.match(/(\d{2,4}[-.]\d{2,5}(?:\.\d+)?)/);
+    if (nm) numero = nm[1];
+  }
 
   return {
     id: t.id,
-    jurisdiction: "cc", // JURI = jurisprudence judiciaire, dominée par la Cass.
-    chamber: chamber || "soc",
+    jurisdiction,
+    chamber: chamber || (jurisdiction === "cc" ? "soc" : ""),
     number: numero ? [numero] : [t.id],
     ecli: undefined,
     solution: r.solution || "",
