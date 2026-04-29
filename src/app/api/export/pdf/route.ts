@@ -21,6 +21,7 @@ const C = {
   gold: "#b88a3e",
   goldDeep: "#8a6225",
   paper: "#f6f4ef",
+  paper2: "#fbf9f4",
   line: "#d8d4c6",
   hairline: "#e5e2d9",
   muted: "#6b7280",
@@ -218,6 +219,52 @@ const styles = StyleSheet.create({
     lineHeight: 1.55,
   },
 
+  // ─── Encadré méthodologique du taux de succès (Axe E) ──────
+  methodWrap: {
+    marginTop: 8,
+    marginBottom: 20,
+    padding: 14,
+    borderWidth: 0.6,
+    borderColor: C.line,
+    backgroundColor: C.paper2,
+  },
+  methodHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginBottom: 8,
+  },
+  methodLabel: {
+    fontFamily: "Helvetica",
+    fontSize: 7.5,
+    color: C.gold,
+    letterSpacing: 2.5,
+    textTransform: "uppercase",
+    marginRight: 16,
+  },
+  methodTaux: {
+    fontFamily: "Times-Bold",
+    fontSize: 22,
+    color: C.ink,
+  },
+  methodTauxPct: {
+    fontFamily: "Times-Roman",
+    fontSize: 12,
+    color: C.muted,
+    marginLeft: 2,
+  },
+  methodSourceLine: {
+    fontFamily: "Helvetica",
+    fontSize: 8.5,
+    color: C.muted,
+    marginBottom: 8,
+  },
+  methodPedago: {
+    fontFamily: "Times-Italic",
+    fontSize: 9.5,
+    color: C.ink,
+    lineHeight: 1.5,
+  },
+
   // Sections numérotées
   sectionHeaderWrap: {
     marginTop: 26,
@@ -386,6 +433,21 @@ type Block =
   | { kind: "table"; headers: string[]; rows: string[][] }
   | { kind: "tableStub"; rowCount: number; colCount: number };
 
+/**
+ * Filtre de sortie (Axe D) : remplace toutes les occurrences user-facing
+ * de « jurimétrie/jurimétrique » par leur équivalent « jurisprudentielle/
+ * de jurisprudence ». Anti-régression défensif au moment du rendu PDF.
+ */
+function sanitizeJurimetrieText(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/\bAnalyse\s+jurim[ée]trique[s]?\b/gi, "Analyse jurisprudentielle")
+    .replace(/\bd['’]\s*analyse\s+jurim[ée]trique[s]?\b/gi, "d'analyse jurisprudentielle")
+    .replace(/\banalyse\s+jurim[ée]trique[s]?\b/gi, "analyse jurisprudentielle")
+    .replace(/\bjurim[ée]triques?\b/gi, "jurisprudentielle")
+    .replace(/\bjurim[ée]trie\b/gi, "analyse de jurisprudence");
+}
+
 function parseMarkdownToBlocks(md: string): Block[] {
   const lines = md.split("\n");
   const blocks: Block[] = [];
@@ -504,8 +566,11 @@ function AnalysisDocument(props: {
   blocks: Block[];
   dateStr: string;
   shortDateStr: string;
+  taux: number | null;
+  tauxSource: "fond" | "mixte" | "cassation" | null;
+  corpusTotal: number | null;
 }) {
-  const { query, blocks, dateStr, shortDateStr } = props;
+  const { query, blocks, dateStr, shortDateStr, taux, tauxSource, corpusTotal } = props;
 
   // Numérotation des sections h1
   let sectionCounter = 0;
@@ -707,7 +772,7 @@ function AnalysisDocument(props: {
         React.createElement(
           Text,
           { style: styles.runningHeaderLeft },
-          "Datavocat · Analyse jurimétrique"
+          "Datavocat · Analyse jurisprudentielle"
         ),
         React.createElement(
           Text,
@@ -728,6 +793,43 @@ function AnalysisDocument(props: {
         )
       ),
 
+      // Encadré méthodologique du taux de succès (Axe E)
+      taux !== null
+        ? React.createElement(
+            View,
+            { style: styles.methodWrap, wrap: false },
+            React.createElement(
+              View,
+              { style: styles.methodHeader },
+              React.createElement(
+                Text,
+                { style: styles.methodLabel },
+                "§ Taux de succès"
+              ),
+              React.createElement(Text, { style: styles.methodTaux }, `${taux}`),
+              React.createElement(Text, { style: styles.methodTauxPct }, " %")
+            ),
+            React.createElement(
+              Text,
+              { style: styles.methodSourceLine },
+              `Périmètre : ${corpusTotal ?? "—"} décision${(corpusTotal ?? 0) > 1 ? "s" : ""} du fond ${
+                tauxSource === "fond"
+                  ? "(1ère instance + cours d'appel)"
+                  : tauxSource === "mixte"
+                    ? "(1ère instance + cours d'appel, hors cassation)"
+                    : tauxSource === "cassation"
+                      ? "— ATTENTION : taux de cassation, pas un taux de succès au fond"
+                      : ""
+              }.`
+            ),
+            React.createElement(
+              Text,
+              { style: styles.methodPedago },
+              "Le taux de succès est calculé exclusivement à partir des décisions des juridictions du fond (conseils de prud'hommes, tribunaux judiciaires, cours d'appel). Les arrêts de la Cour de cassation sont volontairement exclus : la Cour de cassation statue par économie de moyens — dès qu'un moyen est suffisant pour casser, elle ne ré-examine pas l'ensemble. Les juges du fond, à l'inverse, apprécient l'intégralité des moyens et des éléments de preuve contradictoirement débattus. Leurs décisions reflètent donc plus fidèlement la probabilité réelle de succès d'une argumentation."
+            )
+          )
+        : null,
+
       ...renderedBlocks,
 
       // Footer
@@ -737,7 +839,7 @@ function AnalysisDocument(props: {
         React.createElement(
           Text,
           { style: styles.footerLeft },
-          "Datavocat · Jurimétrie"
+          "Datavocat · Analyse jurisprudentielle"
         ),
         React.createElement(Text, {
           style: styles.footerPage,
@@ -767,7 +869,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const query: string = body.query || "";
     const response: string = body.response || "";
-    void (body.parsed as ParsedAnalysis | null | undefined);
+    const parsed = body.parsed as ParsedAnalysis | null | undefined;
+    // Taux + source pour l'encadré méthodologique (Axe E).
+    const taux = parsed?.verification?.tauxSuccesRetenu ?? parsed?.tauxSuccesGlobal ?? null;
+    const tauxSource = parsed?.verification?.tauxSuccesSource ?? null;
+    const corpusTotal = parsed?.verification?.corpusComposition?.total ?? null;
 
     if (!response || typeof response !== "string") {
       return new Response(JSON.stringify({ error: "response requis" }), {
@@ -785,7 +891,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const blocks = parseMarkdownToBlocks(response);
+    // Axe D — filtre de sortie : remplace toute occurrence résiduelle de
+    // « jurimétrique/jurimétrie » dans le texte avant rendu PDF.
+    // Anti-régression au cas où Claude (ou un fragment de texte legacy)
+    // ait laissé passer le mot.
+    const sanitizedResponse = sanitizeJurimetrieText(response);
+    const blocks = parseMarkdownToBlocks(sanitizedResponse);
     const now = new Date();
     const dateStr = now.toLocaleDateString("fr-FR", {
       day: "numeric",
@@ -803,6 +914,9 @@ export async function POST(request: NextRequest) {
       blocks,
       dateStr,
       shortDateStr,
+      taux,
+      tauxSource,
+      corpusTotal,
     });
 
     const buffer = await renderToBuffer(

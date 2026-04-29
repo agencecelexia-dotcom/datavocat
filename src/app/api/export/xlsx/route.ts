@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const wb = new ExcelJS.Workbook();
     wb.creator = "Datavocat";
     wb.created = new Date();
-    wb.title = "Analyse jurimétrique";
+    wb.title = "Analyse jurisprudentielle";
 
     // ─── Feuille 1 : Synthèse ───────────────────────────────────
     const synthese = wb.addWorksheet("Synthèse", {
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     synthese.columns = [{ width: 28 }, { width: 60 }];
 
-    const titleRow = synthese.addRow(["DATAVOCAT — Analyse jurimétrique"]);
+    const titleRow = synthese.addRow(["DATAVOCAT — Analyse jurisprudentielle"]);
     synthese.mergeCells(`A${titleRow.number}:B${titleRow.number}`);
     titleRow.font = {
       name: "Calibri",

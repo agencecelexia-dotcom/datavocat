@@ -32,7 +32,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Datavocat — Analyse Jurimétrique",
   description:
-    "Plateforme d'analyse jurimétrique assistée par IA pour avocats français",
+    "Plateforme d'analyse jurisprudentielle assistée par IA pour avocats français",
 };
 
 export default function RootLayout({

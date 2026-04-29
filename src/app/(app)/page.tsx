@@ -1017,7 +1017,7 @@ function ExportButton({
  */
 function ResultsTitle({ query }: { query: string }) {
   const clean = query.trim();
-  if (!clean) return <span>Analyse jurimétrique</span>;
+  if (!clean) return <span>Analyse jurisprudentielle</span>;
   const trimmed = clean.length > 120 ? clean.slice(0, 120) + "…" : clean;
   const juriRegex = /(CPH(?:\s+de)?\s+[A-Z][a-zà-ÿ]+|Cour\s+d['e]appel(?:\s+de)?\s+[A-Z][a-zà-ÿ]+|Tribunal\s+\w+\s+(?:de\s+)?[A-Z][a-zà-ÿ]+|Cour\s+de\s+cassation)/i;
   const match = trimmed.match(juriRegex);
@@ -1302,7 +1302,7 @@ function AnalyzingScreen({
     },
     {
       key: "claude",
-      label: "Analyse jurimétrique",
+      label: "Analyse jurisprudentielle",
       detail: "Motifs · solutions · synthèse",
     },
   ];

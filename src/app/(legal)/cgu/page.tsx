@@ -11,7 +11,7 @@ export default function CGUPage() {
       <h2>Article 1 — Définitions</h2>
       <ul>
         <li>
-          <strong>Service</strong> : la plateforme d&apos;analyse jurimétrique
+          <strong>Service</strong> : la plateforme d&apos;analyse jurisprudentielle
           accessible à l&apos;adresse datavocat.fr
         </li>
         <li>
@@ -33,7 +33,7 @@ export default function CGUPage() {
 
       <h2>Article 2 — Objet du Service</h2>
       <p>
-        Datavocat est une plateforme d&apos;analyse jurimétrique destinée aux
+        Datavocat est une plateforme d&apos;analyse jurisprudentielle destinée aux
         professionnels du droit. Le Service permet de :
       </p>
       <ul>
@@ -62,7 +62,7 @@ export default function CGUPage() {
       <h3>4.1 Usage autorisé</h3>
       <p>
         L&apos;Utilisateur s&apos;engage à utiliser le Service conformément à sa
-        destination, à savoir l&apos;analyse jurimétrique dans un cadre professionnel.
+        destination, à savoir l&apos;analyse jurisprudentielle dans un cadre professionnel.
       </p>
       <h3>4.2 Usages interdits</h3>
       <p>Il est interdit de :</p>

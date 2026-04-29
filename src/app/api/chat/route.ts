@@ -6,7 +6,7 @@ import { trackClaudeUsage } from "@/lib/api-usage/track";
 export const maxDuration = 30;
 
 const CHAT_SYSTEM_PROMPT = (analysisContext: string) =>
-  `Tu es DATAVOCAT en mode conversation de suivi. L'avocat a deja recu une analyse jurimetrique complete. Il pose maintenant des questions complementaires.
+  `Tu es DATAVOCAT en mode conversation de suivi. L'avocat a deja recu une analyse jurisprudentielle complete. Il pose maintenant des questions complementaires.
 
 CONTEXTE DE L'ANALYSE PRECEDENTE :
 ${analysisContext}

@@ -48,7 +48,7 @@ export default function LoginPage() {
         className="mt-3 text-[14px]"
         style={{ color: "var(--muted-foreground)" }}
       >
-        Connexion à votre espace d&apos;analyse jurimétrique.
+        Connexion à votre espace d&apos;analyse jurisprudentielle.
       </p>
 
       <form onSubmit={handleLogin} className="mt-10 space-y-5">

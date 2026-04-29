@@ -125,7 +125,7 @@ export function layout(args: {
           <!-- Footer brand -->
           <tr><td style="padding:20px 16px 4px 16px;text-align:center;">
             <div style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:${MUTED};line-height:1.5;">
-              Datavocat · Analyse jurimétrique · © 2026<br>
+              Datavocat · Analyse jurisprudentielle · © 2026<br>
               <a href="mailto:${CONTACT_EMAIL}" style="color:${MUTED};text-decoration:none;">${CONTACT_EMAIL}</a>
               &nbsp;·&nbsp;
               <a href="https://datavocat.fr" style="color:${MUTED};text-decoration:none;">datavocat.fr</a>

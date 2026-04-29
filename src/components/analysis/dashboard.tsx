@@ -682,10 +682,29 @@ export function AnalysisDashboard({
         <div className="grid grid-cols-2 gap-6">
           <div>
             <div
-              className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
+              className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2 flex items-center gap-1.5"
               style={{ color: "var(--gold)" }}
             >
-              {cassDominant ? "Taux de cassation" : "Taux de succès"}
+              <span>{cassDominant ? "Taux de cassation" : "Taux de succès"}</span>
+              <span
+                className="cursor-help"
+                title="Le taux de succès est calculé exclusivement à partir des décisions des juridictions du fond (CPH, TJ, cours d'appel). Les arrêts de la Cour de cassation sont exclus : elle statue par économie de moyens — dès qu'un moyen suffit pour casser, elle ne ré-examine pas l'ensemble. Les juges du fond apprécient l'intégralité des moyens contradictoirement débattus, ce qui en fait la base statistique pertinente pour estimer une probabilité réelle de succès."
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  border: "1px solid var(--gold)",
+                  fontSize: 9,
+                  fontFamily: "serif",
+                  fontStyle: "italic",
+                  fontWeight: 600,
+                }}
+              >
+                i
+              </span>
             </div>
             <div className="flex items-baseline gap-1.5">
               <div

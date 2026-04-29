@@ -164,7 +164,7 @@ export default function HistoriquePage() {
               className="mt-2 max-w-sm text-[13px]"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Lancez votre première analyse jurimétrique pour voir l&apos;historique ici.
+              Lancez votre première analyse jurisprudentielle pour voir l&apos;historique ici.
             </p>
             <Link
               href="/"

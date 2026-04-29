@@ -26,7 +26,7 @@ export default function AuthLayout({
                 Datavocat
               </div>
               <div className="font-mono text-[9px] uppercase tracking-[0.22em] mt-1 text-white/50">
-                Jurimétrie
+                Jurisprudence
               </div>
             </div>
           </div>
@@ -35,7 +35,7 @@ export default function AuthLayout({
           <div className="space-y-8">
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[0.25em] mb-4 text-[#c9a96e]">
-                § Jurimétrie · 562 487 décisions
+                § Jurisprudence · 562 487 décisions
               </div>
               <h2 className="font-serif text-[44px] leading-[1.05] font-medium text-white">
                 Plaidez avec la{" "}
@@ -117,7 +117,7 @@ export default function AuthLayout({
             className="mt-3 text-[13px]"
             style={{ color: "var(--muted-foreground)" }}
           >
-            L&apos;intelligence jurimétrique au service de votre stratégie.
+            L&apos;intelligence jurisprudentielle au service de votre stratégie.
           </p>
         </div>
 

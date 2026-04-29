@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       spacing: { after: 100 },
       children: [
         new TextRun({
-          text: "Analyse Jurimetrique",
+          text: "Analyse Jurisprudentielle",
           size: 36,
           color: "c9a96e",
           font: "Georgia",
