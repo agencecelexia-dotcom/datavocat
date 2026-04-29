@@ -303,6 +303,7 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
               citedRefs: 0,
               verifiedRefs: 0,
               unverifiedRefs: [],
+              unverifiedDetails: [],
               removedSentences: 0,
               removedRows: 0,
               coherenceCorrected: false,
