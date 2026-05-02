@@ -306,53 +306,78 @@ export function AnalysisDashboard({
                 label: "1er degré",
                 count: composition.premierDegre ?? 0,
                 hint: "CPH, TJ, TC, TGI, TI, T. correctionnel",
+                emptyHint:
+                  "CPH (prud'hommes) non encore disponible côté Judilibre — décret 2024-1252 en attente d'application. TJ/TCOM accessibles si la matière s'y prête.",
               },
               {
                 label: "Cour d'appel",
                 count: composition.courAppel ?? 0,
                 hint: "Juridiction du 2nd degré",
+                emptyHint:
+                  "Aucune décision de cour d'appel remontée pour cette requête.",
               },
               {
                 label: "Cour de cassation",
                 count: composition.cassation ?? 0,
                 hint: "Juge du droit",
+                emptyHint:
+                  "Aucun arrêt de la Cour de cassation remonté pour cette requête.",
               },
               {
                 label: "Conseil d'État",
                 count: composition.conseilEtat ?? 0,
                 hint: "CE, CAA, TA — source Légifrance CETAT",
+                emptyHint:
+                  "Hors compétence administrative — le Conseil d'État ne juge que le droit administratif (urbanisme, fonction publique, marchés publics, fiscal admin). 0 décision est attendu en social, civil ou commercial.",
                 disabled: false,
               },
-            ].map((cat) => (
-              <div
-                key={cat.label}
-                title={cat.hint}
-                style={{
-                  opacity: cat.disabled ? 0.45 : 1,
-                }}
-              >
+            ].map((cat) => {
+              const isEmpty = cat.count === 0;
+              return (
                 <div
-                  className="font-mono text-[9.5px] uppercase tracking-[0.15em]"
-                  style={{ color: "var(--muted-foreground)" }}
+                  key={cat.label}
+                  title={isEmpty ? cat.emptyHint : cat.hint}
+                  style={{
+                    opacity: cat.disabled ? 0.45 : 1,
+                  }}
                 >
-                  {cat.label}
-                </div>
-                <div
-                  className="font-serif text-[22px] tabular-nums leading-none mt-1"
-                  style={{ color: "var(--ink)" }}
-                >
-                  {cat.count}
-                  {corpusTotal > 0 && (
-                    <span
-                      className="font-mono text-[10px] ml-1.5"
-                      style={{ color: "var(--muted-foreground)" }}
+                  <div
+                    className="font-mono text-[9.5px] uppercase tracking-[0.15em]"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    {cat.label}
+                  </div>
+                  <div
+                    className="font-serif text-[22px] tabular-nums leading-none mt-1"
+                    style={{
+                      color: isEmpty ? "var(--muted-foreground)" : "var(--ink)",
+                    }}
+                  >
+                    {cat.count}
+                    {corpusTotal > 0 && (
+                      <span
+                        className="font-mono text-[10px] ml-1.5"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
+                        ({Math.round((cat.count / corpusTotal) * 100)}%)
+                      </span>
+                    )}
+                  </div>
+                  {isEmpty && (
+                    <div
+                      className="mt-1 text-[10px] leading-snug"
+                      style={{ color: "var(--muted-foreground)", opacity: 0.7 }}
                     >
-                      ({Math.round((cat.count / corpusTotal) * 100)}%)
-                    </span>
+                      {cat.label === "1er degré"
+                        ? "CPH non branché (décret en attente)"
+                        : cat.label === "Conseil d'État"
+                          ? "Hors compétence (juge admin)"
+                          : "Aucune décision remontée"}
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

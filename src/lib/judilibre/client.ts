@@ -473,8 +473,11 @@ export function detectTargetJurisdiction(query: string): string[] | undefined {
   // un signal admin pur qui n'a pas de Cass.). Adapte les juges du fond.
   switch (matter) {
     case "social":
-      // CPH (vide pour l'instant) → on s'appuie sur CA chambre soc + Cass. soc.
-      return ["ca", "cc"];
+      // CPH = HTTP 400 sur Judilibre (décret 2024-1252 pas encore appliqué).
+      // On élargit à TJ pour récupérer le contentieux pôle social TJ
+      // (URSSAF, sécurité sociale, etc.) + CA chambre soc + Cass. soc.
+      // Le rerank Haiku/Voyage filtrera le bruit (URSSAF hors sujet par ex).
+      return ["ca", "tj", "cc"];
     case "commercial":
       // Fond commercial : TCOM + CA chambre com + Cass. com
       return ["ca", "tcom", "cc"];
