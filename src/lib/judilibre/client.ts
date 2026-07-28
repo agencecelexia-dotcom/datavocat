@@ -967,7 +967,15 @@ export async function searchJudilibreForAnalysis(
       userId: opts?.userId,
       userEmail: opts?.userEmail,
     });
-    const dates = topDecisions.map((d) => d.date).filter(Boolean).sort();
+    // `analyzedCount` et la couverture temporelle ne portent QUE sur
+    // l'échantillon statistique. Les décisions CEDH/CJUE/CNIL sont dans le
+    // corpus comme appui juridique, mais les compter ici ferait diverger le
+    // total annoncé du nombre de lignes du tableau de preuve (RÈGLE 1 du
+    // prompt) et fausserait la profondeur du corpus.
+    const statistiques = topDecisions.filter(
+      (d) => !SUPRANATIONAL.has(d.jurisdiction)
+    );
+    const dates = statistiques.map((d) => d.date).filter(Boolean).sort();
 
     return {
       context: formatJudilibreResults({
@@ -975,13 +983,13 @@ export async function searchJudilibreForAnalysis(
         total: totalAcrossSearches,
         query: searchQueries.join(" + "),
       }),
-      analyzedCount: topDecisions.length,
+      analyzedCount: statistiques.length,
       totalFound: totalAcrossSearches,
       oldestDate: dates[0] ?? null,
       freshestDate: dates[dates.length - 1] ?? null,
       decisions: topDecisions,
       expandLevel:
-        topDecisions.length < JUDILIBRE_MIN_DECISIONS ? -1 : expandLevel,
+        statistiques.length < JUDILIBRE_MIN_DECISIONS ? -1 : expandLevel,
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erreur inconnue";
@@ -997,63 +1005,140 @@ export async function searchJudilibreForAnalysis(
   }
 }
 
-function formatJudilibreResults(result: JudilibreSearchResult): string {
-  let context = `═══ JUDILIBRE (Cour de cassation + Cours d'appel) ═══\n`;
-  context += `${result.total} decisions trouvees au total, ${result.results.length} les plus pertinentes analysees :\n\n`;
+/**
+ * Libellé humain de la juridiction, à partir du code interne.
+ *
+ * ATTENTION — ce libellé est lu par Claude et alimente la colonne
+ * « Juridiction » du tableau de preuve. Une erreur ici se propage
+ * directement dans le rapport rendu à l'avocat.
+ */
+const JURISDICTION_LABELS: Record<string, string> = {
+  cc: "Cour de cassation",
+  ca: "Cour d'appel",
+  tj: "Tribunal judiciaire",
+  tcom: "Tribunal de commerce",
+  cph: "Conseil de prud'hommes",
+  ce: "Conseil d'État",
+  caa: "Cour administrative d'appel",
+  ta: "Tribunal administratif",
+  constit: "Conseil constitutionnel",
+  cedh: "Cour européenne des droits de l'homme",
+  cjue: "Cour de justice de l'Union européenne",
+  cnil: "CNIL (autorité administrative indépendante)",
+};
 
-  for (const dec of result.results) {
-    const pourvois = Array.isArray(dec.number)
-      ? dec.number.join(", ")
-      : dec.number || "N/A";
-    const jurisdiction =
-      dec.jurisdiction === "cc" ? "Cour de cassation" : `CA (${dec.jurisdiction})`;
-    const chamberNames: Record<string, string> = {
-      soc: "Chambre sociale",
-      civ1: "1ere chambre civile",
-      civ2: "2eme chambre civile",
-      civ3: "3eme chambre civile",
-      com: "Chambre commerciale",
-      crim: "Chambre criminelle",
-      mi: "Chambre mixte",
-      pl: "Assemblee pleniere",
-    };
-    const chamber = chamberNames[dec.chamber] || dec.chamber;
+function jurisdictionLabel(code: string): string {
+  return JURISDICTION_LABELS[code] || code || "Juridiction non précisée";
+}
 
-    // Format compact — une ligne par champ, pas d'étiquettes redondantes.
-    // Signal conservé : identification, solution, thèmes, sommaire, extraits.
-    const solution = (dec.solution_alt || dec.solution || "").trim();
-    context += `--- ${jurisdiction}, ${chamber} — ${dec.date} | ${dec.ecli} | Pourvoi ${pourvois} ---\n`;
-    if (solution) context += `Solution: ${solution}\n`;
+/** Juridictions hors ordres français : contexte normatif, hors statistiques. */
+const SUPRANATIONAL = new Set(["cedh", "cjue", "cnil"]);
 
-    if (dec.themes && dec.themes.length > 0) {
-      context += `Themes: ${dec.themes.slice(0, 4).join(", ")}\n`;
+function formatDecisionBlock(dec: JudilibreDecision): string {
+  let context = "";
+  const pourvois = Array.isArray(dec.number)
+    ? dec.number.join(", ")
+    : dec.number || "N/A";
+  const jurisdiction = jurisdictionLabel(dec.jurisdiction);
+  const chamberNames: Record<string, string> = {
+    soc: "Chambre sociale",
+    civ1: "1ere chambre civile",
+    civ2: "2eme chambre civile",
+    civ3: "3eme chambre civile",
+    com: "Chambre commerciale",
+    crim: "Chambre criminelle",
+    mi: "Chambre mixte",
+    pl: "Assemblee pleniere",
+  };
+  const chamber = chamberNames[dec.chamber] || dec.chamber;
+
+  // Format compact — une ligne par champ, pas d'étiquettes redondantes.
+  // Signal conservé : identification, solution, thèmes, sommaire, extraits.
+  const solution = (dec.solution_alt || dec.solution || "").trim();
+
+  // Ligne d'identification. La référence à citer varie selon la source :
+  // ECLI pour la Cassation, n° RG pour les CA, identifiant natif pour les
+  // juridictions européennes (itemid HUDOC, CELEX). On n'affiche jamais
+  // "undefined" ni le mot "Pourvoi" pour une source qui n'en a pas.
+  const refs: string[] = [];
+  if (dec.ecli) refs.push(dec.ecli);
+  if (pourvois && pourvois !== "N/A") {
+    refs.push(SUPRANATIONAL.has(dec.jurisdiction) ? pourvois : `Pourvoi ${pourvois}`);
+  }
+  if (refs.length === 0) refs.push(dec.id);
+
+  context += `--- ${jurisdiction}, ${chamber} — ${dec.date || "date inconnue"} | ${refs.join(" | ")} ---\n`;
+  if (solution) context += `Solution: ${solution}\n`;
+
+  if (dec.themes && dec.themes.length > 0) {
+    context += `Themes: ${dec.themes.slice(0, 4).join(", ")}\n`;
+  }
+  if (dec.sommaire) {
+    context += `Sommaire: ${stripMagistratNames(dec.sommaire.slice(0, 280))}\n`;
+  }
+  // Titrage seulement si pas déjà couvert par les thèmes
+  if (
+    dec.titrage &&
+    dec.titrage.length > 0 &&
+    (!dec.themes || dec.themes.length < 2)
+  ) {
+    context += `Titrage: ${dec.titrage.slice(0, 3).join(" > ")}\n`;
+  }
+
+  // Highlights — un seul extrait pertinent suffit (le plus discriminant).
+  if (dec.highlights) {
+    const excerpt = Object.values(dec.highlights)
+      .flat()
+      .slice(0, 1)
+      .map((h) => h.replace(/<\/?em>/g, ""))[0];
+    if (excerpt) {
+      context += `Extrait: ${stripMagistratNames(excerpt.slice(0, 350))}\n`;
     }
-    if (dec.sommaire) {
-      context += `Sommaire: ${stripMagistratNames(dec.sommaire.slice(0, 280))}\n`;
-    }
-    // Titrage seulement si pas déjà couvert par les thèmes
-    if (
-      dec.titrage &&
-      dec.titrage.length > 0 &&
-      (!dec.themes || dec.themes.length < 2)
-    ) {
-      context += `Titrage: ${dec.titrage.slice(0, 3).join(" > ")}\n`;
-    }
+  } else if (dec.text) {
+    context += `Extrait: ${stripMagistratNames(dec.text.slice(0, 250))}...\n`;
+  }
 
-    // Highlights — un seul extrait pertinent suffit (le plus discriminant).
-    if (dec.highlights) {
-      const excerpt = Object.values(dec.highlights)
-        .flat()
-        .slice(0, 1)
-        .map((h) => h.replace(/<\/?em>/g, ""))[0];
-      if (excerpt) {
-        context += `Extrait: ${stripMagistratNames(excerpt.slice(0, 350))}\n`;
-      }
-    } else if (dec.text) {
-      context += `Extrait: ${stripMagistratNames(dec.text.slice(0, 250))}...\n`;
-    }
+  return context + "\n";
+}
 
-    context += "\n";
+/**
+ * Met en forme le corpus injecté dans le prompt.
+ *
+ * Le corpus est scindé en DEUX blocs distincts pour que Claude ne confonde
+ * jamais l'échantillon statistique et le contexte normatif :
+ *
+ *   1. CORPUS JURIDICTIONS FRANÇAISES — la matière première des statistiques,
+ *      celle qui alimente le tableau de preuve et le taux de succès.
+ *   2. CONTEXTE NORMATIF EUROPÉEN — CEDH / CJUE / CNIL, citables comme appui
+ *      juridique mais JAMAIS comptées dans les pourcentages (cohérent avec
+ *      `isStatisticalDecision` dans stats.ts).
+ */
+export function formatJudilibreResults(result: JudilibreSearchResult): string {
+  const francaises = result.results.filter(
+    (d) => !SUPRANATIONAL.has(d.jurisdiction)
+  );
+  const supranationales = result.results.filter((d) =>
+    SUPRANATIONAL.has(d.jurisdiction)
+  );
+
+  // Le nom "CORPUS JUDILIBRE" est conservé : le prompt système y fait
+  // référence à une dizaine d'endroits (tableau de preuve, sources, règles
+  // de citation). Le renommer sans toucher au prompt romprait ces renvois.
+  let context = `═══ CORPUS JUDILIBRE — JURIDICTIONS FRANÇAISES ═══\n`;
+  context += `${result.total} decisions trouvees au total, ${francaises.length} les plus pertinentes analysees.\n`;
+  context += `Ce bloc est le SEUL echantillon statistique : tableau de preuve et pourcentages s'y limitent.\n\n`;
+  for (const dec of francaises) {
+    context += formatDecisionBlock(dec);
+  }
+
+  if (supranationales.length > 0) {
+    context += `═══ CONTEXTE NORMATIF EUROPEEN ET AUTORITES INDEPENDANTES ═══\n`;
+    context += `${supranationales.length} decisions CEDH / CJUE / CNIL fournies comme APPUI JURIDIQUE.\n`;
+    context += `INTERDIT de les compter dans les statistiques, dans le tableau de preuve ou dans le total de decisions analysees.\n`;
+    context += `Citables uniquement dans "Points d'attention strategiques" pour eclairer un principe.\n\n`;
+    for (const dec of supranationales) {
+      context += formatDecisionBlock(dec);
+    }
   }
 
   return context;
