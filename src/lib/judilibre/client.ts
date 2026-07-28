@@ -583,6 +583,22 @@ export async function searchJudilibreForAnalysis(
           pageSize: 50,
         }).catch(() => [])
       : Promise.resolve([]);
+
+    // Vague Justicelibre (serveur MCP public, sans auth) : couvre les angles
+    // morts de Judilibre et de Légifrance — CEDH, CJUE, CNIL — et supplée
+    // l'administratif quand les credentials Légifrance manquent.
+    // Source communautaire : jamais bloquante, dégrade vers [] en cas d'échec.
+    const { planJusticeLibre, searchJusticeLibre } = await import(
+      "@/lib/justicelibre/client"
+    );
+    const { isLegifranceAvailable } = await import("@/lib/legifrance/oauth");
+    const jlPlan = planJusticeLibre(
+      userQuery,
+      isAdmin,
+      isLegifranceAvailable()
+    );
+    const justiceLibrePromise: Promise<JudilibreDecision[]> =
+      searchJusticeLibre(userQuery, jlPlan).catch(() => []);
     // JURI historique : on lance toujours (sauf admin pur) — gain net
     // pour les sujets qui ont une jurisprudence ancienne fondatrice.
     const juriPromise: Promise<JudilibreDecision[]> = isAdmin
@@ -773,12 +789,15 @@ export async function searchJudilibreForAnalysis(
     // Récupération des vagues Légifrance complémentaires (parallèle).
     // CETAT : décisions administratives — jurisdiction "ce/caa/ta".
     // JURI : décisions judiciaires historiques — jurisdiction "cc" (Cass.).
-    // Toutes au format JudilibreDecision, passent par le rerank Haiku
-    // comme les autres et sont classées dans la hiérarchie 4 catégories.
-    const [adminDecisions, juriDecisions] = await Promise.all([
-      adminPromise,
-      juriPromise,
-    ]);
+    // Justicelibre : CEDH / CJUE / CNIL — contexte normatif uniquement.
+    //
+    // Toutes au format JudilibreDecision et soumises au rerank Haiku. Seules
+    // les juridictions françaises entrent dans la hiérarchie 4 catégories :
+    // CEDH, CJUE et CNIL sont écartées des statistiques par
+    // `isStatisticalDecision` (voir stats.ts) pour ne pas fausser le taux de
+    // succès, mais restent dans le corpus injecté au prompt.
+    const [adminDecisions, juriDecisions, justiceLibreDecisions] =
+      await Promise.all([adminPromise, juriPromise, justiceLibrePromise]);
 
     const mergeBatch = (batch: JudilibreDecision[], label: string) => {
       let added = 0;
@@ -799,6 +818,7 @@ export async function searchJudilibreForAnalysis(
     };
     mergeBatch(adminDecisions, "administratives (CETAT)");
     mergeBatch(juriDecisions, "judiciaires historiques (JURI)");
+    mergeBatch(justiceLibreDecisions, "européennes/CNIL (Justicelibre)");
 
     if (uniqueDecisions.length === 0) {
       // Last resort: single-word searches on the most important terms

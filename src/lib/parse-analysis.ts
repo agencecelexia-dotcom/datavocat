@@ -201,6 +201,28 @@ export function buildSourceUrl(ref: string): string {
   const constitMatch = ref.match(/CONSTEXT\d{12,}/);
   if (constitMatch) return `https://www.legifrance.gouv.fr/cons/id/${constitMatch[0]}`;
 
+  // 1 bis) Sources supranationales : elles ne sont PAS sur Légifrance.
+  //    Sans ce garde-fou, un itemid HUDOC ("001-234567") serait capté plus bas
+  //    par la regex pourvoi et produirait un lien Légifrance tronqué et faux.
+  const hudocMatch = ref.match(/\b001-\d{5,6}\b/);
+  if (hudocMatch) {
+    return `https://hudoc.echr.coe.int/fre?i=${hudocMatch[0]}`;
+  }
+  const celexMatch = ref.match(/\b6\d{4}[A-Z]{2}\d{4}\b/);
+  if (celexMatch) {
+    return `https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX:${celexMatch[0]}`;
+  }
+  // Les ECLI européens doivent partir vers leur juridiction d'origine et non
+  // vers Légifrance, qui n'indexe ni Strasbourg ni Luxembourg.
+  const ecliEuMatch = ref.match(/ECLI:(?:EU|CE):[A-Z]+:\d{4}:[A-Z0-9.]+/i);
+  if (ecliEuMatch) {
+    const ecli = ecliEuMatch[0].toUpperCase();
+    if (/^ECLI:CE:ECHR:/.test(ecli)) {
+      return `https://hudoc.echr.coe.int/fre?i=${encodeURIComponent(ecli)}`;
+    }
+    return `https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=ecli:${encodeURIComponent(ecli)}`;
+  }
+
   // 2) ECLI -> Legifrance search/all qui redirige vers la fiche JURITEXT.
   // L'ancien format /juri/id/ECLI:... ne fonctionne plus depuis la refonte
   // Legifrance. Le format search/all retourne la bonne décision.

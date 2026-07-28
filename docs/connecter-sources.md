@@ -1,6 +1,6 @@
 # Guide — Connecter de nouvelles sources de données
 
-État au 25 avril 2026.
+État au 28 juillet 2026.
 
 ---
 
@@ -8,10 +8,69 @@
 
 | Source | Couverture | État |
 |---|---|---|
-| **Judilibre** (via PISTE) | Cour de cassation (~480 000) + Cours d'appel (~82 000) + **Tribunaux judiciaires** (~plusieurs milliers) + **Tribunaux de commerce** (~centaines) | ✅ Récolte 4 vagues parallèles + multi-pages + filtre Haiku 30-100 |
+| **Judilibre** (via PISTE) | Cour de cassation (~480 000) + Cours d'appel (~82 000) + **Tribunaux judiciaires** + **Tribunaux de commerce** | ✅ Récolte 4 vagues parallèles + multi-pages + filtre Haiku 30-100 |
+| **Légifrance CETAT** (via PISTE) | Conseil d'État + CAA + TA (~270 000) | ✅ Vague parallèle si matière administrative |
+| **Légifrance JURI** (via PISTE) | Jurisprudence judiciaire historique (< 1990, inédits) | ✅ Vague parallèle systématique hors admin |
+| **Justicelibre** (MCP public) | **CEDH (~76 k) + CJUE (~44 k) + CNIL (~8 k)** + admin en secours | ✅ Vague parallèle conditionnelle, sans authentification |
 | data.gouv.fr | Métadonnées de datasets — pas d'apport jurimétrique | ⚠️ Branché mais désactivé du loader (placebo) |
 
-C'est aujourd'hui la seule source vraiment exploitée. Pour étendre, voir les options ci-dessous **classées par rentabilité jurimétrique**.
+---
+
+## Justicelibre — détail de l'intégration
+
+**Endpoint** : `https://justicelibre.org/mcp` (Streamable HTTP, sans clé).
+**Code** : `src/lib/justicelibre/client.ts`, branché dans `searchJudilibreForAnalysis`.
+**Licence** : MIT (code) + Licence Ouverte 2.0 Etalab (données).
+
+### Routage conditionnel
+
+On n'interroge une source que si la requête la justifie — chaque source coûte
+de la latence et du budget de contexte :
+
+| Source | Déclencheur |
+|---|---|
+| `search_cedh` | CEDH, convention européenne, procès équitable, garde à vue, libertés fondamentales… |
+| `search_cjue` | CJUE, droit de l'Union, directive, règlement UE, question préjudicielle… |
+| `search_cnil` | CNIL, RGPD, données personnelles, DPO, consentement… |
+| `search_admin` | matière administrative **et** Légifrance indisponible (filet de secours) |
+
+### Garanties
+
+- **Jamais bloquant** : toute erreur réseau, schéma inattendu ou timeout (12 s)
+  dégrade silencieusement vers un tableau vide. L'analyse continue avec le
+  corpus Judilibre seul. Vérifié : serveur injoignable → échec en ~50 ms.
+- **Stats non corrompues** : CEDH, CJUE et CNIL sont exclues de l'échantillon
+  jurimétrique (`isStatisticalDecision` dans `stats.ts`). Elles nourrissent le
+  prompt comme contexte normatif mais **n'entrent ni dans le taux de succès ni
+  dans la hiérarchie 1er degré / appel / cassation**. Sans cette exclusion,
+  elles auraient été comptées en « premier degré » et fausseraient la métrique
+  phare du produit.
+- **Liens sources corrects** : les itemid HUDOC (`001-XXXXXX`), les CELEX et les
+  ECLI européens pointent vers hudoc.echr.coe.int / eur-lex.europa.eu, pas vers
+  Légifrance qui ne les indexe pas (`buildSourceUrl` dans `parse-analysis.ts`).
+- **Pas de référence inventée** : une ligne sans identifiant exploitable est
+  écartée ; le sens de la décision (`solution`) est laissé vide plutôt que
+  deviné, Justicelibre ne le qualifiant pas.
+
+### Vérifier / désactiver
+
+```bash
+node scripts/test-justicelibre.mjs   # diagnostic complet des 4 sources
+```
+
+```
+JUSTICELIBRE_ENABLED=false   # coupe la source proprement
+JUSTICELIBRE_URL=...         # pointe vers une instance auto-hébergée
+```
+
+⚠️ **Serveur communautaire** : pas de SLA. C'est précisément pourquoi
+l'intégration est non-bloquante. Si la disponibilité devient un problème,
+le projet est auto-hébergeable (`python3 server.py http`, MIT).
+
+---
+
+Pour étendre davantage, voir les options ci-dessous **classées par rentabilité
+jurimétrique**.
 
 ---
 
@@ -44,69 +103,46 @@ C'est aujourd'hui la seule source vraiment exploitée. Pour étendre, voir les o
 
 ---
 
-## Option 2 — ArianneWeb (HAUTE priorité, contentieux administratif)
+## Option 2 — ArianneWeb / contentieux administratif → ✅ LARGEMENT COUVERT
 
-### Apport
-- Conseil d'État (270 000+ décisions)
-- Cours administratives d'appel (CAA)
-- Tribunaux administratifs (TA)
-- **Débloque tout le contentieux fiscal, urbanisme, fonction publique, marchés publics, étrangers**
+Le contentieux administratif est aujourd'hui servi par **deux** canaux :
+Légifrance CETAT (branché, ~270 k) et Justicelibre `search_admin` (filet de
+secours quand PISTE est indisponible).
 
-### Ce que tu dois faire (gratuit, infrastructure à monter)
+L'estimation « 3-5 jours + 50 €/mois de stockage » de la version précédente de
+ce guide est **caduque** : elle supposait de télécharger et indexer les dumps
+XML quotidiens. Deux raccourcis existent désormais :
 
-Ce n'est PAS une simple clé API : ArianneWeb diffuse des **dumps quotidiens en XML** qu'il faut télécharger, parser, indexer.
+1. Justicelibre expose déjà l'administratif en MCP — **coût zéro, déjà branché**.
+2. `opendata.justice-administrative.fr` expose une **API Elasticsearch publique**
+   (`/recherche/api/elastic/decisions`), sans clé — pas de dump à indexer.
 
-1. Pas d'inscription nécessaire — la source est ouverte : https://opendata.justice-administrative.fr/
-2. Dis-moi « **branche ArianneWeb** » → je propose un chantier dédié :
-   - Job CRON quotidien qui télécharge le dump (~50-100 Mo/jour, ~30 Go cumulés)
-   - Parsing XML → table Supabase dédiée `decisions_admin`
-   - Index pgvector pour recherche sémantique
-   - Intégration dans la pipeline `searchJudilibreForAnalysis` comme une 2e source en parallèle
-3. Effort estimé : **3-5 jours de dev + ~50 €/mois en stockage Supabase**
+À ne rouvrir que si tu veux la maîtrise totale de l'index (recherche vectorielle
+maison sur le fonds administratif).
 
 ---
 
-## Option 3 — EUR-Lex / CJUE (MOYENNE priorité, droit UE)
+## Option 3 — EUR-Lex / CJUE → ✅ COUVERT par Justicelibre
 
-### Apport
-- Arrêts de la Cour de justice de l'UE
-- Directives, règlements UE
-- Pertinent pour : RGPD, concurrence, marchés financiers, propriété intellectuelle, directives sociales
+~44 000 arrêts CJUE via `search_cjue`, sans avoir à écrire de client SPARQL.
 
-### Ce que tu dois faire
-Aucune inscription. Mais l'API officielle CELLAR est complexe (SPARQL).
-
-Dis-moi « **EUR-Lex en niche RGPD/concurrence** » → je code un client minimal qui se déclenche **uniquement** quand la query mentionne ces matières (sinon ça pollue inutilement le prompt).
-
-Effort : **~1 jour de dev**.
+Reste ouvert uniquement si tu veux les **textes normatifs UE** eux-mêmes
+(directives, règlements) et pas seulement la jurisprudence : là il faudrait un
+client CELLAR (~1 jour).
 
 ---
 
-## Option 4 — HUDOC / CEDH (NICHE, droits fondamentaux)
+## ~~Option 4 — HUDOC / CEDH~~ → ✅ COUVERT par Justicelibre
 
-### Apport
-- 65 000 arrêts de la Cour européenne des droits de l'homme
-- Pertinent pour : droit des étrangers, garde à vue, procès équitable, vie privée
-
-### Ce que tu dois faire
-Pas d'API officielle. Endpoint non documenté (fragile, peut casser).
-
-Dis-moi « **HUDOC en niche libertés** » → je code un scraper respectueux qui se déclenche sur les mots-clés CEDH, droits fondamentaux, garde à vue, etc.
-
-Effort : **~2 jours**, fragile (peut casser si HUDOC change leur frontend).
+~76 000 arrêts CEDH accessibles via `search_cedh`. Plus besoin de scraper
+HUDOC : Justicelibre a déjà fait ce travail et l'expose en MCP.
 
 ---
 
-## Option 5 — CNIL (NICHE, RGPD)
+## ~~Option 5 — CNIL~~ → ✅ COUVERT par Justicelibre
 
-### Apport
-- ~1500 délibérations CNIL (sanctions, mises en demeure)
-- Pertinent uniquement si l'avocat fait du RGPD/données personnelles
-
-### Ce que tu dois faire
-Pas d'API. Soit scraping de cnil.fr/fr/sanctions, soit data.gouv.fr (jeu de données partiel).
-
-Dis-moi « **CNIL pour le RGPD** » → je code en ~1 jour.
+~8 000 délibérations CNIL via `search_cnil` (bien plus que les ~1 500
+initialement estimées).
 
 ---
 
@@ -124,13 +160,18 @@ Mais peu d'apport jurimétrique → **pas brancher sauf demande**.
 
 ## MCP servers juridiques publics
 
-État au 25 avril 2026 : **aucun MCP server juridique français officiel n'existe**.
+État au 28 juillet 2026 : toujours **aucun MCP server juridique français
+officiel**, mais l'écosystème communautaire a mûri.
 
-Alternatives communautaires repérées (à utiliser à tes risques) :
-- `jmtanguy/droit-francais-mcp` (GitHub) — wrapper Légifrance + Judilibre via PISTE. Doublon avec ce qu'on fait déjà.
-- `eliottgodet/mcp-server-legifrance` — Légifrance seul. Pourrait servir si tu actives Légifrance via OAuth.
+- ✅ **`Dahliyaal/justicelibre`** — **branché** (voir plus haut). ~3,3 M décisions
+  + 1,5 M articles, sans authentification, MIT. Seul à couvrir CEDH, CJUE et CNIL.
+- `jmtanguy/droit-francais-mcp` — wrapper Légifrance + Judilibre via PISTE.
+  Doublon avec notre intégration directe.
+- `eliottgodet/mcp-server-legifrance`, `pylegifrance` — Légifrance seul, doublon.
 
-**Décision** : pas de MCP tiers pour l'instant, on intègre les APIs directement (plus stable).
+**Décision** : Judilibre et Légifrance restent intégrés en direct (données
+officielles, contrôle total). Justicelibre vient en complément pour les
+juridictions qu'aucune API PISTE n'expose.
 
 Si tu veux que je crée notre propre **MCP Datavocat** (qui exposerait Judilibre + nos sources internes pour d'autres outils Anthropic ou ChatGPT), c'est faisable mais c'est un projet à part.
 
@@ -138,18 +179,26 @@ Si tu veux que je crée notre propre **MCP Datavocat** (qui exposerait Judilibre
 
 ## Ordre d'attaque recommandé
 
-1. **D'abord vérifier que la pipeline actuelle (TJ + TCOM ajoutés)** donne ce que tu attends sur des sujets variés. C'est déjà un saut majeur en couverture.
-2. **Activer Légifrance** (15 min de ta part + 2h de code chez moi) — gain énorme sur la précision juridique.
-3. **Réfléchir à ArianneWeb** si ta cible inclut des avocats publicistes (fiscalistes, urbanisme, fonction publique). Sinon skip.
-4. EUR-Lex / HUDOC / CNIL : seulement si tu identifies des cas concrets où ça manque.
+1. **Valider Justicelibre en conditions réelles** : `node scripts/test-justicelibre.mjs`.
+   L'intégration est écrite et testée contre un serveur simulé conforme au
+   schéma documenté, mais **jamais contre l'endpoint de production** (bloqué
+   depuis l'environnement de développement). C'est la seule inconnue restante.
+2. **Vérifier que Légifrance est bien actif en prod** (`PISTE_CLIENT_ID` +
+   `PISTE_CLIENT_SECRET` sur Vercel) : `node scripts/test-legifrance.mjs`.
+   Sans ces variables, tout l'administratif repose sur le seul filet Justicelibre.
+3. **Passer `PISTE_SANDBOX=false`** pour la production.
+4. Sources restantes (BODACC, textes normatifs UE) : seulement sur cas concret.
 
 ---
 
 ## Ce que JE peux faire seul, sans intervention de ta part
 
-- ✅ Optimiser encore la stratégie de recherche Judilibre (chambres, dates, opérateurs).
+- ✅ Optimiser la stratégie de recherche Judilibre (chambres, dates, opérateurs).
 - ✅ Améliorer le filtre Haiku (prompts, scoring).
-- ✅ Préparer le code d'intégration de toute nouvelle source (mais le branchement nécessite tes clés/validations).
-- ❌ Activer Légifrance, ArianneWeb, etc. — nécessite tes actions ci-dessus.
+- ✅ Brancher toute source publique sans authentification (comme Justicelibre).
+- ❌ Activer Légifrance / PISTE — nécessite tes clés.
+- ❌ Tester un endpoint externe depuis l'environnement de dev — le proxy sortant
+  bloque les domaines non autorisés. D'où les scripts `scripts/test-*.mjs`,
+  à lancer depuis ta machine.
 
 Dis-moi par où tu veux commencer.

@@ -280,7 +280,28 @@ function statsFromDecisions(decisions: JudilibreDecision[]): CategoryStats {
   };
 }
 
-export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats {
+/**
+ * Juridictions hors ordres juridictionnels français internes.
+ *
+ * CEDH, CJUE et CNIL sont injectées dans le prompt comme CONTEXTE normatif
+ * (principes européens, doctrine de l'autorité de contrôle) mais n'ont pas
+ * leur place dans l'échantillon jurimétrique : leurs décisions ne se comptent
+ * ni en « taux de succès » ni en hiérarchie 1er degré / appel / cassation.
+ * Les inclure fausserait mécaniquement la métrique phare du produit.
+ */
+const NON_STATISTICAL_JURISDICTIONS = new Set(["cedh", "cjue", "cnil"]);
+
+export function isStatisticalDecision(d: JudilibreDecision): boolean {
+  return !NON_STATISTICAL_JURISDICTIONS.has(
+    (d.jurisdiction || "").toLowerCase()
+  );
+}
+
+export function computeCorpusStats(
+  allDecisions: JudilibreDecision[]
+): CorpusStats {
+  // On écarte les sources supranationales/régulateur avant tout calcul.
+  const decisions = allDecisions.filter(isStatisticalDecision);
   const total = decisions.length;
 
   // bySolution

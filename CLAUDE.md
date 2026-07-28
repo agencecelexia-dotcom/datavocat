@@ -57,6 +57,8 @@ src/
 │   ├── supabase/                   # client.ts, server.ts, admin.ts
 │   ├── claude/                     # client.ts, analyze-prompt.ts, extraction-prompt.ts, rapport-prompt.ts
 │   ├── judilibre/client.ts         # API Judilibre via PISTE OAuth2
+│   ├── legifrance/                 # CETAT (admin) + JURI historique via PISTE
+│   ├── justicelibre/client.ts      # MCP public : CEDH + CJUE + CNIL (sans auth)
 │   ├── datagouv/client.ts          # API data.gouv.fr
 │   ├── extraction/service.ts       # Extraction PDF via Claude
 │   ├── validators/decision.ts      # Schemas Zod (39 champs)
@@ -117,6 +119,8 @@ PISTE_KEY_ID=                # API key PISTE (header KeyId)
 PISTE_SANDBOX=true           # "true" pour sandbox, supprimer pour prod
 QSTASH_TOKEN=                # Optionnel (extraction async)
 VOYAGE_API_KEY=              # Optionnel — embeddings semantique voyage-law-2 (Niveau 4 jurimetrie)
+JUSTICELIBRE_ENABLED=        # Optionnel — "false" desactive la source CEDH/CJUE/CNIL
+JUSTICELIBRE_URL=            # Optionnel — override endpoint MCP (auto-hebergement)
 NEXT_PUBLIC_APP_URL=
 ```
 
@@ -149,4 +153,12 @@ npx vercel --prod    # Deploy Vercel
 - `PISTE_SANDBOX=true` en cours — passer a `false` pour production
 - Les decisions Judilibre sont la source prioritaire (reelles et verifiables)
 - Ne jamais inventer de references ECLI ou de statistiques
+- **Les juridictions CEDH / CJUE / CNIL sont exclues des stats jurimetriques**
+  (`isStatisticalDecision` dans `judilibre/stats.ts`). Elles servent de contexte
+  normatif au prompt, PAS d'echantillon statistique : les compter fausserait le
+  taux de succes et la hierarchie 1er degre / appel / cassation. Toute nouvelle
+  source non-francaise doit etre ajoutee a `NON_STATISTICAL_JURISDICTIONS`.
+- Les references non-francaises (itemid HUDOC, CELEX, ECLI:EU / ECLI:CE) doivent
+  pointer vers HUDOC / EUR-Lex, jamais vers Legifrance qui ne les indexe pas
+  (`buildSourceUrl` dans `parse-analysis.ts`)
 - L'indice de fiabilite (0-100) est calcule dans `parse-analysis.ts` a partir de: nb sources, echantillon, Judilibre, confiance
