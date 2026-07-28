@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck, Coins, ArrowRight } from "lucide-react";
+import { ShieldCheck, Coins, Database, ArrowRight } from "lucide-react";
 
 const SECTIONS = [
   {
@@ -15,6 +15,13 @@ const SECTIONS = [
     label: "Coûts API Claude",
     desc: "Consommation Anthropic mois en cours, top utilisateurs, évolution 30 jours.",
     eyebrow: "Finance",
+  },
+  {
+    href: "/admin/sources",
+    icon: Database,
+    label: "Sources de données",
+    desc: "Tester en direct Judilibre, Légifrance et Justicelibre. Voir ce qui répond réellement.",
+    eyebrow: "Jurisprudence",
   },
 ];
 
