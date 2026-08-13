@@ -39,8 +39,18 @@ export interface VerificationResult {
   removedSentences: number;
   /** Nombre de lignes de tableau supprimées. */
   removedRows: number;
-  /** Vrai si l'invariant N (intro/stats) a dû être patché pour matcher le tableau. */
+  /**
+   * Vrai si le nettoyage a rendu le comptage du texte incohérent avec le
+   * tableau. On ne réécrit pas les chiffres (cela produirait des pourcentages
+   * faux) : un avertissement est ajouté au rapport et ce drapeau permet à
+   * l'UI de le signaler.
+   */
   coherenceCorrected: boolean;
+  /** Détail de l'incohérence de comptage, si elle existe. */
+  countMismatch: {
+    corpusSize: number;
+    tableRows: number;
+  } | null;
 }
 
 const ECLI_REGEX = /ECLI:[A-Z]{2}:[A-Z0-9]+:\d{4}:[A-Z0-9.]+/g;
@@ -429,18 +439,32 @@ export function verifyAndCleanMarkdown(
   let cleanedMarkdown = cleanedLines.join("\n");
 
   // ─── Cohérence du comptage N intro = N tableau ──
+  //
+  // On NE réécrit plus les effectifs annoncés. L'ancienne implémentation
+  // (`patchAnnouncedCount`) substituait oldN → newN dans « sur N décisions »,
+  // « Total : N »… sans jamais recalculer les pourcentages associés :
+  //
+  //   « Sur 40 décisions, 28 favorables (70 %) »
+  //     → « Sur 35 décisions, 28 favorables (70 %) »   alors que 28/35 = 80 %
+  //
+  // Le module chargé de garantir la véracité fabriquait donc lui-même une
+  // erreur arithmétique, dans un rapport potentiellement remis à un client.
+  //
+  // À la place : on signale l'incohérence. Le bandeau de vérification côté
+  // dashboard l'affiche, et les statistiques fiables restent celles calculées
+  // par le serveur (`stats.ts`), qui ne dépendent pas du texte généré.
   let coherenceCorrected = false;
   const finalRowCount = countTableRows(cleanedMarkdown);
   const announcedCount = corpus.length;
-  if (
-    finalRowCount > 0 &&
-    finalRowCount !== announcedCount &&
-    removedRows > 0
-  ) {
-    cleanedMarkdown = patchAnnouncedCount(
+  const countMismatch =
+    finalRowCount > 0 && finalRowCount !== announcedCount && removedRows > 0;
+
+  if (countMismatch) {
+    cleanedMarkdown = appendCoherenceWarning(
       cleanedMarkdown,
       announcedCount,
       finalRowCount,
+      removedRows,
     );
     coherenceCorrected = true;
   }
@@ -462,6 +486,9 @@ export function verifyAndCleanMarkdown(
     removedSentences,
     removedRows,
     coherenceCorrected,
+    countMismatch: countMismatch
+      ? { corpusSize: announcedCount, tableRows: finalRowCount }
+      : null,
   };
 }
 
@@ -476,18 +503,44 @@ export {
   normalizeRef,
 };
 
+/**
+ * Compte les lignes de données du **tableau de preuve**.
+ *
+ * Le rapport contient plusieurs tableaux markdown (statistiques, variations…).
+ * On cible donc celui qui suit le titre « ## Tableau de preuve » et on retient
+ * le plus grand tableau rencontré à partir de là — l'ancienne version retournait
+ * au premier tableau clos, ce qui donnait un compte arbitraire quand un autre
+ * tableau précédait celui des décisions.
+ */
 function countTableRows(markdown: string): number {
   const lines = markdown.split("\n");
+
+  // Se positionne sur la section « Tableau de preuve » si elle existe.
+  let start = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^#{1,3}\s+Tableau\s+de\s+preuve/i.test(lines[i].trim())) {
+      start = i + 1;
+      break;
+    }
+  }
+
+  let best = 0;
   let count = 0;
   let inTable = false;
   let sepSeen = false;
-  for (const line of lines) {
-    const trimmed = line.trim();
+
+  for (let i = start; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    // Une nouvelle section de même niveau clôt la zone d'intérêt.
+    if (start > 0 && /^##\s+/.test(trimmed)) break;
+
     const isRow = trimmed.startsWith("|") && trimmed.endsWith("|");
     const isSep = /^\|[\s:\-|]+\|$/.test(trimmed);
+
     if (isRow && !inTable) {
       inTable = true;
       sepSeen = false;
+      count = 0;
       continue;
     }
     if (isRow && inTable && isSep) {
@@ -498,48 +551,43 @@ function countTableRows(markdown: string): number {
       count++;
       continue;
     }
-    if (!isRow && inTable && sepSeen) {
-      return count;
+    if (!isRow && inTable) {
+      // Fin d'un tableau : on retient le plus fourni.
+      if (sepSeen && count > best) best = count;
+      inTable = false;
+      sepSeen = false;
+      count = 0;
     }
   }
-  return count;
+  if (inTable && sepSeen && count > best) best = count;
+
+  return best;
 }
 
-function patchAnnouncedCount(
+/**
+ * Ajoute un avertissement explicite en tête du rapport quand le nettoyage
+ * anti-hallucination a rendu le comptage incohérent.
+ *
+ * On préfère signaler plutôt que corriger : réécrire les effectifs sans
+ * recalculer les pourcentages produirait des chiffres faux (cf. commentaire
+ * dans `verifyAndCleanMarkdown`). Les seuls chiffres fiables sont ceux du
+ * bloc serveur `stats.ts`, affichés par le dashboard.
+ */
+function appendCoherenceWarning(
   markdown: string,
-  oldN: number,
-  newN: number,
+  announcedCount: number,
+  finalRowCount: number,
+  removedRows: number,
 ): string {
-  if (oldN === newN) return markdown;
-  let out = markdown;
-  out = out.replace(
-    new RegExp(
-      `(\\bsur(?:\\s+les)?\\s+)${oldN}(\\s+(?:décisions?|arrêts?|d\\u00e9cisions?))`,
-      "gi",
-    ),
-    `$1${newN}$2`,
-  );
-  out = out.replace(
-    new RegExp(`\\b${oldN}(\\s+décisions?\\s+analysées?)`, "gi"),
-    `${newN}$1`,
-  );
-  out = out.replace(
-    new RegExp(
-      `\\b${oldN}(\\s+décisions?\\s+(?:ont|du|de|cit|retenu|favorables?|défavorables?))`,
-      "gi",
-    ),
-    `${newN}$1`,
-  );
-  out = out.replace(
-    new RegExp(
-      `(Total(?:\\s+décisions?\\s+analysées?)?\\s*:\\s*)${oldN}\\b`,
-      "gi",
-    ),
-    `$1${newN}`,
-  );
-  out = out.replace(
-    new RegExp(`(Sur\\s+(?:les\\s+)?)${oldN}(\\s+décisions?)`, "gi"),
-    `$1${newN}$2`,
-  );
-  return out;
+  const warning =
+    `> ⚠️ **Contrôle automatique des sources** — ${removedRows} ligne${removedRows > 1 ? "s" : ""} ` +
+    `du tableau de preuve ${removedRows > 1 ? "ont été retirées" : "a été retirée"} : ` +
+    `${removedRows > 1 ? "leurs références n'étaient" : "sa référence n'était"} pas vérifiable${removedRows > 1 ? "s" : ""} ` +
+    `dans le corpus analysé.\n> ` +
+    `Le tableau comporte donc ${finalRowCount} ligne${finalRowCount > 1 ? "s" : ""} pour un corpus de ` +
+    `${announcedCount} décision${announcedCount > 1 ? "s" : ""}. ` +
+    `**Les effectifs et pourcentages cités dans le texte ci-dessous peuvent ne plus correspondre au tableau.** ` +
+    `Les statistiques de l'onglet « Chiffres », calculées directement sur le corpus, restent exactes.\n\n`;
+
+  return warning + markdown;
 }

@@ -307,6 +307,7 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
               removedSentences: 0,
               removedRows: 0,
               coherenceCorrected: false,
+              countMismatch: null,
             };
 
         const finalMarkdown = verification.cleanedMarkdown;
@@ -422,6 +423,10 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
                 fiabilite: fiabiliteFormula,
                 tauxSuccesRetenu: corpusStats?.tauxSuccesRetenu ?? null,
                 tauxSuccesSource: corpusStats?.tauxSuccesSource ?? null,
+                tauxSuccesN: corpusStats?.tauxSuccesN ?? null,
+                tauxSuccesMarge: corpusStats?.tauxSuccesMarge ?? null,
+                indeterminesTotal: corpusStats?.indeterminesTotal ?? null,
+                countMismatch: verification.countMismatch,
                 temporalTrend: corpusStats?.temporalTrend ?? null,
                 regionalVariations: corpusStats?.regionalVariations ?? null,
                 chamberVariations: corpusStats?.chamberVariations ?? null,

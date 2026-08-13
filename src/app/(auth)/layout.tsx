@@ -35,7 +35,7 @@ export default function AuthLayout({
           <div className="space-y-8">
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[0.25em] mb-4 text-[#c9a96e]">
-                § Jurisprudence · 562 487 décisions
+                § Jurisprudence · Judilibre &amp; Légifrance
               </div>
               <h2 className="font-serif text-[44px] leading-[1.05] font-medium text-white">
                 Plaidez avec la{" "}
@@ -58,8 +58,8 @@ export default function AuthLayout({
             {/* 4 étapes — éditorial, filets au lieu de cards */}
             <div className="space-y-3">
               {[
-                { icon: Search, label: "Recherche intelligente", detail: "Moteur Judilibre + data.gouv.fr" },
-                { icon: BarChart3, label: "Statistiques en temps réel", detail: "Taux de succès par argument & juridiction" },
+                { icon: Search, label: "Recherche intelligente", detail: "Judilibre, Légifrance & data.gouv.fr" },
+                { icon: BarChart3, label: "Statistiques vérifiables", detail: "Calculées sur le corpus, jamais estimées" },
                 { icon: Target, label: "Points d'attention stratégiques", detail: "Fondés sur la jurisprudence réelle" },
                 { icon: FileText, label: "Export multi-format", detail: "PDF, DOCX, Excel" },
               ].map((item, i) => {

@@ -65,9 +65,11 @@ function extractDateFromTitle(title: string): string {
     const mm = months[dm2[2].toLowerCase()];
     if (mm) return `${dm2[3]}-${mm}-${dm2[1].padStart(2, "0")}`;
   }
-  // Année seule
-  const ym = title.match(/\b(19|20)\d{2}\b/);
-  if (ym) return `${ym[0]}-01-01`;
+  // Année seule : on NE fabrique PAS de date. Renvoyer `YYYY-01-01` faisait
+  // entrer des 1ers janvier fictifs dans `byYear`, `temporalTrend`,
+  // `freshDecisions` et `oldestDate` — créant une concentration artificielle
+  // sur janvier dans toute analyse temporelle. Une date absente est traitée
+  // comme telle par les statistiques.
   return "";
 }
 
@@ -181,7 +183,12 @@ function juriToDecision(r: LegifranceSearchResult): JudilibreDecision | null {
   return {
     id: t.id,
     jurisdiction,
-    chamber: chamber || (jurisdiction === "cc" ? "soc" : ""),
+    // Ne JAMAIS inventer de chambre. La version précédente attribuait "soc"
+    // par défaut à toute décision Cass. dont le titre ne la mentionnait pas :
+    // ces décisions étaient ensuite comptées comme chambre sociale dans
+    // `byChamber` et `chamberVariations`, faisant afficher au rapport un
+    // effectif de chambre sociale incluant des chambres inconnues.
+    chamber,
     number: numero ? [numero] : [t.id],
     ecli: undefined,
     solution: r.solution || "",

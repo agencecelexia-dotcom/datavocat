@@ -568,9 +568,21 @@ function AnalysisDocument(props: {
   shortDateStr: string;
   taux: number | null;
   tauxSource: "fond" | "mixte" | "cassation" | null;
+  tauxMarge: number | null;
+  tauxN: number | null;
   corpusTotal: number | null;
 }) {
-  const { query, blocks, dateStr, shortDateStr, taux, tauxSource, corpusTotal } = props;
+  const {
+    query,
+    blocks,
+    dateStr,
+    shortDateStr,
+    taux,
+    tauxSource,
+    tauxMarge,
+    tauxN,
+    corpusTotal,
+  } = props;
 
   // Numérotation des sections h1
   let sectionCounter = 0;
@@ -804,28 +816,34 @@ function AnalysisDocument(props: {
               React.createElement(
                 Text,
                 { style: styles.methodLabel },
-                "§ Taux de succès"
+                tauxSource === "cassation"
+                  ? "§ Arrêts ayant cassé"
+                  : "§ Issues favorables au demandeur"
               ),
               React.createElement(Text, { style: styles.methodTaux }, `${taux}`),
-              React.createElement(Text, { style: styles.methodTauxPct }, " %")
+              React.createElement(
+                Text,
+                { style: styles.methodTauxPct },
+                tauxMarge != null ? ` % ± ${tauxMarge}` : " %"
+              )
             ),
             React.createElement(
               Text,
               { style: styles.methodSourceLine },
-              `Périmètre : ${corpusTotal ?? "—"} décision${(corpusTotal ?? 0) > 1 ? "s" : ""} du fond ${
+              `Périmètre : ${tauxN ?? corpusTotal ?? "—"} décision${(tauxN ?? corpusTotal ?? 0) > 1 ? "s" : ""} au dispositif lisible ${
                 tauxSource === "fond"
                   ? "(1ère instance + cours d'appel)"
                   : tauxSource === "mixte"
                     ? "(1ère instance + cours d'appel, hors cassation)"
                     : tauxSource === "cassation"
-                      ? "— ATTENTION : taux de cassation, pas un taux de succès au fond"
+                      ? "— ATTENTION : part des pourvois ayant abouti à une cassation, sans portée sur une procédure au fond"
                       : ""
               }.`
             ),
             React.createElement(
               Text,
               { style: styles.methodPedago },
-              "Le taux de succès est calculé exclusivement à partir des décisions des juridictions du fond (conseils de prud'hommes, tribunaux judiciaires, cours d'appel). Les arrêts de la Cour de cassation sont volontairement exclus : la Cour de cassation statue par économie de moyens — dès qu'un moyen est suffisant pour casser, elle ne ré-examine pas l'ensemble. Les juges du fond, à l'inverse, apprécient l'intégralité des moyens et des éléments de preuve contradictoirement débattus. Leurs décisions reflètent donc plus fidèlement la probabilité réelle de succès d'une argumentation."
+              "Ce pourcentage décrit les décisions réunies pour cette analyse : il ne constitue pas une probabilité de succès pour le dossier examiné, et ne saurait être présenté comme tel. Deux limites le justifient. D'une part, le corpus n'est pas un échantillon aléatoire : il rassemble les décisions les plus proches, par leur texte, de la demande formulée, au sein d'un fonds où les décisions de première instance ne sont que partiellement publiées. D'autre part, la base Judilibre n'indique pas quelle partie a exercé le recours : une décision d'infirmation ne signifie donc pas que le demandeur initial l'a emporté. Les arrêts de la Cour de cassation sont exclus du calcul au fond, la Cour statuant par économie de moyens. Ces chiffres sont une matière d'analyse soumise à l'appréciation de l'avocat, non un pronostic."
             )
           )
         : null,
@@ -873,6 +891,8 @@ export async function POST(request: NextRequest) {
     // Taux + source pour l'encadré méthodologique (Axe E).
     const taux = parsed?.verification?.tauxSuccesRetenu ?? parsed?.tauxSuccesGlobal ?? null;
     const tauxSource = parsed?.verification?.tauxSuccesSource ?? null;
+    const tauxMarge = parsed?.verification?.tauxSuccesMarge ?? null;
+    const tauxN = parsed?.verification?.tauxSuccesN ?? null;
     const corpusTotal = parsed?.verification?.corpusComposition?.total ?? null;
 
     if (!response || typeof response !== "string") {
@@ -916,6 +936,8 @@ export async function POST(request: NextRequest) {
       shortDateStr,
       taux,
       tauxSource,
+      tauxMarge,
+      tauxN,
       corpusTotal,
     });
 

@@ -108,14 +108,16 @@ export default function AnalyzePage() {
         const f = verification.fiabilite;
         parsed.fiabilite = computeFiabiliteFromFormula(f.A, f.B, f.C, f.D);
       }
-      // Taux de succès retenu canonique (calculé côté serveur sur le
-      // corpus). Écrase l'extraction texte qui peut être null si Claude
-      // n'a pas écrit le bon format dans le markdown.
-      if (
-        typeof verification.tauxSuccesRetenu === "number" &&
-        verification.tauxSuccesRetenu !== null
-      ) {
-        parsed.tauxSuccesGlobal = verification.tauxSuccesRetenu;
+      // Le taux calculé côté serveur fait autorité dans les DEUX sens : s'il
+      // vaut null (échantillon insuffisant), on efface la valeur extraite du
+      // texte par regex. Sans cela, un pourcentage quelconque trouvé dans le
+      // rapport s'affichait comme taux — précisément dans le cas de corpus
+      // faible où un chiffre erroné est le plus dommageable.
+      if (verification.tauxSuccesRetenu !== undefined) {
+        parsed.tauxSuccesGlobal =
+          typeof verification.tauxSuccesRetenu === "number"
+            ? verification.tauxSuccesRetenu
+            : null;
       }
     }
     return parsed;
@@ -413,11 +415,12 @@ export default function AnalyzePage() {
                 <span className="dv-italic">votre affaire.</span>
               </h1>
               <p className="mt-5 text-[15px] leading-relaxed max-w-[560px]" style={{ color: "var(--muted-foreground)" }}>
-                Décrivez la situation juridique. L&apos;IA croise{" "}
+                Décrivez la situation juridique. L&apos;analyse interroge{" "}
                 <span className="font-semibold" style={{ color: "var(--ink)" }}>
-                  562 487 décisions
+                  Judilibre et Légifrance
                 </span>{" "}
-                de Judilibre et data.gouv.fr pour produire statistiques, observations et sources vérifiables.
+                en direct pour produire statistiques, observations et sources
+                vérifiables — chaque décision citée est contrôlée.
               </p>
             </div>
 
@@ -781,13 +784,15 @@ export default function AnalyzePage() {
                       className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
                       style={{ color: "var(--muted-foreground)" }}
                     >
-                      Taux de succès estimé
+                      {parsedData.verification?.tauxSuccesSource === "cassation"
+                        ? "Arrêts ayant cassé, dans ce corpus"
+                        : "Issues favorables au demandeur, dans ce corpus"}
                     </div>
                     <div className="flex items-baseline gap-1.5">
                       <div
                         className="font-serif font-medium tabular-nums"
                         style={{
-                          fontSize: "88px",
+                          fontSize: "clamp(52px, 11vw, 88px)",
                           color: "var(--ink)",
                           letterSpacing: "-0.02em",
                           lineHeight: 1,
@@ -796,26 +801,47 @@ export default function AnalyzePage() {
                         {parsedData.tauxSuccesGlobal ?? "—"}
                       </div>
                       <div
-                        className="font-serif text-[32px]"
+                        className="font-serif text-[clamp(20px,4vw,32px)]"
                         style={{ color: "var(--muted-foreground)" }}
                       >
                         %
                       </div>
+                      {parsedData.verification?.tauxSuccesMarge != null && (
+                        <div
+                          className="font-mono text-[12px] ml-1"
+                          style={{ color: "var(--muted-foreground)" }}
+                        >
+                          ± {parsedData.verification.tauxSuccesMarge} pts
+                        </div>
+                      )}
                     </div>
                     <div
                       className="mt-3 text-[12px]"
                       style={{ color: "var(--muted-foreground)" }}
                     >
                       Sur{" "}
-                      {parsedData.evidenceTable?.rows.length ??
+                      {parsedData.verification?.tauxSuccesN ??
+                        parsedData.evidenceTable?.rows.length ??
                         parsedData.echantillon ??
                         analysisMeta?.analyzedCount ??
                         "—"}{" "}
-                      décisions analysées ·{" "}
+                      décisions au dispositif lisible ·{" "}
                       {parsedData.verification?.verifiedRefs ??
                         parsedData.sourceCount}{" "}
                       sources citées
                       {analysisMeta?.freshestDate && ` · jusqu'au ${analysisMeta.freshestDate}`}
+                    </div>
+                    {/* Réserve méthodologique co-localisée avec le chiffre :
+                        elle était auparavant reléguée dans l'onglet « Chiffres »,
+                        que l'utilisateur pouvait ne jamais ouvrir. */}
+                    <div
+                      className="mt-2 text-[11.5px] leading-relaxed"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      Tendance observée sur ce corpus, pas une probabilité de
+                      succès : les décisions retenues sont les plus proches de
+                      votre demande, et la source n&apos;indique pas quelle
+                      partie a formé le recours.
                     </div>
                   </div>
                   <div

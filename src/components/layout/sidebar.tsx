@@ -93,37 +93,33 @@ export function Sidebar() {
             className="font-mono text-[9px] uppercase tracking-[0.2em]"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Base jurisprudence
+            Sources interrogées
           </div>
+          {/* Le compteur « 562 487 » qui figurait ici était une constante
+              écrite en dur — l'addition des ordres de grandeur annoncés par
+              les API, présentée à l'unité près. Idem pour la pastille
+              « synchronisé », qui ne reflétait aucun état réel. Sur un produit
+              dont l'argument est de ne rien inventer, ces deux éléments étaient
+              indéfendables. On nomme les sources, sans chiffre invérifiable. */}
           <div
-            className="mt-1.5 font-mono text-[15px] tabular-nums tracking-tight"
+            className="mt-1.5 text-[11px] leading-relaxed"
             style={{ color: "var(--ink)" }}
           >
-            562 487
+            Judilibre · Légifrance · data.gouv.fr
           </div>
           <div
-            className="text-[10px] mt-0.5"
+            className="text-[10px] mt-1"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Judilibre · data.gouv.fr
-          </div>
-          <div className="mt-2 flex items-center gap-1.5">
-            <div
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ background: "var(--gold)" }}
-            />
-            <span className="text-[10px]" style={{ color: "var(--gold)" }}>
-              synchronisé
-            </span>
+            Interrogées en direct à chaque analyse
           </div>
         </div>
 
         <div
           className="flex items-center justify-between text-[10px] font-mono"
-          style={{ color: "var(--muted-foreground)", opacity: 0.6 }}
+          style={{ color: "var(--muted-foreground)" }}
         >
           <span>v2.0 · 2026</span>
-          <span>CEDEX 1</span>
         </div>
       </div>
     </aside>

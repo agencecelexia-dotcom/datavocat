@@ -21,6 +21,7 @@ import {
   ParsedAnalysis,
   computeFiabiliteFromFormula,
 } from "@/lib/parse-analysis";
+import type { JudilibreDecision } from "@/lib/judilibre/client";
 import { CopyMarkdown } from "@/components/ui/copy-markdown";
 
 interface Analysis {
@@ -102,35 +103,69 @@ export default function AnalysisDetailPage() {
   const { id } = useParams();
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<"text" | "dashboard" | "sources" | "tableau">("text");
 
   useEffect(() => {
+    let cancelled = false;
+    // On distingue « analyse introuvable » (404) d'un échec réseau ou serveur :
+    // afficher « Analyse non trouvée » pour une simple coupure laissait croire
+    // à l'utilisateur que ses données avaient disparu.
     fetch(`/api/analyses/${id}`)
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        if (cancelled) return;
+        if (!r.ok) {
+          setLoadError(
+            r.status === 404
+              ? "Cette analyse n'existe pas ou ne vous appartient pas."
+              : "Le chargement a échoué. Vérifiez votre connexion et réessayez."
+          );
+          setLoading(false);
+          return;
+        }
+        const data = await r.json();
+        if (cancelled) return;
         setAnalysis(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        if (cancelled) return;
+        setLoadError(
+          "Le chargement a échoué. Vérifiez votre connexion et réessayez."
+        );
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const parsedData = useMemo(() => {
     if (!analysis?.response || analysis.status !== "done") return null;
-    const parsed = parseAnalysisResponse(analysis.response);
     const a = analysis as unknown as {
       verification?: ParsedAnalysis["verification"];
+      judilibre_corpus?: JudilibreDecision[] | null;
     };
+    // Le corpus est persisté en base : on le passe au parseur pour que le
+    // filtre anti-hallucination des sources s'exécute réellement. Sans cet
+    // argument, tout le contrôle de `extractSources` était court-circuité et
+    // les sources affichées provenaient d'une simple extraction par regex.
+    const parsed = parseAnalysisResponse(
+      analysis.response,
+      a.judilibre_corpus ?? undefined
+    );
     if (a.verification) {
       parsed.verification = a.verification;
       if (a.verification.fiabilite) {
         const f = a.verification.fiabilite;
         parsed.fiabilite = computeFiabiliteFromFormula(f.A, f.B, f.C, f.D);
       }
-      if (
-        typeof a.verification.tauxSuccesRetenu === "number" &&
-        a.verification.tauxSuccesRetenu !== null
-      ) {
-        parsed.tauxSuccesGlobal = a.verification.tauxSuccesRetenu;
+      // Le serveur fait autorité dans les deux sens (cf. page.tsx).
+      if (a.verification.tauxSuccesRetenu !== undefined) {
+        parsed.tauxSuccesGlobal =
+          typeof a.verification.tauxSuccesRetenu === "number"
+            ? a.verification.tauxSuccesRetenu
+            : null;
       }
     }
     return parsed;
@@ -183,8 +218,26 @@ export default function AnalysisDetailPage() {
 
   if (!analysis) {
     return (
-      <div className="flex-1 flex items-center justify-center p-12 text-center">
-        <p style={{ color: "var(--muted-foreground)" }}>Analyse non trouvée.</p>
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-12 text-center">
+        <p style={{ color: "var(--muted-foreground)" }}>
+          {loadError ?? "Analyse non trouvée."}
+        </p>
+        {loadError && !loadError.startsWith("Cette analyse n'existe pas") && (
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 text-[12.5px] font-semibold rounded-md cursor-pointer"
+            style={{ background: "var(--ink)", color: "white" }}
+          >
+            Réessayer
+          </button>
+        )}
+        <Link
+          href="/historique"
+          className="text-[12.5px] underline"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          Retour à l&apos;historique
+        </Link>
       </div>
     );
   }
@@ -241,13 +294,15 @@ export default function AnalysisDetailPage() {
                   className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  Taux de succès estimé
+                  {parsedData.verification?.tauxSuccesSource === "cassation"
+                    ? "Arrêts ayant cassé, dans ce corpus"
+                    : "Issues favorables au demandeur, dans ce corpus"}
                 </div>
                 <div className="flex items-baseline gap-1.5">
                   <div
                     className="font-serif font-medium tabular-nums"
                     style={{
-                      fontSize: "72px",
+                      fontSize: "clamp(48px, 10vw, 72px)",
                       color: "var(--ink)",
                       letterSpacing: "-0.02em",
                       lineHeight: 1,
@@ -256,24 +311,45 @@ export default function AnalysisDetailPage() {
                     {parsedData.tauxSuccesGlobal ?? "—"}
                   </div>
                   <div
-                    className="font-serif text-[28px]"
+                    className="font-serif text-[clamp(18px,4vw,28px)]"
                     style={{ color: "var(--muted-foreground)" }}
                   >
                     %
                   </div>
+                  {parsedData.verification?.tauxSuccesMarge != null && (
+                    <div
+                      className="font-mono text-[12px] ml-1"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      ± {parsedData.verification.tauxSuccesMarge} pts
+                    </div>
+                  )}
                 </div>
                 <div
                   className="mt-3 text-[12px]"
                   style={{ color: "var(--muted-foreground)" }}
                 >
                   Sur{" "}
-                  {parsedData.evidenceTable?.rows.length ??
+                  {parsedData.verification?.tauxSuccesN ??
+                    parsedData.evidenceTable?.rows.length ??
                     parsedData.echantillon ??
                     "—"}{" "}
-                  décisions ·{" "}
+                  décisions au dispositif lisible ·{" "}
                   {parsedData.verification?.verifiedRefs ??
                     parsedData.sourceCount}{" "}
                   sources citées
+                </div>
+                {/* Même réserve que sur la vue live : un rapport archivé est
+                    plus daté, il ne doit pas être présenté avec moins de
+                    précautions que le rapport frais. */}
+                <div
+                  className="mt-2 text-[11.5px] leading-relaxed"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Tendance observée sur ce corpus, pas une probabilité de
+                  succès : les décisions retenues sont les plus proches de la
+                  demande, et la source n&apos;indique pas quelle partie a formé
+                  le recours.
                 </div>
               </div>
               <div

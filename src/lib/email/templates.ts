@@ -233,7 +233,7 @@ export function userApproved(args: UserApprovedTpl) {
     body: `
       <p style="margin:0 0 12px 0;">${greeting}${args.userFullName ? "," : ""}</p>
       <p style="margin:0 0 12px 0;">Votre compte vient d'être validé. Vous avez désormais accès à l'intégralité de la plateforme.</p>
-      <p style="margin:0 0 12px 0;">Datavocat croise <strong style="color:${INK};">plus de 562 000 décisions</strong> de Judilibre et data.gouv.fr pour produire, en moins d'une minute, des statistiques, des analyses et des sources vérifiables sur chacun de vos dossiers.</p>
+      <p style="margin:0 0 12px 0;">Datavocat interroge <strong style="color:${INK};">Judilibre et Légifrance</strong> en direct pour produire, en moins d'une minute, des statistiques, des analyses et des sources vérifiables sur chacun de vos dossiers — chaque décision citée est contrôlée dans le corpus.</p>
       <div style="margin:18px 0;padding:14px 18px;background:${PAPER};border-radius:6px;border-left:3px solid ${GOLD};">
         <div style="font-family:'Courier News',monospace;font-size:9.5px;letter-spacing:0.2em;text-transform:uppercase;color:${GOLD};margin-bottom:6px;">Pour commencer</div>
         <div style="font-size:13.5px;line-height:1.6;color:${INK};">Connectez-vous, décrivez une affaire dans l'éditeur et laissez l'IA faire la recherche pour vous.</div>
