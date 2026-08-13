@@ -1,9 +1,16 @@
 import { NextRequest } from "next/server";
 import { getAnthropicClient } from "@/lib/claude/client";
-import { createClient } from "@/lib/supabase/server";
+import { requireApprovedUser } from "@/lib/supabase/require-user";
 import { trackClaudeUsage } from "@/lib/api-usage/track";
 
 export const maxDuration = 30;
+
+/** Taille max du contexte d'analyse accepté (le corpus formaté tient largement dedans). */
+const MAX_CONTEXT_CHARS = 200_000;
+/** Taille max cumulée des messages de la conversation. */
+const MAX_MESSAGES_CHARS = 50_000;
+/** Nombre max de messages dans l'historique de conversation. */
+const MAX_MESSAGES = 40;
 
 const CHAT_SYSTEM_PROMPT = (analysisContext: string) =>
   `Tu es DATAVOCAT en mode conversation de suivi. L'avocat a deja recu une analyse jurisprudentielle complete. Il pose maintenant des questions complementaires.
@@ -21,6 +28,12 @@ REGLES :
 - JAMAIS inventer de references ou de statistiques`;
 
 export async function POST(request: NextRequest) {
+  // Auth AVANT tout appel au modèle : cette route relaie vers Anthropic et
+  // était auparavant ouverte à Internet (proxy LLM gratuit sur notre clé).
+  const auth = await requireApprovedUser();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
+
   const { messages, analysisContext } = await request.json();
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -28,6 +41,40 @@ export async function POST(request: NextRequest) {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  if (messages.length > MAX_MESSAGES) {
+    return new Response(
+      JSON.stringify({ error: "Conversation trop longue" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Validation de forme : chaque message doit être {role, content} exploitable.
+  const validMessages = messages.every(
+    (m: unknown): m is { role: string; content: string } =>
+      typeof m === "object" &&
+      m !== null &&
+      (("role" in m && (m.role === "user" || m.role === "assistant")) as boolean) &&
+      "content" in m &&
+      typeof (m as { content: unknown }).content === "string"
+  );
+  if (!validMessages) {
+    return new Response(
+      JSON.stringify({ error: "Format de messages invalide" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const totalChars = (messages as Array<{ content: string }>).reduce(
+    (sum, m) => sum + m.content.length,
+    0
+  );
+  if (totalChars > MAX_MESSAGES_CHARS) {
+    return new Response(
+      JSON.stringify({ error: "Conversation trop volumineuse" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   if (!analysisContext || typeof analysisContext !== "string") {
@@ -40,10 +87,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const anthropic = getAnthropicClient();
+  if (analysisContext.length > MAX_CONTEXT_CHARS) {
+    return new Response(
+      JSON.stringify({ error: "Contexte d'analyse trop volumineux" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const anthropic = getAnthropicClient();
 
   // Haiku 4.5 par défaut — la tâche (reformuler/approfondir à partir d'un
   // contexte déjà fourni) n'exige pas Sonnet. Surchargable via env si besoin.
@@ -87,8 +138,8 @@ export async function POST(request: NextRequest) {
             cache_read_input_tokens?: number;
           };
           await trackClaudeUsage({
-            userId: user?.id || null,
-            userEmail: user?.email || null,
+            userId: user.id,
+            userEmail: user.email ?? null,
             model: CHAT_MODEL,
             operation: "chat",
             inputTokens: usage.input_tokens,

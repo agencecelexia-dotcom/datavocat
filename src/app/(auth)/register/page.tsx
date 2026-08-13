@@ -25,10 +25,13 @@ export default function RegisterPage() {
       email,
       password,
       options: {
+        // NE JAMAIS poser `approved` ici : `data` alimente `user_metadata`,
+        // que l'utilisateur peut réécrire lui-même. L'approbation vit dans
+        // `app_metadata` et n'est écrite que par /api/admin/approve.
+        // Son absence vaut « non approuvé ».
         data: {
           full_name: fullName,
           cabinet_name: cabinetName,
-          approved: false,
         },
       },
     });

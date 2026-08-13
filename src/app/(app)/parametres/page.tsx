@@ -97,6 +97,7 @@ export default function ParametresPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
@@ -123,18 +124,34 @@ export default function ParametresPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     setSaved(false);
+    setProfileError(null);
     try {
       const supabase = createClient();
+      // `updateUser({ data })` REMPLACE l'intégralité de user_metadata : il
+      // faut donc repartir des métadonnées existantes, sans quoi les autres
+      // clés sont perdues à chaque sauvegarde de profil.
+      const {
+        data: { user: current },
+      } = await supabase.auth.getUser();
+      const existing = (current?.user_metadata || {}) as Record<string, unknown>;
+
       const { error } = await supabase.auth.updateUser({
         data: {
+          ...existing,
           full_name: profile.fullName,
           cabinet_name: profile.cabinetName,
         },
       });
-      if (!error) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+      if (error) {
+        setProfileError(
+          error.message || "La sauvegarde a échoué. Réessayez dans un instant."
+        );
+        return;
       }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setProfileError("La sauvegarde a échoué. Vérifiez votre connexion.");
     } finally {
       setSaving(false);
     }
@@ -292,12 +309,21 @@ export default function ParametresPage() {
                 {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
                 {saved ? "Enregistré" : "Enregistrer"}
               </button>
-              {saved && (
+              {saved && !profileError && (
                 <span
                   className="text-[12px]"
                   style={{ color: "var(--emerald, #2d6a4f)" }}
                 >
                   Profil mis à jour avec succès
+                </span>
+              )}
+              {profileError && (
+                <span
+                  role="alert"
+                  className="text-[12px]"
+                  style={{ color: "var(--bordeaux, #9b2226)" }}
+                >
+                  {profileError}
                 </span>
               )}
             </div>
