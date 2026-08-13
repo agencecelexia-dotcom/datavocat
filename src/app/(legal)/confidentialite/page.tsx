@@ -12,9 +12,11 @@ export default function ConfidentialitePage() {
       <h2>1. Responsable du traitement</h2>
       <p>
         Le responsable du traitement des données est :<br />
-        <strong>Datavocat SAS</strong><br />
-        Siège social : [adresse complète]<br />
-        Email du DPO : dpo@datavocat.fr
+        <strong>{process.env.NEXT_PUBLIC_LEGAL_COMPANY || "Datavocat SAS"}</strong><br />
+        {process.env.NEXT_PUBLIC_LEGAL_ADDRESS && (
+          <>Siège social : {process.env.NEXT_PUBLIC_LEGAL_ADDRESS}<br /></>
+        )}
+        Contact : {process.env.NEXT_PUBLIC_LEGAL_DPO_EMAIL || "contact@datavocat.fr"}
       </p>
 
       <h2>2. Données collectées</h2>
@@ -34,14 +36,36 @@ export default function ConfidentialitePage() {
         <li>Préférences de l&apos;interface (thème, notifications)</li>
       </ul>
 
-      <h3>2.3 Données clients</h3>
+      <h3>2.3 Absence de fichier client</h3>
       <p>
-        L&apos;Utilisateur peut saisir des données relatives à ses clients :
-        nom, prénom, email, téléphone, entreprise. Ces données sont stockées
-        sous la seule responsabilité de l&apos;Utilisateur.
+        Datavocat ne propose aucune fonction de gestion de clientèle et ne
+        constitue aucun fichier nominatif de clients finaux : ni nom, ni
+        coordonnées, ni dossier. Les seules informations relatives à une
+        affaire sont celles que l&apos;Utilisateur rédige librement dans sa
+        demande d&apos;analyse, sous sa seule responsabilité et dans le respect
+        du secret professionnel auquel il est tenu. Il lui appartient de ne pas
+        y faire figurer d&apos;éléments directement identifiants.
       </p>
 
-      <h3>2.4 Données techniques</h3>
+      <h3>2.4 Corpus de jurisprudence et contrôle qualité</h3>
+      <p>
+        Pour chaque analyse sont conservés : les décisions de justice publiques
+        transmises au modèle (elles proviennent de Judilibre et de Légifrance et
+        ne contiennent aucune donnée personnelle de l&apos;Utilisateur), ainsi
+        que les indicateurs du contrôle automatique des sources. Ces éléments
+        permettent de vérifier a posteriori qu&apos;une analyse s&apos;appuie
+        bien sur des décisions réelles.
+      </p>
+
+      <h3>2.5 Mesure de consommation</h3>
+      <p>
+        Chaque appel aux modèles d&apos;analyse est enregistré (identifiant et
+        adresse email de l&apos;Utilisateur, modèle appelé, volumétrie, coût
+        estimé, horodatage) à des fins de facturation, de supervision technique
+        et de limitation des abus.
+      </p>
+
+      <h3>2.6 Données techniques</h3>
       <ul>
         <li>Adresse IP</li>
         <li>Type de navigateur et système d&apos;exploitation</li>
@@ -115,10 +139,17 @@ export default function ConfidentialitePage() {
       <p>Datavocat met en œuvre les mesures de sécurité suivantes :</p>
       <ul>
         <li>Chiffrement des données en transit (TLS 1.3) et au repos (AES-256)</li>
-        <li>Authentification sécurisée avec hachage des mots de passe (bcrypt)</li>
-        <li>Row Level Security (RLS) — isolation des données par utilisateur</li>
-        <li>Sauvegardes automatiques quotidiennes</li>
-        <li>Journalisation des accès et surveillance des anomalies</li>
+        <li>Authentification sécurisée avec hachage des mots de passe</li>
+        <li>
+          Row Level Security (RLS) au niveau de la base de données — chaque
+          analyse n&apos;est accessible qu&apos;à son auteur
+        </li>
+        <li>
+          En-têtes de sécurité navigateur (CSP, HSTS) et limitation du débit par
+          utilisateur
+        </li>
+        <li>Sauvegardes automatiques quotidiennes assurées par l&apos;hébergeur</li>
+        <li>Accès administrateur restreint à une liste nominative</li>
       </ul>
 
       <h2>7. Vos droits</h2>
@@ -134,7 +165,10 @@ export default function ConfidentialitePage() {
         <li><strong>Droit à la limitation</strong> — restreindre le traitement</li>
       </ul>
       <p>
-        Pour exercer ces droits, contactez-nous à : <strong>dpo@datavocat.fr</strong>
+        Pour exercer ces droits, contactez-nous à :{" "}
+        <strong>
+          {process.env.NEXT_PUBLIC_LEGAL_DPO_EMAIL || "contact@datavocat.fr"}
+        </strong>
       </p>
       <p>
         Nous nous engageons à répondre dans un délai de 30 jours. En cas de
@@ -188,8 +222,17 @@ export default function ConfidentialitePage() {
       <ul>
         <li>Transmises de manière chiffrée</li>
         <li>Non utilisées pour entraîner les modèles d&apos;IA (API commerciale)</li>
-        <li>Non conservées par Anthropic au-delà du traitement de la requête</li>
+        <li>
+          Conservées par Anthropic pendant une durée limitée, conformément aux
+          conditions d&apos;utilisation de son API commerciale, à des fins de
+          sécurité et de prévention des abus
+        </li>
       </ul>
+      <p>
+        Il appartient à l&apos;Utilisateur, tenu au secret professionnel, de ne
+        pas faire figurer dans ses demandes d&apos;éléments directement
+        identifiants relatifs à ses clients.
+      </p>
 
       <h2>10. Modification de la politique</h2>
       <p>

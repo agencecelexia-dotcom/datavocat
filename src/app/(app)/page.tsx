@@ -217,8 +217,28 @@ export default function AnalyzePage() {
       });
 
       if (!res.ok) {
-        setResponse("Erreur lors de l'analyse. Veuillez reessayer.");
-        setPhase("done");
+        // On NE bascule PAS en phase "done" : le message traverserait le
+        // parseur et s'afficherait comme un rapport vide, avec « — % » de
+        // taux. On revient à la saisie avec une erreur explicite.
+        let message = "L'analyse a échoué. Veuillez réessayer.";
+        if (res.status === 429) {
+          message =
+            "Vous avez atteint la limite d'analyses par heure. Réessayez dans quelques minutes.";
+        } else if (res.status === 403) {
+          message =
+            "Votre compte est en attente de validation. Vous recevrez un email dès son activation.";
+        } else if (res.status === 401) {
+          message = "Votre session a expiré. Reconnectez-vous pour continuer.";
+        } else {
+          try {
+            const body = await res.json();
+            if (body?.error) message = String(body.error);
+          } catch {
+            // corps non JSON : on garde le message générique
+          }
+        }
+        toast.error(message);
+        setPhase("input");
         setLoading(false);
         return;
       }
@@ -383,9 +403,9 @@ export default function AnalyzePage() {
   };
 
   const examples = [
-    "Mon client est un salarie licencie pour faute grave apres 15 ans d'anciennete dans une entreprise de BTP. Il conteste le motif. Quelles sont ses chances devant le CPH de Paris ?",
-    "Une OS non signataire veut contester un accord collectif sur le temps de travail dans une entreprise de 500 salaries. L'accord a ete signe par des syndicats representant 55% des votes. Quels arguments privilegier ?",
-    "Mon client locataire d'un bail commercial a Paris se voit refuser le renouvellement par le bailleur. Le bail dure depuis 12 ans. Quelles indemnites d'eviction peut-il esperer ?",
+    "Mon client est un salarié licencié pour faute grave après 15 ans d'ancienneté dans une entreprise de BTP. Il conteste le motif. Que retient la jurisprudence sur ce type de contestation ?",
+    "Une organisation syndicale non signataire veut contester un accord collectif sur le temps de travail dans une entreprise de 500 salariés. L'accord a été signé par des syndicats représentant 55 % des votes. Quels moyens sont retenus par les juridictions ?",
+    "Mon client, locataire d'un bail commercial à Paris depuis 12 ans, se voit refuser le renouvellement par le bailleur. Quelles indemnités d'éviction la jurisprudence retient-elle dans ce cas ?",
   ];
 
   const answeredCount = questions.filter((q) =>
@@ -1084,7 +1104,10 @@ function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] })
       <div className="flex items-baseline justify-between mb-2">
         <button
           type="button"
+          data-tour="fiabilite-badge"
           onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label="Indice de fiabilité — voir le mode de calcul"
           className="flex items-center gap-1.5 cursor-pointer transition-opacity hover:opacity-70"
           style={{ color: "var(--muted-foreground)" }}
         >
@@ -1165,15 +1188,17 @@ function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] })
             className="font-serif text-[15px] leading-snug mb-3"
             style={{ color: "var(--ink)" }}
           >
-            Indice composé de 8 facteurs sur 100 points.
+            Indice composé de {fiabilite.factors.length} facteur
+            {fiabilite.factors.length > 1 ? "s" : ""} sur 100 points.
           </div>
           <p
             className="text-[11.5px] leading-relaxed mb-4"
             style={{ color: "var(--muted-foreground)" }}
           >
             Le score reflète la solidité statistique et la traçabilité du corpus
-            analysé. Une note de 60–75 est typique d'une analyse correcte ; au-dessus
-            de 80 indique un dossier particulièrement bien documenté.
+            analysé — pas les chances de succès du dossier. Plus il est élevé,
+            plus les décisions réunies sont nombreuses, récentes, cohérentes
+            entre elles et réparties sur plusieurs niveaux de juridiction.
           </p>
           <div className="space-y-2.5">
             {fiabilite.factors.map((f, i) => {

@@ -9,22 +9,37 @@ export default function MentionsLegalesPage() {
         connaissance des utilisateurs du site Datavocat.
       </p>
 
+      {/*
+        À COMPLÉTER AVANT MISE EN PRODUCTION.
+        L'article 6-III de la LCEN impose la dénomination sociale, l'adresse du
+        siège, le numéro RCS et le directeur de la publication. Ces champs sont
+        alimentés par variables d'environnement pour ne pas figer d'information
+        d'entreprise dans le code — renseigner NEXT_PUBLIC_LEGAL_* au déploiement.
+      */}
       <h2>1. Éditeur du site</h2>
       <p>
         Le site Datavocat est édité par :<br />
-        <strong>Datavocat SAS</strong><br />
-        Société par actions simplifiée au capital de [montant] euros<br />
-        Immatriculée au RCS de Paris sous le numéro [numéro RCS]<br />
-        Siège social : [adresse complète]<br />
-        Numéro de TVA intracommunautaire : [numéro TVA]<br />
-        Email : contact@datavocat.fr<br />
-        Téléphone : [numéro de téléphone]
+        <strong>{process.env.NEXT_PUBLIC_LEGAL_COMPANY || "Datavocat SAS"}</strong><br />
+        {process.env.NEXT_PUBLIC_LEGAL_CAPITAL && (
+          <>Société par actions simplifiée au capital de {process.env.NEXT_PUBLIC_LEGAL_CAPITAL} euros<br /></>
+        )}
+        {process.env.NEXT_PUBLIC_LEGAL_RCS && (
+          <>Immatriculée au RCS sous le numéro {process.env.NEXT_PUBLIC_LEGAL_RCS}<br /></>
+        )}
+        {process.env.NEXT_PUBLIC_LEGAL_ADDRESS && (
+          <>Siège social : {process.env.NEXT_PUBLIC_LEGAL_ADDRESS}<br /></>
+        )}
+        {process.env.NEXT_PUBLIC_LEGAL_VAT && (
+          <>Numéro de TVA intracommunautaire : {process.env.NEXT_PUBLIC_LEGAL_VAT}<br /></>
+        )}
+        Email : contact@datavocat.fr
       </p>
 
       <h2>2. Directeur de la publication</h2>
       <p>
-        Le directeur de la publication est [Nom du directeur], en sa qualité
-        de [fonction] de Datavocat SAS.
+        {process.env.NEXT_PUBLIC_LEGAL_PUBLISHER
+          ? `Le directeur de la publication est ${process.env.NEXT_PUBLIC_LEGAL_PUBLISHER}.`
+          : "Le directeur de la publication est le représentant légal de la société éditrice."}
       </p>
 
       <h2>3. Hébergeur</h2>

@@ -25,31 +25,32 @@ export interface TourStep {
 
 /** Example query pre-filled during the interactive tour */
 export const TOUR_QUERY =
-  "Mon client est un salarie licencie pour faute grave apres 15 ans d'anciennete dans une entreprise de BTP. Il conteste le motif. Quelles sont ses chances devant le CPH de Paris ?";
+  "Mon client est un salarié licencié pour faute grave après 15 ans d'ancienneté dans une entreprise de BTP. Il conteste le motif. Que retient la jurisprudence du conseil de prud'hommes sur ce type de contestation ?";
 
 const TOUR_STEPS: TourStep[] = [
   {
-    target: "tour-welcome",
-    title: "Bienvenue sur Datavocat !",
+    // Étape centrée : aucune cible DOM n'est requise (position "center").
+    target: "tour-page",
+    title: "Bienvenue sur Datavocat",
     description:
-      "Ce tutoriel interactif vous guide a travers la plateforme. Vous allez cliquer sur chaque fonctionnalite pour la decouvrir.",
+      "Ce tutoriel interactif vous guide à travers la plateforme. Vous cliquerez sur chaque fonctionnalité pour la découvrir.",
     position: "center",
-    buttonLabel: "C'est parti !",
+    buttonLabel: "C'est parti",
     showButton: true,
   },
   {
     target: "analyze-button",
     title: "1. Lancez une analyse",
     description:
-      "Un cas a ete pre-rempli. Cliquez sur le bouton Analyser en surbrillance.",
+      "Un cas a été pré-rempli. Cliquez sur le bouton Analyser en surbrillance.",
     action: "tour:fill-query",
     waitFor: '[data-tour="clarify-section"],[data-tour-phase="analyzing"]',
   },
   {
     target: "clarify-buttons",
-    title: "2. Repondez aux questions",
+    title: "2. Répondez aux questions",
     description:
-      "L'IA affine l'analyse. Certaines questions acceptent plusieurs reponses (cochez-en plusieurs). Puis cliquez 'Lancer l'analyse' ou 'Passer'.",
+      "L'analyse s'affine. Certaines questions acceptent plusieurs réponses. Cliquez ensuite sur « Lancer l'analyse » ou « Passer ».",
     waitFor: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
     skipIf: '[data-tour-phase="analyzing"],[data-tour-phase="done"]',
     noOverlay: true,
@@ -59,16 +60,16 @@ const TOUR_STEPS: TourStep[] = [
     target: "analyzing-screen",
     title: "3. Analyse en cours",
     description:
-      "Recherche dans Judilibre + data.gouv.fr puis redaction par l'IA. Les etapes s'eclairent au fur et a mesure, avec un decompte en temps reel.",
+      "Recherche dans Judilibre et Légifrance, puis rédaction. Les étapes s'éclairent au fur et à mesure.",
     waitFor: '[data-tour-phase="done"]',
     skipIf: '[data-tour-phase="done"]',
-    waitHint: "Veuillez patienter...",
+    waitHint: "Veuillez patienter…",
   },
   {
     target: "fiabilite-badge",
-    title: "4. Indice de fiabilite",
+    title: "4. Indice de fiabilité",
     description:
-      "Cet indice evalue la qualite des sources. Cliquez sur le (i) pour voir les 7 criteres du calcul.",
+      "Cet indice évalue la qualité du corpus mobilisé — ce n'est pas un pronostic d'issue. Cliquez sur le (i) pour voir le détail du calcul.",
     showButton: true,
     buttonLabel: "Compris",
   },
@@ -76,43 +77,36 @@ const TOUR_STEPS: TourStep[] = [
     target: "tour-view-tabs",
     title: "5. Explorez les vues",
     description:
-      "Cliquez sur l'onglet Dashboard pour voir les graphiques, le taux de succes et le risque d'echec en miroir.",
+      "Cliquez sur l'onglet Chiffres pour voir les statistiques détaillées et leurs réserves méthodologiques.",
     waitFor: '[data-tour-active-view="dashboard"]',
   },
   {
     target: "tour-view-tabs",
-    title: "6. Filtrez les decisions",
+    title: "6. Filtrez les décisions",
     description:
-      "Passez sur l'onglet Tableau puis filtrez par Favorables / Defavorables / Nuancees pour trier les preuves pertinentes.",
+      "Passez sur l'onglet Tableau, puis filtrez par Favorables / Défavorables / Nuancées pour trier les décisions.",
     waitFor: '[data-tour-active-view="tableau"]',
   },
   {
     target: "tour-view-tabs",
-    title: "7. Decouvrez les sources",
+    title: "7. Vérifiez les sources",
     description:
-      "Maintenant cliquez sur l'onglet Sources pour voir les decisions citees, avec liens vers Legifrance ou Judilibre selon la reference.",
+      "L'onglet Sources liste les décisions citées, avec un lien direct vers Légifrance ou Judilibre pour les consulter.",
     waitFor: '[data-tour-active-view="sources"]',
   },
   {
     target: "tour-export-buttons",
     title: "8. Exportez votre travail",
     description:
-      "Trois formats disponibles : PDF (rapport editorial), DOCX (rapport complet), Excel (tableau de preuve filtrable).",
+      "Trois formats : PDF (rapport éditorial), DOCX (rapport complet), Excel (tableau filtrable).",
     showButton: true,
     buttonLabel: "Suivant",
   },
   {
-    target: "nav-historique",
-    title: "9. Historique",
-    description:
-      "Cliquez ici pour retrouver toutes vos analyses sauvegardees.",
-    position: "right",
-  },
-  {
     target: "user-menu",
-    title: "10. Parametres",
+    title: "9. Historique et paramètres",
     description:
-      "Cliquez pour acceder a vos parametres. Relancez ce tutoriel depuis Parametres > Aide & Tutoriel.",
+      "Ce menu donne accès à vos analyses précédentes et à vos paramètres.",
   },
 ];
 
