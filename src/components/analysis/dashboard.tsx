@@ -386,7 +386,9 @@ export function AnalysisDashboard({
       {verification?.additionalSources &&
         (verification.additionalSources.legifranceArticles > 0 ||
           verification.additionalSources.qpc > 0 ||
-          verification.additionalSources.kali > 0) && (
+          verification.additionalSources.kali > 0 ||
+          (verification.additionalSources.cedh ?? 0) > 0 ||
+          (verification.additionalSources.cnil ?? 0) > 0) && (
           <div
             className="rounded-md px-4 py-3 mb-4"
             style={{
@@ -426,6 +428,24 @@ export function AnalysisDashboard({
                   </span>{" "}
                   article{verification.additionalSources.kali > 1 ? "s" : ""} de convention
                   collective <span style={{ color: "var(--muted-foreground)" }}>(KALI)</span>
+                </span>
+              )}
+              {(verification.additionalSources.cedh ?? 0) > 0 && (
+                <span title="Arrêts de la Cour européenne des droits de l'homme touchant aux droits garantis par la Convention. Ils s'imposent au juge national mais ne sont pas comparables aux décisions internes : ils n'entrent dans aucun taux.">
+                  <span className="font-semibold tabular-nums">
+                    {verification.additionalSources.cedh}
+                  </span>{" "}
+                  arrêt{(verification.additionalSources.cedh ?? 0) > 1 ? "s" : ""}{" "}
+                  <span style={{ color: "var(--muted-foreground)" }}>(CEDH)</span>
+                </span>
+              )}
+              {(verification.additionalSources.cnil ?? 0) > 0 && (
+                <span title="Délibérations et sanctions de la CNIL. Décisions administratives : elles fixent la doctrine et le niveau des sanctions, sans entrer dans les taux jurisprudentiels.">
+                  <span className="font-semibold tabular-nums">
+                    {verification.additionalSources.cnil}
+                  </span>{" "}
+                  délibération{(verification.additionalSources.cnil ?? 0) > 1 ? "s" : ""}{" "}
+                  <span style={{ color: "var(--muted-foreground)" }}>(CNIL)</span>
                 </span>
               )}
             </div>

@@ -18,6 +18,16 @@ import {
   searchConstitutional,
   searchKaliConvention,
 } from "@/lib/legifrance/multifond";
+import {
+  searchCedh,
+  formatCedhForPrompt,
+  isConventionMatter,
+} from "@/lib/cedh/client";
+import {
+  searchCnil,
+  formatCnilForPrompt,
+  isDataProtectionMatter,
+} from "@/lib/legifrance/cnil";
 
 export const maxDuration = 300;
 
@@ -220,6 +230,36 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // ─── Sources de contexte complémentaires ────────────────────────────
+  // CEDH et CNIL ne sont interrogées que si la matière s'y prête : les
+  // solliciter systématiquement coûterait du temps et du contexte pour un
+  // apport nul sur un litige commercial ou un bail.
+  //
+  // Comme les QPC, ces décisions sont du CONTEXTE : elles n'entrent dans
+  // aucun taux et ne figurent pas au tableau de preuve (une condamnation de
+  // la France par la CEDH ou une sanction CNIL ne se compare pas à l'issue
+  // d'un litige national).
+  let cedhBlock = "";
+  let cnilBlock = "";
+  let cedhCount = 0;
+  let cnilCount = 0;
+
+  const wantsCedh = isConventionMatter(query);
+  const wantsCnil = isDataProtectionMatter(query);
+
+  if (wantsCedh || wantsCnil) {
+    const [cedhDecisions, cnilDelibs] = await Promise.all([
+      wantsCedh ? searchCedh(query, 5) : Promise.resolve([]),
+      wantsCnil && isLegifranceAvailable()
+        ? searchCnil(query, 5)
+        : Promise.resolve([]),
+    ]);
+    cedhCount = cedhDecisions.length;
+    cnilCount = cnilDelibs.length;
+    cedhBlock = formatCedhForPrompt(cedhDecisions);
+    cnilBlock = formatCnilForPrompt(cnilDelibs);
+  }
+
   // Stream Claude analysis
   const anthropic = getAnthropicClient();
 
@@ -233,10 +273,12 @@ ${query}
 ${judilibreContext}
 
 ${factsBlock}
-${legifranceBlock}${qpcBlock}${kaliBlock}
+${legifranceBlock}${qpcBlock}${kaliBlock}${cedhBlock}${cnilBlock}
 ${hasDatagouv ? `\n${datagouvContext}\n` : ""}
 
-RAPPEL : tu ne peux citer AUCUNE décision absente du CORPUS JUDILIBRE ci-dessus, ni inventer aucun chiffre absent du bloc FAITS VÉRIFIÉS. Toute référence non vérifiable sera supprimée du rapport final par un contrôle automatique. Pour les textes de loi cités, le bloc TEXTES DE LOI VÉRIFIÉS contient leur contenu intégral à jour — utilise-le. Le bloc JURISPRUDENCE CONSTITUTIONNELLE peut être cité pour signaler une QPC affectant la matière. Le bloc CONVENTION COLLECTIVE doit guider l'analyse des indemnités, préavis et procédures spécifiques.`
+RAPPEL : tu ne peux citer AUCUNE décision absente du CORPUS JUDILIBRE ci-dessus, ni inventer aucun chiffre absent du bloc FAITS VÉRIFIÉS. Toute référence non vérifiable sera supprimée du rapport final par un contrôle automatique. Pour les textes de loi cités, le bloc TEXTES DE LOI VÉRIFIÉS contient leur contenu intégral à jour — utilise-le. Le bloc JURISPRUDENCE CONSTITUTIONNELLE peut être cité pour signaler une QPC affectant la matière. Le bloc CONVENTION COLLECTIVE doit guider l'analyse des indemnités, préavis et procédures spécifiques.
+
+SOURCES DE CONTEXTE (CEDH, CNIL) : si ces blocs sont présents, tu peux les citer pour éclairer la stratégie — la Convention EDH s'impose au juge national, et la doctrine CNIL fixe le niveau des sanctions encourues. Mais ces décisions n'entrent dans AUCUN taux statistique et ne figurent PAS au tableau de preuve : elles ne sont pas comparables aux décisions du corpus judiciaire.`
     : `DEMANDE DE L'AVOCAT :
 ${query}
 
@@ -467,6 +509,8 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
                   legifranceArticles: legifranceArticleCount,
                   qpc: qpcCount,
                   kali: kaliCount,
+                  cedh: cedhCount,
+                  cnil: cnilCount,
                 },
               },
             })

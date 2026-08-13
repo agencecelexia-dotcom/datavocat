@@ -197,6 +197,10 @@ export interface ParsedAnalysis {
       legifranceArticles: number;
       qpc: number;
       kali: number;
+      /** Arrêts CEDH — contexte, hors statistiques. */
+      cedh?: number;
+      /** Délibérations CNIL — contexte, hors statistiques. */
+      cnil?: number;
     } | null;
   } | null;
 }
