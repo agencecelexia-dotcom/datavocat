@@ -1,5 +1,19 @@
 # Audit Datavocat — état des lieux complet
 
+> ## ✅ Corrections appliquées le 13 août 2026
+>
+> Tous les constats de ce rapport ont été traités sur la branche
+> `audit/corrections-completes` (5 commits, paliers 0 à 3).
+> **Ce document conserve l'état AVANT correction** — il documente ce qui a été
+> trouvé et pourquoi c'était un problème. Voir la section « Suivi des
+> corrections » en fin de document pour l'état actuel de chaque point.
+>
+> Vérifications : typecheck ✓ · 22 tests ✓ · build de production ✓
+>
+> **Deux actions restent à ta main** : appliquer la migration `00019` en base
+> (elle ferme la faille RLS), et renseigner les variables `NEXT_PUBLIC_LEGAL_*`
+> pour les mentions légales.
+
 > Audit réalisé le 13 août 2026 sur la branche `main` (commit `b492331`).
 > Méthode : 3 agents d'exploration en parallèle (backend/IA, frontend/UX, sécurité/BDD/infra),
 > puis vérification directe par lecture de code de tous les points Critique et Élevé.
@@ -46,6 +60,10 @@ prompt, **zéro test et zéro CI** sur un moteur statistique de 25 000 lignes. C
 à une défaillance muette comme E1 (rerank cassé) de vivre indéfiniment.
 
 ### Tableau des constats
+
+> La colonne « Vérifié » indique que le constat a été **reproduit par lecture de
+> code** lors de l'audit — pas qu'il est corrigé. Pour l'état des corrections,
+> voir le §8 en fin de document.
 
 | # | Constat | Sévérité | Vérifié |
 |---|---|---|:---:|
@@ -547,3 +565,69 @@ L'ordre importe : écrire les tests **en dernier** fige le comportement corrigé
 - **L'état réel de la base de production n'a pas été inspecté.** Les policies ont pu être modifiées à la main depuis. À confirmer par la requête `pg_policies` donnée en C1 avant toute conclusion sur l'exposition effective.
 - **Le plan Vercel n'est pas vérifiable depuis le dépôt** — M1 dépend de cette information.
 - Les rapports d'agents ont couvert le frontend/UX plus superficiellement que le backend ; un passage dédié accessibilité et responsive reste à faire.
+
+---
+
+## 8. Suivi des corrections (13 août 2026)
+
+Branche `audit/corrections-completes` — 5 commits.
+
+### Palier 0 — Exposition · `ceb6dfa`
+
+| Constat | État | Traitement |
+|---|:--:|---|
+| **C1** RLS `USING (true)` | ✅ | Migration `00019` : policies supprimées sur `analyses`, `api_usage`, `clients`. Le `service_role` bypasse RLS nativement. **À appliquer en base.** |
+| **C2** `/api/chat` et `/api/clarify` ouverts | ✅ | `requireApprovedUser()` avant tout appel au modèle + validation de forme et de taille des payloads |
+| **C3** Auto-approbation | ✅ | `approved` migré vers `app_metadata` ; `user_metadata` lu en rétro-compat ; écrasement des métadonnées corrigé |
+| **E3** `CRON_SECRET` optionnel | ✅ | Fail-safe inversé en refus |
+
+### Palier 1 — Véracité des chiffres · `6e3a6c6`
+
+| Constat | État | Traitement |
+|---|:--:|---|
+| **C5** Pourcentages faux | ✅ | `patchAnnouncedCount` supprimé, remplacé par un avertissement. `countTableRows` cible le tableau de preuve |
+| **C6** Données fabriquées | ✅ | Chambre par défaut et dates au 1<sup>er</sup> janvier retirées ; décisions sans dispositif exclues des dénominateurs |
+| **C4** Taux de succès | ✅ | Renommé « issues favorables dans ce corpus » sur les 6 surfaces, avec n et marge à 95 %. Seuil 5 → 15. Réserve co-localisée. Prompt et encadré PDF corrigés |
+| **E8** Fausses statistiques | ✅ | Taux art. 700 supprimé ; « arguments » → « thèmes de classement » (seuil 2 → 5) ; variations régionales désactivées |
+| **E7** « 562 487 décisions » | ✅ | Remplacé par les sources nommées ; pastille « synchronisé » retirée |
+| **E1** Rerank tronqué | ✅ | Batché à 150/appel, échecs partiels tolérés et journalisés. Corpus max 700 → 200 |
+| **M8** Filtre sources débranché | ✅ | Corpus transmis au parseur sur l'historique |
+| **M4** Aucun test | ✅ | Vitest + 22 tests sur `stats.ts` et `verify.ts` |
+
+### Palier 2 — Robustesse · `cd4df77`
+
+| Constat | État | Traitement |
+|---|:--:|---|
+| **E2** Pas de contrôle `approved` | ✅ | Appliqué sur `/api/analyze` |
+| **E5** Aucun rate limiting | ✅ | Quotas horaires par utilisateur adossés à `api_usage` (analyze 20, chat 120, clarify 60) |
+| **E4** Aucun en-tête de sécurité | ✅ | CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy |
+| **M1** Timeouts serverless | ✅ | `maxDuration` par route, région `cdg1` |
+| **M2** Types désynchronisés | ✅ | `api_usage`, `judilibre_corpus`, `verification` typés ; casts `as unknown` retirés |
+| **M8** Code mort | ✅ | ~2 800 lignes supprimées, dont `/api/rapport` (exposée, injection de prompt). Deps `recharts`, `d3`, `qstash` retirées |
+| **M4** Aucune CI | ✅ | GitHub Actions : typecheck + lint + tests |
+
+### Palier 3 — Conformité et UX · `3ccb990` + `d2060ac`
+
+| Constat | État | Traitement |
+|---|:--:|---|
+| **E6** Politique obsolète | ✅ | Section « Données clients » remplacée ; `api_usage` et `judilibre_corpus` déclarés ; affirmations RLS et Anthropic corrigées |
+| **M5** Mentions légales | ⚠️ | Placeholders remplacés par des variables `NEXT_PUBLIC_LEGAL_*` — **à renseigner** |
+| **M12** Tour cassé | ✅ | Cibles corrigées, étape invisible retirée, accents rétablis, « 8 facteurs » → valeur réelle |
+| **M11** Erreurs silencieuses | ✅ | États d'erreur distincts des états vides, avec bouton Réessayer |
+| **M10** Accessibilité | ✅ | Onglets ARIA + navigation clavier, menus labellisés, fermeture Échap, `aria-live` sur les phases |
+| **F1** Mot de passe | ✅ | Ré-authentification exigée ; seuil 6 → 12 caractères |
+| **F3** README | ✅ | README et `.env.example` rédigés |
+
+### Reste à traiter
+
+Points identifiés mais volontairement laissés de côté — ils ne présentent pas de
+risque immédiat et méritent d'être traités posément :
+
+- **M6** Rétention RGPD annoncée mais non implémentée (purge, anonymisation).
+  Le droit à l'effacement reste manuel — acceptable si le délai d'un mois est tenu.
+- **M7** `scripts/setup-database.sql` et `00011_seed_data.sql` à archiver.
+- **M3** Aller-retour des stats par le markdown : atténué (le serveur fait
+  autorité sur le taux), mais l'architecture reste à revoir.
+- **F2** Monolithes à découper — c'est là que vivent les 18 erreurs de lint
+  préexistantes, d'où le `continue-on-error` de la CI.
+- Multi-tenant : trancher le sort de `cabinets`/`profiles`, aujourd'hui morts.

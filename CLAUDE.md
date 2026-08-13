@@ -128,22 +128,54 @@ npx vercel --prod
 
 Pas de tests, pas de CI, pas de script `typecheck`.
 
-## État du projet — l'essentiel
+## Règles de véracité — à ne jamais enfreindre
 
-**Solide** : discipline TypeScript (0 `any`, 0 `@ts-ignore`, 0 catch vide sur 25 000 l.),
-architecture anti-hallucination serveur, conformité déontologique, autorisation admin en triple
-garde, hygiène des secrets (rien n'a jamais été commité), avertissements méthodologiques du
-dashboard (remarquables).
+Un audit d'août 2026 a trouvé plusieurs chiffres faux publiés à l'avocat. Ils sont corrigés ;
+ces règles empêchent leur retour. Elles sont verrouillées par les tests de
+`src/lib/judilibre/stats.test.ts`.
 
-**À traiter en priorité** (détail et roadmap dans [AUDIT.md](AUDIT.md)) :
-1. **Exposition** — policies RLS `USING (true)` qui annulent l'isolation ; `/api/chat` et
-   `/api/clarify` non authentifiés ; `approved` dans `user_metadata` donc auto-attribuable.
-2. **Véracité des chiffres** — `patchAnnouncedCount` réécrit les effectifs sans recalculer les % ;
-   le « taux de succès » mesure la propension à réformer, pas les chances de gagner ; plusieurs
-   statistiques sont des artefacts de parsing ; des données sont fabriquées (chambre « soc » par
-   défaut) ; « 562 487 décisions » est hardcodé.
-3. **Absence de filet** — zéro test sur `stats.ts` / `verify.ts` / `parse-analysis.ts`, ce qui
-   laisse des défaillances muettes (rerank Haiku tronqué) vivre indéfiniment.
+1. **Ne jamais écrire « X % de chances de succès. »** Le taux mesure la part d'issues
+   favorables *dans le corpus réuni* — pas une probabilité. Judilibre n'indique pas quelle
+   partie a formé le recours, et le corpus n'est pas un échantillon aléatoire. Tout affichage
+   du taux porte son effectif (n), sa marge d'erreur, et sa réserve **à côté du chiffre**.
+2. **Ne jamais réécrire un chiffre dans le markdown généré.** Corriger un effectif sans
+   recalculer les pourcentages associés fabrique une erreur. En cas d'incohérence : signaler,
+   pas corriger.
+3. **Ne jamais inventer une donnée absente de la source.** Pas de chambre par défaut, pas de
+   date reconstruite. Une donnée manquante reste manquante.
+4. **Exclure des dénominateurs les décisions sans dispositif lisible** — les compter fait
+   chuter mécaniquement tous les taux.
+5. **Ne pas publier de taux sous 15 décisions**, ni de fourchette de montants sous 5.
+6. **Les `themes` Judilibre sont un classement documentaire**, pas les moyens plaidés : les
+   présenter comme des « taux par argument » est trompeur.
+7. **Aucune variation par cour d'appel** : Judilibre n'expose pas le ressort.
+8. **Aucun taux de condamnation article 700** : les sommaires ne permettent pas de le calculer.
+9. **Aucun chiffre en dur en façade** (ex. un compteur de décisions) : soit il est calculé,
+   soit il n'est pas affiché.
 
-**~2 800 lignes de code mort**, dont `slides.tsx` (2217 l., jamais importé) et `/api/rapport`
-(route morte mais exposée, avec injection de prompt).
+## Contrôle d'accès
+
+Le middleware **ne couvre pas `/api/`**. Toute route API doit appeler `requireUser()` ou
+`requireApprovedUser()` (`src/lib/supabase/require-user.ts`) — les routes consommant du budget
+utilisent la seconde, plus `checkRateLimit()`.
+
+L'approbation vit dans `app_metadata` (serveur uniquement), **jamais** dans `user_metadata`
+que l'utilisateur peut réécrire.
+
+En base : ne jamais créer de policy `USING (true)` sans clause `TO`. Elle s'appliquerait à
+`PUBLIC` et annulerait toutes les policies d'isolation (elles se combinent en OU).
+
+## État du projet
+
+**Solide** : discipline TypeScript (0 `any`, 0 `@ts-ignore`, 0 catch vide), anti-hallucination
+serveur, conformité déontologique (art. 33, monopole du conseil), autorisation admin en triple
+garde, hygiène des secrets, avertissements méthodologiques du dashboard.
+
+**Corrigé en août 2026** (5 commits, détail dans [AUDIT.md](AUDIT.md) §8) : faille RLS,
+routes LLM ouvertes, auto-approbation, chiffres faux, rerank cassé, ~2 800 lignes de code mort,
+accessibilité, pages légales. Ajout de Vitest (22 tests), d'une CI et de quotas par utilisateur.
+
+**Reste à faire** : rétention RGPD non implémentée ; découpage des monolithes
+(`page.tsx` 1451 l., `evidence-table.tsx`, `dashboard.tsx` — 18 erreurs de lint y sont
+préexistantes, d'où le `continue-on-error` en CI) ; archivage de `scripts/setup-database.sql` ;
+sort à trancher pour `cabinets`/`profiles`, aujourd'hui morts.
