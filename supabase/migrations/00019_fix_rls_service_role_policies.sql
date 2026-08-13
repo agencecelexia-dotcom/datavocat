@@ -33,9 +33,9 @@ DROP POLICY IF EXISTS "Service role full access" ON public.analyses;
 -- ── api_usage ───────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Service role full access api_usage" ON public.api_usage;
 
--- ── clients (table supprimée en 00016 — DROP défensif au cas où une base
---    aurait été montée depuis scripts/setup-database.sql) ────────────────
-DROP POLICY IF EXISTS "Service role full access on clients" ON public.clients;
+-- ── clients : table supprimée par la migration 00016. Sa policy a disparu
+--    avec elle ; rien à faire ici. (Un DROP POLICY sur une table inexistante
+--    échoue, même avec IF EXISTS : c'est la RELATION qui doit exister.)
 
 -- ── Filet de sécurité : RLS explicitement activé sur les tables vivantes.
 ALTER TABLE public.analyses ENABLE ROW LEVEL SECURITY;
