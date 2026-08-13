@@ -584,7 +584,20 @@ export async function searchJudilibreForAnalysis(
       ? searchAdminJurisprudence({
           query: userQuery.slice(0, 200),
           pageSize: 50,
-        }).catch(() => [])
+        })
+          .then((r) => {
+            console.info(`[CETAT] ${r.length} decision(s) administrative(s) recuperee(s).`);
+            return r;
+          })
+          .catch((e) => {
+            // Cet échec était totalement muet : le contentieux administratif
+            // disparaissait du corpus sans qu'aucun signal ne remonte.
+            console.error(
+              "[CETAT] echec de la recherche administrative :",
+              e instanceof Error ? e.message : e
+            );
+            return [];
+          })
       : Promise.resolve([]);
     // JURI historique : on lance toujours (sauf admin pur) — gain net
     // pour les sujets qui ont une jurisprudence ancienne fondatrice.

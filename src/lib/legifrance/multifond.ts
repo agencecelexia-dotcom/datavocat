@@ -17,6 +17,7 @@
 
 import type { JudilibreDecision } from "@/lib/judilibre/client";
 import { getPisteToken, isLegifranceAvailable } from "./oauth";
+import { extractLegifranceTerms } from "./searchTerms";
 
 const API_BASE = "https://api.piste.gouv.fr/dila/legifrance/lf-engine-app";
 
@@ -89,8 +90,12 @@ async function searchFond<T = JudilibreDecision>(
             typeChamp: "ALL",
             criteres: [
               {
-                typeRecherche: "TOUS_LES_MOTS_DANS_UN_CHAMP",
-                valeur: query.slice(0, 200),
+                // `TOUS_LES_MOTS` sur la phrase entière de l'avocat exigeait
+                // que chaque mot figure dans la décision : jamais satisfait,
+                // donc zéro résultat en silence. On interroge sur les termes
+                // significatifs uniquement.
+                typeRecherche: "UN_DES_MOTS",
+                valeur: extractLegifranceTerms(query),
                 operateur: "ET",
               },
             ],
@@ -286,8 +291,12 @@ export async function searchKaliConvention(
             typeChamp: "ALL",
             criteres: [
               {
-                typeRecherche: "TOUS_LES_MOTS_DANS_UN_CHAMP",
-                valeur: query.slice(0, 200),
+                // `TOUS_LES_MOTS` sur la phrase entière de l'avocat exigeait
+                // que chaque mot figure dans la décision : jamais satisfait,
+                // donc zéro résultat en silence. On interroge sur les termes
+                // significatifs uniquement.
+                typeRecherche: "UN_DES_MOTS",
+                valeur: extractLegifranceTerms(query),
                 operateur: "ET",
               },
             ],

@@ -17,6 +17,7 @@
 
 import type { JudilibreDecision } from "@/lib/judilibre/client";
 import { getPisteToken, isLegifranceAvailable } from "./oauth";
+import { extractLegifranceTerms } from "./searchTerms";
 
 const API_BASE = "https://api.piste.gouv.fr/dila/legifrance/lf-engine-app";
 
@@ -93,18 +94,43 @@ export function isAdminMatter(query: string): boolean {
  *  - date : YYYY-MM-DD
  *  - numero : numéro de pourvoi/instance
  */
-function parseTitleCetat(title: string): {
+export function parseTitleCetat(title: string): {
   jurisdiction: string;
   chamber: string;
   date: string;
   numero: string;
 } {
-  const t = title || "";
-  // Juridiction (Légifrance écrit "Conseil d'Etat" sans accent — on tolère)
+  // L'API Légifrance surligne les termes de la recherche avec des balises
+  // `<mark>` À L'INTÉRIEUR du titre : « <mark>Tribunal</mark> des Conflits… ».
+  // Sans les retirer, aucune regex de juridiction ne peut matcher, et toutes
+  // les décisions dont le nom de juridiction contient un terme recherché
+  // repartaient en « autre ».
+  const t = (title || "").replace(/<\/?[^>]+>/g, "").trim();
+
+  // Juridiction.
+  //
+  // L'API renvoie en pratique les formes ABRÉGÉES : « CAA de PARIS, … »,
+  // « TA de LYON, … ». Les regex précédentes n'acceptaient que les formes
+  // développées (« Cour administrative d'appel ») ancrées en début de chaîne :
+  // aucune CAA ni aucun TA n'était donc reconnu. Ces décisions repartaient en
+  // juridiction « autre », puis étaient rangées en 1er degré par
+  // `classifyHierarchy` — faussant la répartition hiérarchique du corpus.
   let jurisdiction = "autre";
-  if (/^conseil\s+d['’]\s*[eéEÉ]tat/i.test(t)) jurisdiction = "ce";
-  else if (/^cour\s+administrative\s+d['’]\s*appel/i.test(t)) jurisdiction = "caa";
-  else if (/^tribunal\s+administratif/i.test(t)) jurisdiction = "ta";
+  if (/conseil\s+d['’]?\s*[eéEÉ]tat/i.test(t)) {
+    jurisdiction = "ce";
+  } else if (
+    /\bCAA\b|cour\s+administrative\s+d['’]?\s*appel/i.test(t)
+  ) {
+    jurisdiction = "caa";
+  } else if (/tribunal\s+des\s+conflits/i.test(t)) {
+    // Le Tribunal des conflits tranche la compétence entre les deux ordres.
+    // Il n'appartient à aucun, et son dispositif ne décrit pas une issue au
+    // fond : le classer en « tc » permet de l'exclure des taux tout en le
+    // conservant comme contexte.
+    jurisdiction = "tc";
+  } else if (/\bTA\s+de\b|tribunal\s+administratif/i.test(t)) {
+    jurisdiction = "ta";
+  }
 
   // Date (DD/MM/YYYY ou YYYY-MM-DD)
   let date = "";
@@ -113,17 +139,29 @@ function parseTitleCetat(title: string): {
   const dm2 = t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (!date && dm2) date = `${dm2[1]}-${dm2[2]}-${dm2[3]}`;
 
-  // Numéro : à la fin du titre, séquence de 5-7 chiffres
+  // Numéro d'instance. Deux formats coexistent :
+  //   - Conseil d'État : numérique pur (« 402109 »)
+  //   - CAA / TA       : alphanumérique (« 25PA05264 », « 19MA02913 »)
+  // L'ancienne regex, ancrée en fin de chaîne et purement numérique, échouait
+  // dès qu'une mention suivait (« , Inédit au recueil Lebon ») — le numéro
+  // était alors remplacé par l'identifiant technique CETATEXT…, produisant des
+  // citations inexploitables pour l'avocat.
   let numero = "";
-  const nm = t.match(/,\s*(\d{4,8})\s*$/);
-  if (nm) numero = nm[1];
+  const parts = t.split(",").map((p) => p.trim());
+  for (const p of parts) {
+    if (/^\d{4,8}$/.test(p) || /^\d{2}[A-Z]{2}\d{3,6}$/i.test(p)) {
+      numero = p;
+      break;
+    }
+  }
 
-  // Chamber : entre la juridiction et la date
+  // Formation : segment situé entre la juridiction et la date.
   let chamber = "";
-  const cm = t.match(
-    /(?:conseil\s+d['’]\s*[ée]tat|cour\s+administrative\s+d['’]\s*appel(?:\s+de\s+\w+)?|tribunal\s+administratif(?:\s+de\s+\w+)?)\s*,\s*([^,]+?)\s*,\s*\d/i
-  );
-  if (cm) chamber = cm[1].trim();
+  const idxDate = parts.findIndex((p) => /\d{1,2}\/\d{1,2}\/\d{4}/.test(p));
+  if (idxDate > 1) {
+    const candidate = parts.slice(1, idxDate).join(", ").trim();
+    if (candidate && candidate.length < 60) chamber = candidate;
+  }
 
   return { jurisdiction, chamber, date, numero };
 }
@@ -178,6 +216,9 @@ function cetatToJudilibreDecision(r: CetatResult): JudilibreDecision | null {
   const { jurisdiction, chamber, date, numero } = parseTitleCetat(
     t.title || ""
   );
+  if (jurisdiction === "autre" && process.env.NODE_ENV !== "production") {
+    console.warn(`[CETAT] titre non reconnu : ${JSON.stringify(t.title)}`);
+  }
   const text = cleanText(r.text || "");
   const solution = inferCetatSolution(text);
   return {
@@ -227,6 +268,12 @@ export async function searchAdminJurisprudence(args: {
       });
     }
 
+    // `typeRecherche: "EXACTE"` cherchait la phrase entière de l'avocat mot
+    // pour mot : aucune décision ne correspond jamais, et la recherche
+    // renvoyait systématiquement 0 résultat — le contentieux administratif
+    // était donc absent de tous les corpus, en silence.
+    const searchValue = extractLegifranceTerms(args.query);
+
     const payload = {
       recherche: {
         champs: [
@@ -234,8 +281,8 @@ export async function searchAdminJurisprudence(args: {
             typeChamp: "ALL",
             criteres: [
               {
-                typeRecherche: "EXACTE",
-                valeur: args.query.slice(0, 200),
+                typeRecherche: "UN_DES_MOTS",
+                valeur: searchValue,
                 operateur: "ET",
               },
             ],

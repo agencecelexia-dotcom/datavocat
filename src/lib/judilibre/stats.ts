@@ -221,6 +221,14 @@ function classifySolution(solution: string): "cassation" | "rejet" | "autre" {
   return "autre";
 }
 
+/**
+ * Juridictions dont le dispositif ne décrit pas une issue au fond et qui ne
+ * doivent donc jamais peser dans un taux :
+ *   - "tc"      : Tribunal des conflits (tranche la compétence, pas le litige)
+ *   - "constit" : Conseil constitutionnel (contrôle de constitutionnalité)
+ */
+const JURIDICTIONS_HORS_TAUX = new Set(["tc", "constit"]);
+
 function classifyOutcome(
   solution: string
 ): "favorable" | "defavorable" | "nuance" | "indetermine" {
@@ -303,7 +311,11 @@ function statsFromDecisions(decisions: JudilibreDecision[]): CategoryStats {
   let rejets = 0;
   for (const d of decisions) {
     const sol = d.solution_alt || d.solution || "";
-    const o = classifyOutcome(sol);
+    // Une juridiction qui ne tranche pas le fond est comptée comme
+    // indéterminée : elle reste dans le corpus mais sort des dénominateurs.
+    const o = JURIDICTIONS_HORS_TAUX.has((d.jurisdiction || "").toLowerCase())
+      ? "indetermine"
+      : classifyOutcome(sol);
     if (o === "favorable") favorables++;
     else if (o === "defavorable") defavorables++;
     else if (o === "nuance") nuances++;
