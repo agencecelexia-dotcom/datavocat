@@ -13,21 +13,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Tarification Anthropic par modèle (USD / token). */
 const PRICING: Record<string, { input: number; output: number }> = {
-  // Claude Sonnet 4 — $3/M in, $15/M out
-  "claude-sonnet-4-20250514": {
-    input: 3 / 1_000_000,
-    output: 15 / 1_000_000,
-  },
-  // Claude Haiku 4.5 — $1/M in, $5/M out
-  "claude-haiku-4-5-20251001": {
-    input: 1 / 1_000_000,
-    output: 5 / 1_000_000,
-  },
-  // Fallback générique (même tarif Sonnet)
-  default: {
-    input: 3 / 1_000_000,
-    output: 15 / 1_000_000,
-  },
+  // Famille Sonnet — $3/M in, $15/M out
+  "claude-sonnet-5": { input: 3 / 1_000_000, output: 15 / 1_000_000 },
+  "claude-sonnet-4-6": { input: 3 / 1_000_000, output: 15 / 1_000_000 },
+  "claude-sonnet-4-5-20250929": { input: 3 / 1_000_000, output: 15 / 1_000_000 },
+  // Modèle historique, retiré du catalogue — conservé pour les analyses archivées.
+  "claude-sonnet-4-20250514": { input: 3 / 1_000_000, output: 15 / 1_000_000 },
+  // Famille Haiku — $1/M in, $5/M out
+  "claude-haiku-4-5-20251001": { input: 1 / 1_000_000, output: 5 / 1_000_000 },
+  // Famille Opus — $5/M in, $25/M out. Sans cette entrée, un basculement sur
+  // Opus via ANALYZE_MODEL aurait été facturé au tarif Sonnet, sous-estimant
+  // le coût réel affiché dans /admin/costs.
+  "claude-opus-5": { input: 5 / 1_000_000, output: 25 / 1_000_000 },
+  "claude-opus-4-8": { input: 5 / 1_000_000, output: 25 / 1_000_000 },
+  "claude-opus-4-7": { input: 5 / 1_000_000, output: 25 / 1_000_000 },
+  "claude-opus-4-6": { input: 5 / 1_000_000, output: 25 / 1_000_000 },
+  "claude-opus-4-5-20251101": { input: 5 / 1_000_000, output: 25 / 1_000_000 },
+  // Repli prudent : tarif le plus élevé, pour ne jamais sous-estimer un coût.
+  default: { input: 5 / 1_000_000, output: 25 / 1_000_000 },
 };
 
 export function priceFor(model: string) {

@@ -250,9 +250,10 @@ RAPPEL : tu ne peux citer aucune décision puisque le corpus est vide. Limite-to
 
 N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détectée comme hallucination par le contrôle automatique.`;
 
-  // Sonnet 4 par défaut pour l'analyse. Override via env ANALYZE_MODEL.
-  const ANALYZE_MODEL =
-    process.env.ANALYZE_MODEL || "claude-sonnet-4-20250514";
+  // Sonnet 5 par défaut pour l'analyse. Override via env ANALYZE_MODEL.
+  // NB : `claude-sonnet-4-20250514` était codé en dur et n'est plus servi par
+  // l'API (404 not_found_error) — toute analyse échouait.
+  const ANALYZE_MODEL = process.env.ANALYZE_MODEL || "claude-sonnet-5";
 
   const stream = await anthropic.messages.stream({
     model: ANALYZE_MODEL,
@@ -306,6 +307,24 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
         }
 
         controller.enqueue(encoder.encode("\n[STEP:claude:done]\n"));
+
+        // Une génération vide passait jusqu'ici en `status: done` avec une
+        // réponse de longueur nulle, sans qu'aucun signal ne remonte.
+        if (fullResponse.trim().length === 0) {
+          try {
+            const fm = await stream.finalMessage();
+            console.error(
+              `[analyze] generation VIDE — modele=${ANALYZE_MODEL}, corpus=${corpus.length} dec., ` +
+                `stop_reason=${fm.stop_reason}, blocs=[${fm.content.map((b) => b.type).join(",")}], ` +
+                `in=${fm.usage.input_tokens} out=${fm.usage.output_tokens}`
+            );
+          } catch (e) {
+            console.error(
+              `[analyze] generation VIDE + finalMessage en echec :`,
+              e instanceof Error ? e.message : e
+            );
+          }
+        }
 
         // ─── Vérification post-génération ───────────────────────────
         // Toute référence ECLI/pourvoi citée par Claude qui n'est pas
@@ -476,6 +495,15 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
           // fail silent
         }
       } catch (err) {
+        // Journalisation explicite : cette erreur était auparavant écrite en
+        // base mais jamais loguée, rendant tout diagnostic impossible en prod.
+        console.error(
+          "[analyze] echec de generation :",
+          err instanceof Error ? err.message : err,
+          "| texte partiel :",
+          fullResponse.length,
+          "car."
+        );
         if (id) {
           await supabase
             .from("analyses")

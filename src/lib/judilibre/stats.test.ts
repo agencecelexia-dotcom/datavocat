@@ -29,6 +29,18 @@ function many(n: number, over: Partial<JudilibreDecision> = {}) {
   return Array.from({ length: n }, () => dec(over));
 }
 
+/**
+ * Corpus réaliste : 75 % d'infirmations, 25 % de confirmations.
+ * Un corpus à sens unique déclencherait le garde-fou `corpusUnilateral`.
+ */
+function mixte(n: number, over: Partial<JudilibreDecision> = {}) {
+  const fav = Math.ceil(n * 0.75);
+  return [
+    ...many(fav, { solution: "Infirme la décision déférée", ...over }),
+    ...many(n - fav, { solution: "Confirme la décision déférée", ...over }),
+  ];
+}
+
 describe("dénominateurs des taux", () => {
   it("exclut les décisions sans dispositif du taux d'issue favorable", () => {
     // 10 favorables + 10 sans dispositif (typiquement le fonds JURI).
@@ -81,9 +93,14 @@ describe("seuil d'échantillon du taux publié", () => {
   });
 
   it("publie le taux avec son effectif et sa marge dès 15 décisions", () => {
-    const stats = computeCorpusStats(many(15, { jurisdiction: "ca" }));
-    expect(stats.tauxSuccesRetenu).toBe(100);
-    expect(stats.tauxSuccesN).toBe(15);
+    // Corpus des deux sens : 12 infirmations + 4 confirmations. Un corpus
+    // unilatéral serait refusé par le garde-fou (cf. « corpus unilatéral »).
+    const stats = computeCorpusStats([
+      ...many(12, { jurisdiction: "ca", solution: "Infirme la décision déférée" }),
+      ...many(4, { jurisdiction: "ca", solution: "Confirme la décision déférée" }),
+    ]);
+    expect(stats.tauxSuccesRetenu).toBe(75);
+    expect(stats.tauxSuccesN).toBe(16);
     expect(stats.tauxSuccesMarge).not.toBeNull();
   });
 
@@ -97,6 +114,43 @@ describe("seuil d'échantillon du taux publié", () => {
     expect(petit.tauxSuccesMarge).not.toBeNull();
     expect(grand.tauxSuccesMarge).not.toBeNull();
     expect(grand.tauxSuccesMarge!).toBeLessThan(petit.tauxSuccesMarge!);
+  });
+});
+
+describe("corpus unilatéral (constaté en test réel)", () => {
+  it("ne publie pas de taux quand aucune décision n'est défavorable", () => {
+    // Cas réel observé : Judilibre remonte 52 cassations + 35 infirmations,
+    // zéro rejet et zéro confirmation. Le taux vaudrait 100 % ± 0 — une
+    // précision apparente qui ne mesure que le biais de sélection.
+    const corpus = [
+      ...many(52, { jurisdiction: "cc", solution: "cassation" }),
+      ...many(35, {
+        jurisdiction: "ca",
+        solution: "Infirme partiellement, réforme ou modifie certaines dispositions",
+      }),
+    ];
+    const stats = computeCorpusStats(corpus);
+
+    expect(stats.corpusUnilateral).toBe(true);
+    expect(stats.tauxSuccesRetenu).toBeNull();
+  });
+
+  it("publie le taux dès qu'il existe des décisions dans les deux sens", () => {
+    const corpus = [
+      ...many(20, { jurisdiction: "ca", solution: "Infirme la décision déférée" }),
+      ...many(20, { jurisdiction: "ca", solution: "Confirme la décision déférée" }),
+    ];
+    const stats = computeCorpusStats(corpus);
+
+    expect(stats.corpusUnilateral).toBe(false);
+    expect(stats.tauxSuccesRetenu).toBe(50);
+  });
+
+  it("explique le refus dans le bloc transmis au modèle", () => {
+    const corpus = many(40, { jurisdiction: "cc", solution: "cassation" });
+    const bloc = formatStatsForPrompt(computeCorpusStats(corpus));
+    expect(bloc).toContain("NON PUBLIABLE");
+    expect(bloc).toContain("biais de sélection");
   });
 });
 
@@ -132,13 +186,13 @@ describe("statistiques non fabriquées", () => {
 
 describe("bloc FAITS VÉRIFIÉS transmis au modèle", () => {
   it("interdit explicitement la formulation « chances de succès »", () => {
-    const bloc = formatStatsForPrompt(computeCorpusStats(many(20)));
+    const bloc = formatStatsForPrompt(computeCorpusStats(mixte(20)));
     expect(bloc).toContain("TAUX D'ISSUE FAVORABLE OBSERVÉ");
     expect(bloc).toMatch(/n'écris JAMAIS « X% de chances de succès »/);
   });
 
   it("signale que les variations régionales ne sont pas calculables", () => {
-    const bloc = formatStatsForPrompt(computeCorpusStats(many(20)));
+    const bloc = formatStatsForPrompt(computeCorpusStats(mixte(20)));
     expect(bloc).toContain("VARIATIONS RÉGIONALES : non disponibles");
   });
 

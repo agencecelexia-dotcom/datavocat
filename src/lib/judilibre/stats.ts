@@ -100,6 +100,12 @@ export interface CorpusStats {
   /** Décisions du corpus dont le dispositif est absent ou illisible. */
   indeterminesTotal: number;
   /**
+   * Vrai si le corpus ne contient des dispositifs que d'un seul sens (aucune
+   * décision défavorable). Le taux y vaudrait 100 % ± 0 et ne mesurerait que
+   * le biais de sélection du moteur de recherche : il n'est donc pas publié.
+   */
+  corpusUnilateral: boolean;
+  /**
    * Tendance temporelle : taux d'acceptation par année (au fond).
    * Chaque entrée a au moins 3 décisions pour être statistiquement
    * significative (sinon agrégée dans "Avant"). La direction (up/down/flat)
@@ -464,14 +470,37 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
   // que l'échantillon ne porte pas. En dessous, on renvoie null et l'UI
   // affiche les effectifs bruts.
   const MIN_SAMPLE_FOR_RATE = 15;
-  if (fondTotal >= MIN_SAMPLE_FOR_RATE) {
+
+  // ─── Garde-fou : corpus dégénéré ───────────────────────────────────
+  // Constaté en test réel : sur certaines requêtes, Judilibre ne remonte que
+  // des dispositifs d'un seul sens (52 cassations + 35 infirmations, aucun
+  // rejet ni confirmation). Le taux vaut alors 100 % avec une marge de ±0 —
+  // un chiffre d'apparence parfaitement précise qui ne mesure QUE le biais de
+  // sélection du moteur de recherche, pas une réalité jurisprudentielle.
+  //
+  // Publier ce chiffre serait plus trompeur que de n'en publier aucun : on le
+  // supprime et l'UI se rabat sur les effectifs bruts.
+  const fondDefav =
+    hierarchy.premierDegre.defavorables + hierarchy.courAppel.defavorables;
+  const fondNuances =
+    hierarchy.premierDegre.nuances + hierarchy.courAppel.nuances;
+  const corpusFondDegenere =
+    fondTotal > 0 && fondDefav === 0 && fondNuances === 0;
+  const corpusCassDegenere =
+    hierarchy.cassation.classifiables > 0 &&
+    (hierarchy.cassation.rejets ?? 0) === 0;
+
+  if (fondTotal >= MIN_SAMPLE_FOR_RATE && !corpusFondDegenere) {
     tauxSuccesRetenu = pct(fondFav, fondTotal);
     tauxSuccesN = fondTotal;
     tauxSuccesSource =
       hierarchy.cassation.classifiables >= MIN_SAMPLE_FOR_RATE
         ? "mixte"
         : "fond";
-  } else if (hierarchy.cassation.classifiables >= MIN_SAMPLE_FOR_RATE) {
+  } else if (
+    hierarchy.cassation.classifiables >= MIN_SAMPLE_FOR_RATE &&
+    !corpusCassDegenere
+  ) {
     tauxSuccesRetenu = hierarchy.cassation.cassationRate ?? null;
     tauxSuccesN = hierarchy.cassation.classifiables;
     tauxSuccesSource = "cassation";
@@ -690,6 +719,7 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     tauxSuccesN,
     tauxSuccesMarge,
     indeterminesTotal: totalIndetermine,
+    corpusUnilateral: corpusFondDegenere || corpusCassDegenere,
     temporalTrend: { buckets: yearBuckets, direction, deltaPct, medianYear },
     regionalVariations,
     chamberVariations,
@@ -756,6 +786,16 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
     );
     lines.push(
       `   Tu DOIS présenter ce chiffre comme une tendance observée, et n'écris JAMAIS « X% de chances de succès ».`
+    );
+  } else if (stats.corpusUnilateral) {
+    lines.push(
+      `TAUX D'ISSUE FAVORABLE : NON PUBLIABLE sur ce corpus.`
+    );
+    lines.push(
+      `Motif : toutes les décisions récupérées vont dans le même sens (aucune décision défavorable). Le taux vaudrait mécaniquement 100 % — il mesurerait le biais de sélection du moteur de recherche, pas la jurisprudence.`
+    );
+    lines.push(
+      `Tu DOIS écrire : « Le taux d'issue favorable n'est pas calculable sur ce corpus : la recherche n'a remonté que des décisions allant dans un seul sens (aucun rejet ni confirmation). Ce déséquilibre reflète le mode de sélection des décisions, non la réalité du contentieux. » Puis donne les effectifs bruts SANS en tirer de pourcentage de succès.`
     );
   } else {
     lines.push(
