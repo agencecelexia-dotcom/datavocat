@@ -55,3 +55,6 @@ supabase/.temp/
 # Design sources et dossier de tests PDF/DOCX
 .design/
 design/
+
+# captures d'ecran locales (peuvent contenir des cles)
+screen/
