@@ -25,10 +25,13 @@ export default function RegisterPage() {
       email,
       password,
       options: {
+        // NE JAMAIS poser `approved` ici : `data` alimente `user_metadata`,
+        // que l'utilisateur peut réécrire lui-même. L'approbation vit dans
+        // `app_metadata` et n'est écrite que par /api/admin/approve.
+        // Son absence vaut « non approuvé ».
         data: {
           full_name: fullName,
           cabinet_name: cabinetName,
-          approved: false,
         },
       },
     });
@@ -173,10 +176,10 @@ export default function RegisterPage() {
             <input
               id="password"
               type="password"
-              placeholder="Minimum 6 caractères"
+              placeholder="Minimum 12 caractères"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
+              minLength={12}
               required
               className="w-full h-11 pl-9 pr-3 text-[13px] rounded-md outline-none"
               style={inputStyle}

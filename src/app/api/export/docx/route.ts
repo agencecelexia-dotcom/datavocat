@@ -162,7 +162,10 @@ export async function POST(request: NextRequest) {
                   new Paragraph({
                     children: [
                       new TextRun({
-                        text: "Taux de succes global",
+                        text:
+                          parsed.verification?.tauxSuccesSource === "cassation"
+                            ? "Arrets ayant casse, dans ce corpus"
+                            : "Issues favorables au demandeur, dans ce corpus",
                         bold: true,
                         size: 22,
                       }),
@@ -176,7 +179,15 @@ export async function POST(request: NextRequest) {
                   new Paragraph({
                     children: [
                       new TextRun({
-                        text: `${parsed.tauxSuccesGlobal}%`,
+                        text: `${parsed.tauxSuccesGlobal}%${
+                          parsed.verification?.tauxSuccesMarge != null
+                            ? ` ± ${parsed.verification.tauxSuccesMarge} pts`
+                            : ""
+                        }${
+                          parsed.verification?.tauxSuccesN != null
+                            ? ` (n = ${parsed.verification.tauxSuccesN})`
+                            : ""
+                        }`,
                         bold: true,
                         size: 28,
                         color: "1e3a5f",
@@ -246,6 +257,24 @@ export async function POST(request: NextRequest) {
             width: { size: 100, type: WidthType.PERCENTAGE },
           })
         );
+        // Réserve méthodologique : ce document peut être remis à un client,
+        // le chiffre ne doit jamais y circuler sans son cadrage.
+        if (parsed.tauxSuccesGlobal !== null) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 200, after: 200 },
+              children: [
+                new TextRun({
+                  text:
+                    "Ce pourcentage decrit les decisions reunies pour cette analyse : il ne constitue pas une probabilite de succes pour le dossier examine. Le corpus n'est pas un echantillon aleatoire (decisions les plus proches, par leur texte, de la demande formulee) et la base Judilibre n'indique pas quelle partie a exerce le recours — une infirmation ne signifie donc pas que le demandeur initial l'a emporte.",
+                  italics: true,
+                  size: 18,
+                  color: "6b6658",
+                }),
+              ],
+            })
+          );
+        }
       }
     }
   }

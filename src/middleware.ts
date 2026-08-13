@@ -67,8 +67,16 @@ export async function middleware(request: NextRequest) {
       .filter(Boolean);
     const userEmail = (user.email || "").toLowerCase();
     const isAdmin = adminEmails.includes(userEmail);
+    // L'approbation est lue dans `app_metadata` : contrairement à
+    // `user_metadata`, elle n'est modifiable que côté serveur (service_role).
+    // Lire `user_metadata` ici rendait le contrôle auto-attribuable par
+    // l'utilisateur via `supabase.auth.updateUser({ data: {...} })`.
+    // `user_metadata` reste toléré en lecture pour les comptes créés avant
+    // la migration 00020 — à retirer une fois le backfill confirmé.
     const isApproved =
-      isAdmin || user.user_metadata?.approved === true;
+      isAdmin ||
+      user.app_metadata?.approved === true ||
+      user.user_metadata?.approved === true;
 
     // Admin uniquement pour /admin*
     if (isAdminRoute && !isAdmin) {

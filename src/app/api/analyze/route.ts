@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/types/database";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireApprovedUser } from "@/lib/supabase/require-user";
+import { checkRateLimit } from "@/lib/api-usage/rate-limit";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { DATAVOCAT_SYSTEM_PROMPT } from "@/lib/claude/analyze-prompt";
 import { searchJudilibreForAnalysis } from "@/lib/judilibre/client";
@@ -19,7 +21,21 @@ import {
 
 export const maxDuration = 300;
 
+/**
+ * Taille max de la demande. Sans plafond, une requête volumineuse partait
+ * telle quelle dans le prompt (coût) et traversait les regex d'extraction
+ * de références, dont certaines sont sujettes au backtracking.
+ */
+const MAX_QUERY_CHARS = 20_000;
+
 export async function POST(request: NextRequest) {
+  // Auth + approbation AVANT tout travail : cette route déclenche ~200 requêtes
+  // PISTE, un appel Haiku, des embeddings Voyage et un appel Sonnet. Le
+  // middleware exclut `/api/`, donc un compte non validé pouvait la consommer.
+  const auth = await requireApprovedUser();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
+
   const { query, analysisId } = await request.json();
 
   if (!query || typeof query !== "string") {
@@ -29,16 +45,17 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Get the authenticated user
-  const serverSupabase = await createClient();
-  const { data: { user } } = await serverSupabase.auth.getUser();
-
-  if (!user) {
-    return new Response(JSON.stringify({ error: "Non authentifié" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+  if (query.length > MAX_QUERY_CHARS) {
+    return new Response(
+      JSON.stringify({
+        error: `Demande trop longue (max ${MAX_QUERY_CHARS} caractères).`,
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
   }
+
+  const rate = await checkRateLimit(user.id, "analyze");
+  if (!rate.ok) return rate.response;
 
   // Use admin client for writes (needed for streaming callback after response)
   const supabase = createAdminClient();
@@ -307,6 +324,7 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
               removedSentences: 0,
               removedRows: 0,
               coherenceCorrected: false,
+              countMismatch: null,
             };
 
         const finalMarkdown = verification.cleanedMarkdown;
@@ -319,15 +337,9 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
 
         // Save cleaned response + corpus + verification metadata
         if (id) {
-          // Cast pour bypass des types Database non régénérés (judilibre_corpus,
-          // verification ne sont pas dans les types autogen).
-          const updateClient = supabase as unknown as {
-            from: (table: string) => {
-              update: (row: Record<string, unknown>) => {
-                eq: (col: string, val: unknown) => Promise<{ error: unknown }>;
-              };
-            };
-          };
+          // `judilibre_corpus` et `verification` figurent désormais dans les
+          // types Database (migration 00018) : plus de cast de contournement.
+          const updateClient = supabase;
           // Composition du corpus 4 catégories (Règle 2).
           const corpusComposition = corpusStats
             ? {
@@ -410,7 +422,9 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
             .update({
               response: finalMarkdown,
               status: "done",
-              judilibre_corpus: corpus,
+              // Sérialisation explicite : les colonnes JSONB acceptent du Json,
+              // et `JudilibreDecision` n'a pas d'index signature.
+              judilibre_corpus: corpus as unknown as Json,
               verification: {
                 citedRefs: verification.citedRefs,
                 verifiedRefs: verification.verifiedRefs,
@@ -422,6 +436,10 @@ N'invente AUCUNE décision, AUCUNE statistique. Toute référence sera détecté
                 fiabilite: fiabiliteFormula,
                 tauxSuccesRetenu: corpusStats?.tauxSuccesRetenu ?? null,
                 tauxSuccesSource: corpusStats?.tauxSuccesSource ?? null,
+                tauxSuccesN: corpusStats?.tauxSuccesN ?? null,
+                tauxSuccesMarge: corpusStats?.tauxSuccesMarge ?? null,
+                indeterminesTotal: corpusStats?.indeterminesTotal ?? null,
+                countMismatch: verification.countMismatch,
                 temporalTrend: corpusStats?.temporalTrend ?? null,
                 regionalVariations: corpusStats?.regionalVariations ?? null,
                 chamberVariations: corpusStats?.chamberVariations ?? null,

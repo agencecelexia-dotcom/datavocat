@@ -143,10 +143,21 @@ export interface ParsedAnalysis {
       D: number;
       score: number;
     } | null;
-    /** Taux de succès retenu (canonique) calculé sur le corpus. */
+    /**
+     * Taux d'issue favorable observé sur le corpus (canonique, calculé serveur).
+     * Ce n'est pas une probabilité de succès — cf. `stats.ts`.
+     */
     tauxSuccesRetenu?: number | null;
     /** Source du taux : "fond" (1er degré + CA), "mixte", "cassation". */
     tauxSuccesSource?: "fond" | "mixte" | "cassation" | null;
+    /** Effectif (décisions au dispositif lisible) sur lequel le taux porte. */
+    tauxSuccesN?: number | null;
+    /** Marge d'erreur à 95 %, en points de pourcentage. */
+    tauxSuccesMarge?: number | null;
+    /** Décisions dont le dispositif est absent ou illisible. */
+    indeterminesTotal?: number | null;
+    /** Incohérence entre le tableau nettoyé et la taille du corpus. */
+    countMismatch?: { corpusSize: number; tableRows: number } | null;
     /** Tendance temporelle (Niveau 3 jurimétrie). */
     temporalTrend?: {
       buckets: Array<{
@@ -1070,19 +1081,18 @@ export function parseAnalysisResponse(
   if (art700Section) {
     // Strip markdown bold markers before matching to handle **Taux de condamnation** : ...
     const art700Text = art700Section[0].replace(/\*{1,2}/g, "");
-    const tauxCond = art700Text.match(/taux\s+(?:de\s+)?condamnation\s*[:\-—]\s*(?:environ\s+)?(\d{1,3}(?:[.,]\d+)?)\s*%/i);
-    const moyenMatch = art700Text.match(/montant\s+moyen\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*(?:€|euros?)/i);
-    const medianMatch = art700Text.match(/montant\s+m[ée]dian\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*(?:€|euros?)/i);
+    const moyenMatch = art700Text.match(/montant\s+moyen\s*(?:observ[ée])?\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*(?:€|euros?)/i);
+    const medianMatch = art700Text.match(/montant\s+m[ée]dian\s*(?:observ[ée])?\s*[:\-—]\s*(?:environ\s+)?(\d[\d\s.,]*)\s*(?:€|euros?)/i);
     result.article700 = {
-      tauxCondamnation: tauxCond ? parseFloat(tauxCond[1].replace(",", ".")) : null,
+      // Taux de condamnation volontairement TOUJOURS null : il n'est pas
+      // calculable depuis les sommaires Judilibre (cf. extractMontants.ts).
+      // On ne le ré-extrait donc plus du texte, même si le modèle en produit
+      // un — ce serait ré-introduire par le markdown un chiffre qu'on a retiré
+      // du calcul serveur.
+      tauxCondamnation: null,
       montantMoyen: moyenMatch ? parseFloat(moyenMatch[1].replace(/\s/g, "").replace(",", ".")) : null,
       montantMedian: medianMatch ? parseFloat(medianMatch[1].replace(/\s/g, "").replace(",", ".")) : null,
     };
-    // If we found at least one value but missed taux, try alternative pattern
-    if (result.article700.tauxCondamnation === null) {
-      const altTaux = art700Text.match(/(\d{1,3}(?:[.,]\d+)?)\s*%\s*(?:des?\s+)?(?:cas|d[ée]cisions|condamnation)/i);
-      if (altTaux) result.article700.tauxCondamnation = parseFloat(altTaux[1].replace(",", "."));
-    }
   } else {
     result.article700 = null;
   }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Clock, ArrowRight, Trash2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 interface Analysis {
   id: string;
@@ -66,16 +67,32 @@ function SkeletonRow() {
 export default function HistoriquePage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    // Un échec réseau ne doit PAS produire le même écran que « aucune
+    // analyse » : l'utilisateur croirait avoir perdu son historique.
     fetch("/api/analyses?limit=50")
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        if (cancelled) return;
+        if (!r.ok) throw new Error(String(r.status));
+        const data = await r.json();
+        if (cancelled) return;
         setAnalyses(Array.isArray(data) ? data : []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        if (cancelled) return;
+        setLoadError(
+          "Impossible de charger votre historique. Vérifiez votre connexion et réessayez."
+        );
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -85,9 +102,11 @@ export default function HistoriquePage() {
       const res = await fetch(`/api/analyses/${id}`, { method: "DELETE" });
       if (res.ok) {
         setAnalyses((prev) => prev.filter((a) => a.id !== id));
+      } else {
+        toast.error("La suppression a échoué. Réessayez dans un instant.");
       }
     } catch {
-      // silent
+      toast.error("La suppression a échoué. Vérifiez votre connexion.");
     } finally {
       setDeleting(null);
     }
@@ -148,6 +167,32 @@ export default function HistoriquePage() {
             {[...Array(5)].map((_, i) => (
               <SkeletonRow key={i} />
             ))}
+          </div>
+        ) : loadError ? (
+          <div
+            className="flex flex-col items-center justify-center py-20 text-center rounded-md"
+            style={{ border: "1px dashed var(--bordeaux, #9b2226)" }}
+            role="alert"
+          >
+            <p
+              className="font-serif text-[22px] font-medium"
+              style={{ color: "var(--ink)" }}
+            >
+              Chargement <span className="dv-italic">impossible.</span>
+            </p>
+            <p
+              className="mt-2 max-w-sm text-[13px]"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              {loadError}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-6 flex items-center gap-2 px-5 py-2.5 text-[13px] font-semibold text-white rounded-md cursor-pointer"
+              style={{ background: "var(--ink)" }}
+            >
+              Réessayer
+            </button>
           </div>
         ) : analyses.length === 0 ? (
           <div

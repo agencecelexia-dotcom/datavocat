@@ -108,14 +108,16 @@ export default function AnalyzePage() {
         const f = verification.fiabilite;
         parsed.fiabilite = computeFiabiliteFromFormula(f.A, f.B, f.C, f.D);
       }
-      // Taux de succès retenu canonique (calculé côté serveur sur le
-      // corpus). Écrase l'extraction texte qui peut être null si Claude
-      // n'a pas écrit le bon format dans le markdown.
-      if (
-        typeof verification.tauxSuccesRetenu === "number" &&
-        verification.tauxSuccesRetenu !== null
-      ) {
-        parsed.tauxSuccesGlobal = verification.tauxSuccesRetenu;
+      // Le taux calculé côté serveur fait autorité dans les DEUX sens : s'il
+      // vaut null (échantillon insuffisant), on efface la valeur extraite du
+      // texte par regex. Sans cela, un pourcentage quelconque trouvé dans le
+      // rapport s'affichait comme taux — précisément dans le cas de corpus
+      // faible où un chiffre erroné est le plus dommageable.
+      if (verification.tauxSuccesRetenu !== undefined) {
+        parsed.tauxSuccesGlobal =
+          typeof verification.tauxSuccesRetenu === "number"
+            ? verification.tauxSuccesRetenu
+            : null;
       }
     }
     return parsed;
@@ -215,8 +217,28 @@ export default function AnalyzePage() {
       });
 
       if (!res.ok) {
-        setResponse("Erreur lors de l'analyse. Veuillez reessayer.");
-        setPhase("done");
+        // On NE bascule PAS en phase "done" : le message traverserait le
+        // parseur et s'afficherait comme un rapport vide, avec « — % » de
+        // taux. On revient à la saisie avec une erreur explicite.
+        let message = "L'analyse a échoué. Veuillez réessayer.";
+        if (res.status === 429) {
+          message =
+            "Vous avez atteint la limite d'analyses par heure. Réessayez dans quelques minutes.";
+        } else if (res.status === 403) {
+          message =
+            "Votre compte est en attente de validation. Vous recevrez un email dès son activation.";
+        } else if (res.status === 401) {
+          message = "Votre session a expiré. Reconnectez-vous pour continuer.";
+        } else {
+          try {
+            const body = await res.json();
+            if (body?.error) message = String(body.error);
+          } catch {
+            // corps non JSON : on garde le message générique
+          }
+        }
+        toast.error(message);
+        setPhase("input");
         setLoading(false);
         return;
       }
@@ -381,9 +403,9 @@ export default function AnalyzePage() {
   };
 
   const examples = [
-    "Mon client est un salarie licencie pour faute grave apres 15 ans d'anciennete dans une entreprise de BTP. Il conteste le motif. Quelles sont ses chances devant le CPH de Paris ?",
-    "Une OS non signataire veut contester un accord collectif sur le temps de travail dans une entreprise de 500 salaries. L'accord a ete signe par des syndicats representant 55% des votes. Quels arguments privilegier ?",
-    "Mon client locataire d'un bail commercial a Paris se voit refuser le renouvellement par le bailleur. Le bail dure depuis 12 ans. Quelles indemnites d'eviction peut-il esperer ?",
+    "Mon client est un salarié licencié pour faute grave après 15 ans d'ancienneté dans une entreprise de BTP. Il conteste le motif. Que retient la jurisprudence sur ce type de contestation ?",
+    "Une organisation syndicale non signataire veut contester un accord collectif sur le temps de travail dans une entreprise de 500 salariés. L'accord a été signé par des syndicats représentant 55 % des votes. Quels moyens sont retenus par les juridictions ?",
+    "Mon client, locataire d'un bail commercial à Paris depuis 12 ans, se voit refuser le renouvellement par le bailleur. Quelles indemnités d'éviction la jurisprudence retient-elle dans ce cas ?",
   ];
 
   const answeredCount = questions.filter((q) =>
@@ -392,6 +414,18 @@ export default function AnalyzePage() {
 
   return (
     <div className="flex h-full flex-col" data-tour-phase={phase} data-tour-active-view={activeView} data-tour="tour-page">
+      {/* Annonce des changements de phase aux lecteurs d'écran : le contenu de
+          la page est intégralement remplacé à chaque étape, sans qu'aucune
+          notification ne soit émise auparavant. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {phase === "input"
+          ? "Saisie de la demande."
+          : phase === "clarify"
+            ? "Questions de clarification."
+            : phase === "analyzing"
+              ? "Analyse en cours, veuillez patienter."
+              : "Analyse terminée, les résultats sont affichés."}
+      </p>
       {phase === "input" ? (
         /* ═══ SAISINE — Hero éditorial Greffe ═══ */
         <div className="flex-1 overflow-y-auto">
@@ -413,11 +447,12 @@ export default function AnalyzePage() {
                 <span className="dv-italic">votre affaire.</span>
               </h1>
               <p className="mt-5 text-[15px] leading-relaxed max-w-[560px]" style={{ color: "var(--muted-foreground)" }}>
-                Décrivez la situation juridique. L&apos;IA croise{" "}
+                Décrivez la situation juridique. L&apos;analyse interroge{" "}
                 <span className="font-semibold" style={{ color: "var(--ink)" }}>
-                  562 487 décisions
+                  Judilibre et Légifrance
                 </span>{" "}
-                de Judilibre et data.gouv.fr pour produire statistiques, observations et sources vérifiables.
+                en direct pour produire statistiques, observations et sources
+                vérifiables — chaque décision citée est contrôlée.
               </p>
             </div>
 
@@ -781,13 +816,15 @@ export default function AnalyzePage() {
                       className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
                       style={{ color: "var(--muted-foreground)" }}
                     >
-                      Taux de succès estimé
+                      {parsedData.verification?.tauxSuccesSource === "cassation"
+                        ? "Arrêts ayant cassé, dans ce corpus"
+                        : "Issues favorables au demandeur, dans ce corpus"}
                     </div>
                     <div className="flex items-baseline gap-1.5">
                       <div
                         className="font-serif font-medium tabular-nums"
                         style={{
-                          fontSize: "88px",
+                          fontSize: "clamp(52px, 11vw, 88px)",
                           color: "var(--ink)",
                           letterSpacing: "-0.02em",
                           lineHeight: 1,
@@ -796,26 +833,47 @@ export default function AnalyzePage() {
                         {parsedData.tauxSuccesGlobal ?? "—"}
                       </div>
                       <div
-                        className="font-serif text-[32px]"
+                        className="font-serif text-[clamp(20px,4vw,32px)]"
                         style={{ color: "var(--muted-foreground)" }}
                       >
                         %
                       </div>
+                      {parsedData.verification?.tauxSuccesMarge != null && (
+                        <div
+                          className="font-mono text-[12px] ml-1"
+                          style={{ color: "var(--muted-foreground)" }}
+                        >
+                          ± {parsedData.verification.tauxSuccesMarge} pts
+                        </div>
+                      )}
                     </div>
                     <div
                       className="mt-3 text-[12px]"
                       style={{ color: "var(--muted-foreground)" }}
                     >
                       Sur{" "}
-                      {parsedData.evidenceTable?.rows.length ??
+                      {parsedData.verification?.tauxSuccesN ??
+                        parsedData.evidenceTable?.rows.length ??
                         parsedData.echantillon ??
                         analysisMeta?.analyzedCount ??
                         "—"}{" "}
-                      décisions analysées ·{" "}
+                      décisions au dispositif lisible ·{" "}
                       {parsedData.verification?.verifiedRefs ??
                         parsedData.sourceCount}{" "}
                       sources citées
                       {analysisMeta?.freshestDate && ` · jusqu'au ${analysisMeta.freshestDate}`}
+                    </div>
+                    {/* Réserve méthodologique co-localisée avec le chiffre :
+                        elle était auparavant reléguée dans l'onglet « Chiffres »,
+                        que l'utilisateur pouvait ne jamais ouvrir. */}
+                    <div
+                      className="mt-2 text-[11.5px] leading-relaxed"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      Tendance observée sur ce corpus, pas une probabilité de
+                      succès : les décisions retenues sont les plus proches de
+                      votre demande, et la source n&apos;indique pas quelle
+                      partie a formé le recours.
                     </div>
                   </div>
                   <div
@@ -844,7 +902,26 @@ export default function AnalyzePage() {
             {/* Tabs + exports */}
             {parsedData && (
               <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
-                <div data-tour="tour-view-tabs" className="flex items-center gap-1">
+                {/* Onglets sémantiques : role tablist + navigation par flèches.
+                    Ils étaient auparavant de simples <button> sans rôle, donc
+                    invisibles comme onglets pour un lecteur d'écran. */}
+                <div
+                  data-tour="tour-view-tabs"
+                  role="tablist"
+                  aria-label="Vues de l'analyse"
+                  className="flex items-center gap-1"
+                  onKeyDown={(e) => {
+                    const keys = ["text", "dashboard", "sources", "tableau"] as const;
+                    const i = keys.indexOf(activeView);
+                    if (e.key === "ArrowRight") {
+                      e.preventDefault();
+                      setActiveView(keys[(i + 1) % keys.length]);
+                    } else if (e.key === "ArrowLeft") {
+                      e.preventDefault();
+                      setActiveView(keys[(i - 1 + keys.length) % keys.length]);
+                    }
+                  }}
+                >
                   {[
                     { key: "text" as const, label: "Rapport" },
                     { key: "dashboard" as const, label: "Chiffres" },
@@ -855,6 +932,11 @@ export default function AnalyzePage() {
                     return (
                       <button
                         key={t.key}
+                        role="tab"
+                        id={`tab-${t.key}`}
+                        aria-selected={active}
+                        aria-controls={`panel-${t.key}`}
+                        tabIndex={active ? 0 : -1}
                         onClick={() => setActiveView(t.key)}
                         className="px-3 py-1.5 text-[13px] transition-all cursor-pointer"
                         style={{
@@ -884,7 +966,12 @@ export default function AnalyzePage() {
 
             {/* Content area */}
             {activeView === "text" && response && (
-              <div className="animate-fade-in-up">
+              <div
+                className="animate-fade-in-up"
+                role="tabpanel"
+                id="panel-text"
+                aria-labelledby="tab-text"
+              >
                 <div
                   className="prose-legal max-w-none"
                   dangerouslySetInnerHTML={{
@@ -895,18 +982,33 @@ export default function AnalyzePage() {
             )}
 
             {activeView === "dashboard" && parsedData && (
-              <div className="animate-fade-in-up">
+              <div
+                className="animate-fade-in-up"
+                role="tabpanel"
+                id="panel-dashboard"
+                aria-labelledby="tab-dashboard"
+              >
                 <AnalysisDashboard data={parsedData} meta={analysisMeta} />
               </div>
             )}
 
             {activeView === "tableau" && parsedData && parsedData.evidenceTable && (
-              <div className="animate-fade-in-up">
+              <div
+                className="animate-fade-in-up"
+                role="tabpanel"
+                id="panel-tableau"
+                aria-labelledby="tab-tableau"
+              >
                 <EvidenceTable data={parsedData.evidenceTable} />
               </div>
             )}
             {activeView === "tableau" && parsedData && !parsedData.evidenceTable && (
-              <div className="flex items-center justify-center p-12 text-center">
+              <div
+                className="flex items-center justify-center p-12 text-center"
+                role="tabpanel"
+                id="panel-tableau"
+                aria-labelledby="tab-tableau"
+              >
                 <div>
                   <Table className="mx-auto h-10 w-10 mb-3" style={{ color: "var(--muted-foreground)" }} />
                   <p className="text-[14px]" style={{ color: "var(--muted-foreground)" }}>
@@ -917,7 +1019,12 @@ export default function AnalyzePage() {
             )}
 
             {activeView === "sources" && parsedData && (
-              <div className="animate-fade-in-up">
+              <div
+                className="animate-fade-in-up"
+                role="tabpanel"
+                id="panel-sources"
+                aria-labelledby="tab-sources"
+              >
                 <SourcesAnnex data={parsedData} />
               </div>
             )}
@@ -1046,11 +1153,19 @@ function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] })
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (open && !ref.current?.contains(e.target as Node)) setOpen(false);
+    if (!open) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [open]);
 
   return (
@@ -1058,7 +1173,10 @@ function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] })
       <div className="flex items-baseline justify-between mb-2">
         <button
           type="button"
+          data-tour="fiabilite-badge"
           onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label="Indice de fiabilité — voir le mode de calcul"
           className="flex items-center gap-1.5 cursor-pointer transition-opacity hover:opacity-70"
           style={{ color: "var(--muted-foreground)" }}
         >
@@ -1139,15 +1257,17 @@ function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] })
             className="font-serif text-[15px] leading-snug mb-3"
             style={{ color: "var(--ink)" }}
           >
-            Indice composé de 8 facteurs sur 100 points.
+            Indice composé de {fiabilite.factors.length} facteur
+            {fiabilite.factors.length > 1 ? "s" : ""} sur 100 points.
           </div>
           <p
             className="text-[11.5px] leading-relaxed mb-4"
             style={{ color: "var(--muted-foreground)" }}
           >
             Le score reflète la solidité statistique et la traçabilité du corpus
-            analysé. Une note de 60–75 est typique d'une analyse correcte ; au-dessus
-            de 80 indique un dossier particulièrement bien documenté.
+            analysé — pas les chances de succès du dossier. Plus il est élevé,
+            plus les décisions réunies sont nombreuses, récentes, cohérentes
+            entre elles et réparties sur plusieurs niveaux de juridiction.
           </p>
           <div className="space-y-2.5">
             {fiabilite.factors.map((f, i) => {

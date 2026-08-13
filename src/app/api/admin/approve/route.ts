@@ -46,15 +46,39 @@ export async function POST(request: NextRequest) {
     });
   }
   const target = targetData.user;
-  const previousApproved = target.user_metadata?.approved === true;
+  // On lit les deux emplacements : app_metadata (source de vérité depuis la
+  // migration 00020) et user_metadata (comptes historiques).
+  const previousApproved =
+    target.app_metadata?.approved === true ||
+    target.user_metadata?.approved === true;
+
+  // Un admin ne peut pas se révoquer lui-même par cette route.
+  if (!body.approved && caller.id === body.userId) {
+    return new Response(
+      JSON.stringify({ error: "Vous ne pouvez pas révoquer votre propre compte." }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // L'approbation est écrite dans `app_metadata` : seul le service_role peut
+  // l'y modifier. La stocker dans `user_metadata` la rendait auto-attribuable
+  // par l'utilisateur via `supabase.auth.updateUser()`.
+  // On nettoie au passage la clé héritée dans `user_metadata` pour qu'il ne
+  // subsiste qu'une seule source de vérité.
+  const { approved: _legacyApproved, approved_at: _legacyAt, approved_by: _legacyBy, ...cleanUserMetadata } =
+    (target.user_metadata || {}) as Record<string, unknown>;
+  void _legacyApproved;
+  void _legacyAt;
+  void _legacyBy;
 
   const { error: updateErr } = await admin.auth.admin.updateUserById(body.userId, {
-    user_metadata: {
-      ...(target.user_metadata || {}),
+    app_metadata: {
+      ...(target.app_metadata || {}),
       approved: body.approved,
       approved_at: body.approved ? new Date().toISOString() : null,
       approved_by: body.approved ? caller.email : null,
     },
+    user_metadata: cleanUserMetadata,
   });
 
   if (updateErr) {

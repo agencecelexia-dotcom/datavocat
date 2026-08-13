@@ -70,7 +70,7 @@ export function AnalysisChat({ analysisContext, query }: AnalysisChatProps) {
           ...newMessages,
           {
             role: "assistant",
-            content: "Erreur lors de la reponse. Veuillez reessayer.",
+            content: "La réponse a échoué. Veuillez réessayer.",
           },
         ]);
         setIsStreaming(false);

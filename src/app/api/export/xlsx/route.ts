@@ -111,14 +111,30 @@ export async function POST(request: NextRequest) {
         r.getCell(2).font = { color: { argb: HEADER_FILL } };
       };
 
-      addStat("Taux de succès global", parsed.tauxSuccesGlobal != null ? `${parsed.tauxSuccesGlobal}%` : null);
+      const margeTxt =
+        parsed.verification?.tauxSuccesMarge != null
+          ? ` ± ${parsed.verification.tauxSuccesMarge} pts`
+          : "";
+      const nTxt =
+        parsed.verification?.tauxSuccesN != null
+          ? ` (n = ${parsed.verification.tauxSuccesN})`
+          : "";
+      addStat(
+        "Issues favorables dans le corpus",
+        parsed.tauxSuccesGlobal != null
+          ? `${parsed.tauxSuccesGlobal}%${margeTxt}${nTxt}`
+          : null
+      );
+      addStat(
+        "Portée de ce chiffre",
+        parsed.tauxSuccesGlobal != null
+          ? "Tendance observée sur ce corpus — PAS une probabilité de succès. Corpus non aléatoire ; la source n'indique pas quelle partie a formé le recours."
+          : null
+      );
       addStat("Indice de fiabilité", `${parsed.fiabilite.score}/100 — ${parsed.fiabilite.label}`);
       addStat("Niveau de confiance", parsed.confiance);
       addStat("Sources citées", parsed.sourceCount);
       addStat("Décisions tableau", parsed.evidenceTable?.rows.length ?? null);
-      if (parsed.article700?.tauxCondamnation != null) {
-        addStat("Article 700 — taux", `${parsed.article700.tauxCondamnation}%`);
-      }
       if (parsed.article700?.montantMoyen) {
         addStat("Article 700 — moyen", `${parsed.article700.montantMoyen} €`);
       }

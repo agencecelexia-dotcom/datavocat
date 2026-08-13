@@ -650,18 +650,18 @@ export function AnalysisDashboard({
             <div>
               <h2
                 className="font-serif text-[20px] font-medium mb-5 tracking-tight"
-                title="Taux de succès par moyen juridique invoqué, basé sur les décisions analysées. La ligne à 50% marque le seuil critique."
+                title="Part des décisions à issue favorable, par thème de classement documentaire Judilibre. ATTENTION : ces thèmes sont l'indexation matière de la décision, PAS les moyens plaidés par les parties — rien n'établit que le thème soit l'argument qui a emporté la décision."
               >
-                Moyens juridiques
+                Thèmes de classement
               </h2>
               {args.map((arg, i) => {
                 const invoque = arg.invoque ?? null;
                 const retenu = arg.retenu ?? null;
                 let sampleText: string | null = null;
                 if (retenu != null && invoque != null) {
-                  sampleText = `${retenu} retenus sur ${invoque} décisions invoquant l'argument`;
+                  sampleText = `${retenu} issues favorables sur ${invoque} décisions classées sous ce thème`;
                 } else if (invoque != null) {
-                  sampleText = `Sur ${invoque} décisions invoquant l'argument`;
+                  sampleText = `Sur ${invoque} décisions classées sous ce thème`;
                 }
                 const lowSample = invoque != null && invoque < 10;
                 return (
@@ -676,6 +676,15 @@ export function AnalysisDashboard({
                   />
                 );
               })}
+              <p
+                className="mt-4 text-[11.5px] leading-relaxed"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Ces libellés proviennent du classement documentaire de
+                Judilibre, pas des moyens plaidés. Un thème fréquemment associé
+                à une issue favorable n&apos;est pas, pour autant, l&apos;argument
+                qui a emporté la décision.
+              </p>
             </div>
           )}
           {juris.length > 0 && (
@@ -710,10 +719,14 @@ export function AnalysisDashboard({
               className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2 flex items-center gap-1.5"
               style={{ color: "var(--gold)" }}
             >
-              <span>{cassDominant ? "Taux de cassation" : "Taux de succès"}</span>
+              <span>
+                {cassDominant
+                  ? "Arrêts ayant cassé"
+                  : "Issues favorables au demandeur"}
+              </span>
               <span
                 className="cursor-help"
-                title="Le taux de succès est calculé exclusivement à partir des décisions des juridictions du fond (CPH, TJ, cours d'appel). Les arrêts de la Cour de cassation sont exclus : elle statue par économie de moyens — dès qu'un moyen suffit pour casser, elle ne ré-examine pas l'ensemble. Les juges du fond apprécient l'intégralité des moyens contradictoirement débattus, ce qui en fait la base statistique pertinente pour estimer une probabilité réelle de succès."
+                title="Part des décisions du corpus dont le dispositif est favorable au demandeur, calculée sur les seules décisions au dispositif lisible. Les arrêts de cassation sont exclus du taux au fond : la Cour statue par économie de moyens. ATTENTION : ce chiffre décrit ce corpus, ce n'est pas une probabilité de succès pour votre dossier — les décisions retenues sont les plus proches textuellement de la demande (pas un tirage aléatoire), et Judilibre n'indique pas quelle partie a formé le recours."
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -748,6 +761,14 @@ export function AnalysisDashboard({
               >
                 %
               </div>
+              {data.verification?.tauxSuccesMarge != null && (
+                <div
+                  className="font-mono text-[11px] ml-1"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  ± {data.verification.tauxSuccesMarge}
+                </div>
+              )}
             </div>
             {tauxSource && (
               <div
@@ -755,6 +776,8 @@ export function AnalysisDashboard({
                 style={{ color: "var(--muted-foreground)" }}
               >
                 Source : {tauxSource === "fond" ? "1er degré + CA" : tauxSource === "mixte" ? "fond (excl. cassation)" : "Cassation uniquement"}
+                {data.verification?.tauxSuccesN != null &&
+                  ` · n = ${data.verification.tauxSuccesN}`}
               </div>
             )}
           </div>
@@ -763,7 +786,7 @@ export function AnalysisDashboard({
               className="font-mono text-[10px] uppercase tracking-[0.22em] mb-2"
               style={{ color: "var(--muted-foreground)" }}
             >
-              {cassDominant ? "Confirmation décisions" : "Risque d'échec"}
+              {cassDominant ? "Pourvois rejetés" : "Issues défavorables"}
             </div>
             <div className="flex items-baseline gap-1.5">
               <div
@@ -790,10 +813,16 @@ export function AnalysisDashboard({
               {cassDominant ? (
                 <>
                   Sur {composition?.cassationCount} arrêts de la Cour de cassation,{" "}
-                  {risque}% confirment la décision attaquée. <strong>Ces chiffres concernent la Cassation uniquement.</strong>
+                  {risque}% rejettent le pourvoi. <strong>Ces chiffres concernent la Cassation uniquement.</strong>
                 </>
               ) : (
-                <>Miroir du taux de succès — anticipation de l&apos;issue défavorable.</>
+                // Ce chiffre est le complément arithmétique du précédent, pas
+                // une mesure indépendante : on le dit explicitement plutôt que
+                // de le présenter comme un « risque d'échec » calculé.
+                <>
+                  Complément du chiffre ci-contre (100 − {taux}). Ce n&apos;est
+                  pas une estimation de risque pour votre dossier.
+                </>
               )}
             </div>
           </div>
@@ -889,40 +918,22 @@ export function AnalysisDashboard({
               <h2 className="font-serif text-[20px] font-medium mb-5 tracking-tight">
                 Article 700 CPC
               </h2>
-              {art700.tauxCondamnation != null && (
-                <div className="mb-4">
-                  <div className="flex items-baseline justify-between mb-2">
-                    <div
-                      className="text-[12px]"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
-                      Taux de condamnation
-                    </div>
-                    <div
-                      className="font-mono text-[20px] tabular-nums font-semibold"
-                      style={{ color: "var(--ink)" }}
-                    >
-                      {art700.tauxCondamnation}%
-                    </div>
-                  </div>
-                  <div
-                    className="h-[6px] rounded-full overflow-hidden"
-                    style={{ background: "var(--paper-2)" }}
-                  >
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${art700.tauxCondamnation}%`,
-                        background: "var(--gold)",
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
+              {/* Le « taux de condamnation » a été retiré : il valait un taux
+                  de détection textuelle dans les sommaires, très inférieur à
+                  la réalité des prétoires. Seuls les montants sont exploitables. */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <Metric label="Montant moyen" value={fmtEur(art700.montantMoyen)} />
                 <Metric label="Montant médian" value={fmtEur(art700.montantMedian)} />
               </div>
+              <p
+                className="mt-4 text-[11.5px] leading-relaxed"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Montants relevés dans les sommaires des décisions du corpus.
+                La fréquence de condamnation au titre de l&apos;article 700
+                n&apos;est pas mesurable sur cette source : les sommaires
+                n&apos;évoquent les frais irrépétibles que de façon marginale.
+              </p>
             </div>
           )}
         </div>

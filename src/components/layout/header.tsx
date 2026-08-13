@@ -34,14 +34,23 @@ export function Header({ userEmail, userName, isAdmin }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close popovers on click outside
+  // Fermeture au clic extérieur ET à la touche Échap (cette dernière
+  // manquait : le menu ne pouvait pas être refermé au clavier).
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    if (!dropdownOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
-      if (dropdownOpen && !dropdownRef.current?.contains(target)) setDropdownOpen(false);
+      if (!dropdownRef.current?.contains(target)) setDropdownOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [dropdownOpen]);
 
   const isDemo = !userEmail;
@@ -145,6 +154,9 @@ export function Header({ userEmail, userName, isAdmin }: HeaderProps) {
         <div className="relative" ref={dropdownRef} data-tour="user-menu">
           <button
             onClick={() => setDropdownOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={dropdownOpen}
+            aria-label="Menu du compte"
             className="hidden md:flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
             style={{ border: "1px solid var(--line)" }}
           >
@@ -158,21 +170,27 @@ export function Header({ userEmail, userName, isAdmin }: HeaderProps) {
               className="text-[12px] font-medium"
               style={{ color: "var(--ink)" }}
             >
-              {userName || userEmail?.split("@")[0] || "Me. Dupuis"}
+              {/* Pas de nom fictif en repli : on retombe sur l'identifiant réel. */}
+              {userName || userEmail?.split("@")[0] || "Mon compte"}
             </span>
             <ChevronDown
               className={`h-3 w-3 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
               style={{ color: "var(--muted-foreground)" }}
+              aria-hidden="true"
             />
           </button>
           <button
             onClick={() => setDropdownOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={dropdownOpen}
+            aria-label="Menu du compte"
             className="md:hidden flex h-9 w-9 items-center justify-center rounded-md cursor-pointer transition-colors hover:bg-[color:var(--paper)]"
             style={{ border: "1px solid var(--line)" }}
           >
             <div
               className="w-6 h-6 rounded-md flex items-center justify-center font-mono text-[10px] font-bold text-white"
               style={{ background: "var(--navy)" }}
+              aria-hidden="true"
             >
               {initials}
             </div>

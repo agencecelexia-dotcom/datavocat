@@ -43,12 +43,18 @@ const VOYAGE_WEIGHT = 0.5;
 export const JUDILIBRE_TARGET_MIN = 30;
 /**
  * Plafond du corpus retenu après rerank.
- * Règle 2 (avril 2026) : plafond historique de 150 SUPPRIMÉ. On laisse
- * Sonnet absorber jusqu'à 700 décisions pertinentes pour les matières à
- * fort volume (droit du travail commun). Sonnet 4.6 1M context absorbe
- * facilement (chaque décision ≈ 1k char).
+ *
+ * Ramené de 700 à 200. Trois raisons :
+ *  1. Le modèle d'analyse est `claude-sonnet-4-20250514` — 200k de contexte,
+ *     pas 1M comme l'indiquait le commentaire précédent. À ~1k caractères par
+ *     décision, 700 décisions consommaient l'essentiel de la fenêtre.
+ *  2. Le prompt impose une ligne de tableau par décision du corpus : un tableau
+ *     de 700 lignes est impossible sous `max_tokens: 32000`, ce qui déclenchait
+ *     systématiquement l'incohérence de comptage détectée par `verify.ts`.
+ *  3. Au-delà de ~200 décisions, l'apport statistique marginal est faible face
+ *     au coût input (~0,5 $ par analyse) et à la dilution de pertinence.
  */
-export const JUDILIBRE_TARGET_MAX = 700;
+export const JUDILIBRE_TARGET_MAX = 200;
 
 /** Compatibilité historique — utilisé en quelques endroits comme indicateur. */
 export const JUDILIBRE_RERANK_KEEP = JUDILIBRE_TARGET_MAX;
@@ -57,6 +63,23 @@ export const JUDILIBRE_RERANK_KEEP = JUDILIBRE_TARGET_MAX;
 const RELEVANCE_THRESHOLDS = [8, 7, 6, 5, 4, 3];
 
 const RERANK_TIMEOUT_MS = 18000;
+
+/**
+ * Nombre de décisions scorées par appel Haiku.
+ *
+ * Contrainte réelle : chaque score sérialisé `{"i":123,"s":8},` coûte ~12-14
+ * tokens de sortie. Avec `max_tokens: 4096`, un appel ne peut pas restituer
+ * plus de ~300 scores — au-delà, la réponse est tronquée en plein JSON,
+ * `JSON.parse` échoue, et l'ancienne implémentation retombait SILENCIEUSEMENT
+ * sur l'ordre brut de Judilibre. Le rerank ne fonctionnait donc pas sur les
+ * matières à fort volume, précisément celles où il compte le plus.
+ *
+ * 150 laisse une marge confortable sous le plafond.
+ */
+const RERANK_BATCH_SIZE = 150;
+
+/** Plafond de sortie par lot : ~14 tokens/score + marge de structure. */
+const RERANK_MAX_TOKENS = 4096;
 
 function compactSummary(dec: JudilibreDecision, idx: number): string {
   const chamber = dec.chamber || "";
@@ -110,12 +133,16 @@ async function semanticScores(
  * Demande à Haiku de scorer chaque décision.
  * Retourne un tableau de scores parallèles aux décisions d'entrée.
  */
-async function scoreDecisions(
+async function scoreBatch(
   userQuery: string,
   decisions: JudilibreDecision[],
+  offset: number,
   opts: { userId?: string | null; userEmail?: string | null }
 ): Promise<number[] | null> {
+  // Les index envoyés au modèle sont LOCAUX au lot (0..n-1) pour rester courts ;
+  // `offset` sert à les replacer dans le tableau global au retour.
   const lines = decisions.map((d, i) => compactSummary(d, i)).join("\n");
+  void offset;
 
   const system = `Tu es un évaluateur de pertinence jurisprudentielle. Tu reçois une question d'avocat et une liste indexée de décisions françaises. Pour CHAQUE décision, tu attribues un score de pertinence de 0 à 10 où :
 - 10 = matière exacte + faits très similaires + récent et faisant autorité
@@ -143,7 +170,7 @@ Tu DOIS scorer CHAQUE décision (un objet par indice). Pas de commentaire, pas d
     const response = await anthropic.messages.create(
       {
         model: RERANK_MODEL,
-        max_tokens: 4096,
+        max_tokens: RERANK_MAX_TOKENS,
         system: [
           {
             type: "text",
@@ -196,15 +223,17 @@ Tu DOIS scorer CHAQUE décision (un objet par indice). Pas de commentaire, pas d
     };
     if (!Array.isArray(parsed.scores)) return null;
 
-    // Construit le tableau de scores parallèle aux décisions.
-    // Score par défaut = 5 (neutre) pour les décisions non scorées.
-    const scores = new Array<number>(decisions.length).fill(5);
+    // Tableau parallèle au lot. `NaN` = décision non scorée par le modèle :
+    // l'appelant la traitera comme telle plutôt que de lui prêter un 5 neutre,
+    // qui suffisait à la faire passer au-dessus du seuil de la cascade.
+    const scores = new Array<number>(decisions.length).fill(NaN);
     for (const item of parsed.scores) {
       if (
         typeof item.i === "number" &&
         item.i >= 0 &&
         item.i < decisions.length &&
-        typeof item.s === "number"
+        typeof item.s === "number" &&
+        Number.isFinite(item.s)
       ) {
         scores[item.i] = Math.max(0, Math.min(10, item.s));
       }
@@ -213,6 +242,53 @@ Tu DOIS scorer CHAQUE décision (un objet par indice). Pas de commentaire, pas d
   } catch {
     return null;
   }
+}
+
+/**
+ * Score toutes les décisions en découpant la charge en lots parallèles.
+ *
+ * Retourne un tableau parallèle à `decisions` où chaque entrée vaut soit un
+ * score 0-10, soit `NaN` si le lot correspondant a échoué. Un échec partiel
+ * n'annule donc plus l'ensemble : les lots réussis restent exploitables.
+ */
+async function scoreDecisions(
+  userQuery: string,
+  decisions: JudilibreDecision[],
+  opts: { userId?: string | null; userEmail?: string | null }
+): Promise<{ scores: number[]; failedBatches: number; totalBatches: number }> {
+  const batches: Array<{ slice: JudilibreDecision[]; offset: number }> = [];
+  for (let i = 0; i < decisions.length; i += RERANK_BATCH_SIZE) {
+    batches.push({
+      slice: decisions.slice(i, i + RERANK_BATCH_SIZE),
+      offset: i,
+    });
+  }
+
+  const results = await Promise.all(
+    batches.map((b) => scoreBatch(userQuery, b.slice, b.offset, opts))
+  );
+
+  const scores = new Array<number>(decisions.length).fill(NaN);
+  let failedBatches = 0;
+  results.forEach((batchScores, bi) => {
+    if (!batchScores) {
+      failedBatches++;
+      return;
+    }
+    const { offset } = batches[bi];
+    batchScores.forEach((s, li) => {
+      scores[offset + li] = s;
+    });
+  });
+
+  if (failedBatches > 0) {
+    console.warn(
+      `[rerank] ${failedBatches}/${batches.length} lot(s) de scoring en échec — ` +
+        `les décisions concernées gardent leur rang Judilibre d'origine.`
+    );
+  }
+
+  return { scores, failedBatches, totalBatches: batches.length };
 }
 
 /**
@@ -238,7 +314,7 @@ export async function rerankDecisions(args: {
 
   // Score Haiku (pertinence factuelle) + Voyage (similarité sémantique)
   // en parallèle. Voyage est null si VOYAGE_API_KEY absent.
-  const [haikuScores, voyageScores] = await Promise.all([
+  const [haikuResult, voyageScores] = await Promise.all([
     scoreDecisions(userQuery, decisions, {
       userId: args.userId,
       userEmail: args.userEmail,
@@ -246,34 +322,48 @@ export async function rerankDecisions(args: {
     semanticScores(userQuery, decisions),
   ]);
 
-  if (!haikuScores) {
-    // Haiku a échoué — si Voyage a marché, on l'utilise seul.
-    if (voyageScores) {
-      const fallback = decisions
-        .map((decision, index) => ({ decision, s: voyageScores[index], index }))
-        .sort((a, b) => b.s - a.s || a.index - b.index)
-        .slice(0, JUDILIBRE_TARGET_MAX)
-        .map((x) => x.decision);
-      return fallback;
-    }
-    // Aucun signal — on retourne les MAX premières dans l'ordre Judilibre.
+  const haikuScores = haikuResult.scores;
+  const allBatchesFailed =
+    haikuResult.failedBatches === haikuResult.totalBatches;
+
+  if (allBatchesFailed && !voyageScores) {
+    // Aucun signal exploitable : on conserve l'ordre Judilibre, en le signalant.
+    console.warn(
+      "[rerank] aucun signal de pertinence disponible (Haiku et Voyage indisponibles) — " +
+        "corpus tronqué dans l'ordre de pertinence mot-clé Judilibre."
+    );
     return decisions.slice(0, JUDILIBRE_TARGET_MAX);
   }
 
-  // Score combiné : Haiku + (cosinus × 10) pondérés 50/50.
-  // Si Voyage est indisponible, on retombe sur Haiku seul.
+  // Score combiné : Haiku + (cosinus × 10) pondérés 50/50, en n'utilisant que
+  // les signaux réellement disponibles pour CHAQUE décision. Une décision non
+  // scorée par Haiku (lot en échec) est classée sur Voyage seul, et
+  // réciproquement — au lieu d'hériter d'un 5 neutre qui la faisait passer
+  // artificiellement au-dessus du seuil.
   const scored: ScoredDecision[] = decisions.map((decision, index) => {
     const haiku = haikuScores[index];
+    const hasHaiku = Number.isFinite(haiku);
     const semantic = voyageScores ? voyageScores[index] : null;
-    const combined =
-      semantic !== null
-        ? haiku * HAIKU_WEIGHT + semantic * VOYAGE_WEIGHT
-        : haiku;
+    const hasSemantic = semantic !== null && Number.isFinite(semantic);
+
+    let combined: number;
+    if (hasHaiku && hasSemantic) {
+      combined = haiku * HAIKU_WEIGHT + (semantic as number) * VOYAGE_WEIGHT;
+    } else if (hasHaiku) {
+      combined = haiku;
+    } else if (hasSemantic) {
+      combined = semantic as number;
+    } else {
+      // Aucun signal pour cette décision : score neutre bas, elle ne sera
+      // retenue que si le corpus manque de candidates mieux classées.
+      combined = 0;
+    }
+
     return {
       decision,
       score: combined,
-      haikuScore: haiku,
-      semanticScore: semantic,
+      haikuScore: hasHaiku ? haiku : 0,
+      semanticScore: hasSemantic ? (semantic as number) : null,
       index,
     };
   });
@@ -281,13 +371,10 @@ export async function rerankDecisions(args: {
 
   // Cherche le seuil qui donne entre MIN et MAX décisions.
   let chosen: ScoredDecision[] = [];
-  let chosenThreshold = 8;
   for (const threshold of RELEVANCE_THRESHOLDS) {
     chosen = scored.filter((s) => s.score >= threshold);
-    chosenThreshold = threshold;
     if (chosen.length >= JUDILIBRE_TARGET_MIN) break;
   }
-  void chosenThreshold;
 
   // Plafonne à MAX (les plus hautement scorées)
   if (chosen.length > JUDILIBRE_TARGET_MAX) {

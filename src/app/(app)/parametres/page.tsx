@@ -97,10 +97,26 @@ export default function ParametresPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+
+  // Effacement des messages de succès avec nettoyage du minuteur : les
+  // `setTimeout` posés dans les gestionnaires n'étaient jamais annulés et
+  // déclenchaient un setState sur un composant démonté.
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 3000);
+    return () => clearTimeout(t);
+  }, [saved]);
+
+  useEffect(() => {
+    if (!passwordSuccess) return;
+    const t = setTimeout(() => setPasswordSuccess(false), 3000);
+    return () => clearTimeout(t);
+  }, [passwordSuccess]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -123,18 +139,33 @@ export default function ParametresPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     setSaved(false);
+    setProfileError(null);
     try {
       const supabase = createClient();
+      // `updateUser({ data })` REMPLACE l'intégralité de user_metadata : il
+      // faut donc repartir des métadonnées existantes, sans quoi les autres
+      // clés sont perdues à chaque sauvegarde de profil.
+      const {
+        data: { user: current },
+      } = await supabase.auth.getUser();
+      const existing = (current?.user_metadata || {}) as Record<string, unknown>;
+
       const { error } = await supabase.auth.updateUser({
         data: {
+          ...existing,
           full_name: profile.fullName,
           cabinet_name: profile.cabinetName,
         },
       });
-      if (!error) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+      if (error) {
+        setProfileError(
+          error.message || "La sauvegarde a échoué. Réessayez dans un instant."
+        );
+        return;
       }
+      setSaved(true);
+    } catch {
+      setProfileError("La sauvegarde a échoué. Vérifiez votre connexion.");
     } finally {
       setSaving(false);
     }
@@ -144,25 +175,59 @@ export default function ParametresPage() {
     e.preventDefault();
     setPasswordError(null);
     setPasswordSuccess(false);
-    if (passwordForm.new.length < 6) {
-      setPasswordError("Le mot de passe doit contenir au moins 6 caractères.");
+
+    if (!passwordForm.current) {
+      setPasswordError("Saisissez votre mot de passe actuel.");
+      return;
+    }
+    // Seuil relevé de 6 à 12 caractères, conformément aux recommandations
+    // CNIL pour une authentification sans mesure complémentaire.
+    if (passwordForm.new.length < 12) {
+      setPasswordError("Le mot de passe doit contenir au moins 12 caractères.");
       return;
     }
     if (passwordForm.new !== passwordForm.confirm) {
       setPasswordError("Les mots de passe ne correspondent pas.");
       return;
     }
+    if (passwordForm.new === passwordForm.current) {
+      setPasswordError("Le nouveau mot de passe doit être différent de l'actuel.");
+      return;
+    }
+
     setChangingPassword(true);
     try {
       const supabase = createClient();
+
+      // Le mot de passe actuel était collecté mais jamais vérifié : quiconque
+      // disposait d'une session ouverte pouvait le changer et verrouiller le
+      // compte. On le valide par une ré-authentification préalable.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user?.email) {
+        setPasswordError("Session expirée. Reconnectez-vous pour continuer.");
+        return;
+      }
+
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: passwordForm.current,
+      });
+      if (reauthError) {
+        setPasswordError("Le mot de passe actuel est incorrect.");
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password: passwordForm.new });
       if (error) {
         setPasswordError(error.message);
       } else {
         setPasswordSuccess(true);
         setPasswordForm({ current: "", new: "", confirm: "" });
-        setTimeout(() => setPasswordSuccess(false), 3000);
       }
+    } catch {
+      setPasswordError("La modification a échoué. Vérifiez votre connexion.");
     } finally {
       setChangingPassword(false);
     }
@@ -292,12 +357,21 @@ export default function ParametresPage() {
                 {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
                 {saved ? "Enregistré" : "Enregistrer"}
               </button>
-              {saved && (
+              {saved && !profileError && (
                 <span
                   className="text-[12px]"
                   style={{ color: "var(--emerald, #2d6a4f)" }}
                 >
                   Profil mis à jour avec succès
+                </span>
+              )}
+              {profileError && (
+                <span
+                  role="alert"
+                  className="text-[12px]"
+                  style={{ color: "var(--bordeaux, #9b2226)" }}
+                >
+                  {profileError}
                 </span>
               )}
             </div>
@@ -331,7 +405,7 @@ export default function ParametresPage() {
                     type="password"
                     value={passwordForm.new}
                     onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
-                    placeholder="Minimum 6 caractères"
+                    placeholder="Minimum 12 caractères"
                     minLength={6}
                     required
                     className="w-full h-10 pl-9 pr-3 text-[13px] rounded-md outline-none"

@@ -22,9 +22,16 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   // Sécurité : seul Vercel Cron (avec CRON_SECRET) doit pouvoir déclencher.
+  // Fail-safe fermé : sans CRON_SECRET configuré, on refuse. La version
+  // précédente (`if (expected && ...)`) sautait tout le contrôle quand la
+  // variable était absente, rendant la route publique par défaut.
   const expected = process.env.CRON_SECRET;
+  if (!expected) {
+    console.error("[cron/check-cph] CRON_SECRET non configuré — requête refusée.");
+    return new Response("Unauthorized", { status: 401 });
+  }
   const auth = req.headers.get("authorization");
-  if (expected && auth !== `Bearer ${expected}`) {
+  if (auth !== `Bearer ${expected}`) {
     return new Response("Unauthorized", { status: 401 });
   }
 

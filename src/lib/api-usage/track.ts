@@ -79,16 +79,8 @@ export async function trackClaudeUsage(args: TrackClaudeArgs): Promise<void> {
       cacheWriteTokens: args.cacheWriteTokens,
     });
     const supabase = createAdminClient();
-    // La table api_usage n'est pas (encore) dans les types Database générés.
-    // Cast via unknown pour permettre l'insert sans régénération des types.
-    const client = supabase as unknown as {
-      from: (table: string) => {
-        insert: (
-          row: Record<string, unknown>
-        ) => Promise<{ error: { message: string } | null }>;
-      };
-    };
-    const { error } = await client.from("api_usage").insert({
+    // `api_usage` figure désormais dans les types Database : plus de cast.
+    const { error } = await supabase.from("api_usage").insert({
       user_id: args.userId,
       user_email: args.userEmail,
       provider: "anthropic",
@@ -100,7 +92,7 @@ export async function trackClaudeUsage(args: TrackClaudeArgs): Promise<void> {
       cache_write_tokens: args.cacheWriteTokens || 0,
       cost_usd: cost,
       analysis_id: args.analysisId || null,
-      metadata: args.metadata || null,
+      metadata: (args.metadata ?? null) as never,
     });
     if (error) {
       console.warn("[api-usage] insert failed:", error.message);

@@ -95,16 +95,28 @@ Si une decision n'est pas dans le corpus, NE LA CITE PAS.
 ## Statistiques
 Recopie les chiffres du bloc "FAITS VERIFIES — STATISTIQUES CALCULEES" SANS LES MODIFIER.
 
-### Taux de succes global
-[Recopie EXACTEMENT la valeur "TAUX DE SUCCÈS RETENU" du bloc FAITS VERIFIES, suivie de l'explication entre parenthèses qui te dit comment il est calculé. Ce chiffre doit apparaitre tel quel : "X% de chances de succes (calcule sur ...)".
-Si la valeur est "non calculable" : ecris "Taux non calculable sur ce corpus" et explique en une phrase pourquoi (corpus trop petit pour la categorie pertinente).
-NE FABRIQUE PAS de chiffre alternatif si la valeur retenue ne te plait pas.]
+### Taux d'issue favorable observe
+[Recopie EXACTEMENT la valeur "TAUX D'ISSUE FAVORABLE OBSERVÉ" du bloc FAITS VERIFIES, AVEC sa marge d'erreur et son effectif (n = X).
 
-### Par argument juridique
-[Recopie EXACTEMENT le bloc "TAUX PAR ARGUMENT JURIDIQUE" de FAITS VERIFIES.
+FORMULATION IMPOSEE : "X% des decisions du corpus (± M points, n = N) ont une issue favorable au demandeur".
+
+INTERDICTION ABSOLUE : n'ecris JAMAIS "X% de chances de succes", "X% de chances de gagner", "probabilite de succes", ni aucune formule presentant ce chiffre comme un pronostic sur l'affaire de l'avocat. Ce taux decrit CE CORPUS, pas l'issue d'un dossier.
+
+Tu DOIS accompagner le chiffre des deux reserves suivantes, en une phrase chacune :
+- le corpus n'est pas un echantillon aleatoire (decisions les plus proches textuellement de la demande, sur un fonds ou la 1re instance est peu publiee) ;
+- Judilibre n'indique pas quelle partie a forme le recours, donc "infirme" ne signifie pas "le demandeur initial l'emporte".
+
+Si la valeur est "non calculable" : ecris "Taux non calculable sur ce corpus" et donne les effectifs bruts (X favorables / Y decisions au dispositif lisible).
+NE FABRIQUE PAS de chiffre alternatif.]
+
+### Par theme de classement
+[Recopie EXACTEMENT le bloc "ISSUE FAVORABLE PAR THÈME DE CLASSEMENT" de FAITS VERIFIES.
 FORMAT STRICT (un par ligne) :
-- {NOM} : {N} invoqués, {M} retenus ({TAUX}%)
-Si la section est absente de FAITS VERIFIES (corpus trop petit) : ecris "non documente dans le corpus analyse".]
+- {NOM} : {M} issues favorables sur {N} decisions classees sous ce theme ({TAUX}%)
+
+INTERDICTION : ne titre JAMAIS cette section "taux de succes par argument" et n'ecris pas qu'un argument "est retenu dans X% des cas". Ces themes sont le CLASSEMENT DOCUMENTAIRE de Judilibre, pas les moyens plaides par les parties : rien n'etablit que le theme de classement soit le moyen qui a emporte la decision. Formule en termes de "decisions classees sous ce theme".
+
+Si la section est absente de FAITS VERIFIES (echantillon trop petit) : ecris "non documente dans le corpus analyse".]
 
 ### Par juridiction
 [Recopie le bloc "RÉPARTITION PAR JURIDICTION (top 8)" de FAITS VERIFIES.
@@ -129,8 +141,10 @@ INVARIANT : la somme des N affiches doit egaler le total annonce dans l'introduc
 ### Tendance temporelle (OBLIGATOIRE si fournie dans FAITS VERIFIES)
 [Si le bloc FAITS VERIFIES contient une section "TENDANCE TEMPORELLE", recopie integralement les buckets annuels avec leurs taux. Indique la direction (en hausse / en baisse / stable) avec la variation en points exacte. Cette information est CRUCIALE pour l'avocat : elle indique si la jurisprudence evolue dans son sens ou non.]
 
-### Variations regionales (OBLIGATOIRE si fournie)
-[Si le bloc FAITS VERIFIES contient "VARIATIONS REGIONALES", recopie les taux par cour d'appel. Identifie explicitement la CA la plus favorable et la plus defavorable, avec l'ecart en points. Cette information aide l'avocat a evaluer le risque selon la juridiction de saisine.]
+### Variations regionales
+[NE PRODUIS PAS cette section. L'API Judilibre n'expose pas le ressort geographique des cours d'appel : aucune comparaison entre cours d'appel n'est calculable.
+N'affirme JAMAIS qu'une cour d'appel est plus favorable qu'une autre — ce serait une information fabriquee, susceptible d'orienter a tort un choix de juridiction de saisine.
+Si la question se pose, ecris : "Les variations par ressort de cour d'appel ne sont pas documentees dans les donnees disponibles."]
 
 ### Variations par chambre et theme (si fournies)
 [Si le bloc FAITS VERIFIES contient "VARIATIONS PAR CHAMBRE" ou "VARIATIONS PAR THEME", recopie les principales. Indique les chambres ou themes les plus discriminants pour le succes au fond.]
@@ -146,10 +160,13 @@ Si FAITS VERIFIES indique "samples=0" : ecris "non documente dans le corpus anal
 ### Article 700 du CPC
 [Recopie EXACTEMENT le bloc "ARTICLE 700 CPC" de FAITS VERIFIES.
 FORMAT STRICT :
-- Taux de condamnation : {X}%
-- Montant moyen : {Y} €
-- Montant médian : {Z} €
-Si FAITS VERIFIES indique "samples=0" : ecris "non documente dans le corpus analyse". N'invente AUCUN chiffre absent du bloc.]
+- Montant moyen observe : {Y} €
+- Montant median observe : {Z} €
+- Echantillon : {N} decisions
+
+INTERDICTION : n'annonce AUCUN "taux de condamnation a l'article 700". Les sommaires Judilibre ne mentionnent les frais irrepetibles que de facon marginale — tout ratio calcule sur cette base serait un artefact de detection textuelle, tres inferieur a la realite des pretoires.
+
+Si FAITS VERIFIES indique un echantillon insuffisant : ecris "non documente dans le corpus analyse". N'invente AUCUN chiffre absent du bloc.]
 
 ## Tableau de preuve statistique (REGLE 4 — schema fixe)
 

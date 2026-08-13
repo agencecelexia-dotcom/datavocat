@@ -23,12 +23,12 @@ export default function AppError({
           Une erreur est survenue
         </h2>
         <p className="max-w-md text-sm text-muted-foreground">
-          Nous nous excusons pour la gene occasionnee. Veuillez reessayer ou
-          contacter le support si le probleme persiste.
+          Nous vous prions de nous excuser pour la gêne occasionnée. Veuillez
+          réessayer, ou nous contacter si le problème persiste.
         </p>
       </div>
       <Button onClick={reset} variant="outline">
-        Reessayer
+        Réessayer
       </Button>
     </div>
   );

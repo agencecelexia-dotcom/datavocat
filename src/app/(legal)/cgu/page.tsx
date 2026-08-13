@@ -107,9 +107,11 @@ export default function CGUPage() {
         s&apos;engage à respecter le RGPD et la loi Informatique et Libertés.
       </p>
       <p>
-        Les données des clients (noms, coordonnées) saisies par l&apos;Utilisateur
-        sont stockées de manière sécurisée et ne sont accessibles qu&apos;à
-        l&apos;Utilisateur qui les a créées.
+        Le Service ne comporte aucune fonction de gestion de clientèle et ne
+        constitue aucun fichier nominatif de clients finaux. Les demandes
+        d&apos;analyse rédigées par l&apos;Utilisateur ne sont accessibles
+        qu&apos;à lui seul. Tenu au secret professionnel, il lui appartient de
+        ne pas y faire figurer d&apos;éléments directement identifiants.
       </p>
 
       <h2>Article 8 — Disponibilité du Service</h2>

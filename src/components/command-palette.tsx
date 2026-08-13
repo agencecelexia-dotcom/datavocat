@@ -144,7 +144,7 @@ export function CommandPalette() {
         <div ref={listRef} className="max-h-80 overflow-y-auto p-2">
           {filtered.length === 0 && (
             <p className="px-3 py-6 text-center text-sm text-gray-500">
-              Aucun resultat pour &quot;{query}&quot;
+              Aucun résultat pour &quot;{query}&quot;
             </p>
           )}
 

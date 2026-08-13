@@ -1,9 +1,17 @@
 import { NextRequest } from "next/server";
 import { getAnthropicClient } from "@/lib/claude/client";
-import { createClient } from "@/lib/supabase/server";
+import { requireApprovedUser } from "@/lib/supabase/require-user";
+import { checkRateLimit } from "@/lib/api-usage/rate-limit";
 import { trackClaudeUsage } from "@/lib/api-usage/track";
 
 export const maxDuration = 30;
+
+/**
+ * Taille max de la demande. Le champ est libre côté UI ; sans plafond, une
+ * requête volumineuse part telle quelle dans le prompt (coût) et traverse les
+ * regex d'extraction de références (risque de backtracking).
+ */
+const MAX_QUERY_CHARS = 20_000;
 
 const CLARIFY_PROMPT = `Tu es DATAVOCAT, assistant jurimétrique pour avocats français.
 
@@ -51,6 +59,16 @@ RÉPONDS EN JSON STRICT :
 }`;
 
 export async function POST(request: NextRequest) {
+  // Auth AVANT l'appel au modèle : cette route relaie vers Anthropic et
+  // était auparavant ouverte à Internet (l'appel partait avant toute
+  // vérification, `getUser()` ne servait qu'au tracking).
+  const auth = await requireApprovedUser();
+  if (!auth.ok) return auth.response;
+  const { userId, userEmail } = auth;
+
+  const rate = await checkRateLimit(userId, "clarify");
+  if (!rate.ok) return rate.response;
+
   const { query } = await request.json();
 
   if (!query || typeof query !== "string") {
@@ -58,6 +76,15 @@ export async function POST(request: NextRequest) {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  if (query.length > MAX_QUERY_CHARS) {
+    return new Response(
+      JSON.stringify({
+        error: `Demande trop longue (max ${MAX_QUERY_CHARS} caractères).`,
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   const anthropic = getAnthropicClient();
@@ -83,15 +110,13 @@ export async function POST(request: NextRequest) {
 
   // Track API usage (fail-silent)
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
     const usage = response.usage as typeof response.usage & {
       cache_creation_input_tokens?: number;
       cache_read_input_tokens?: number;
     };
     await trackClaudeUsage({
-      userId: user?.id || null,
-      userEmail: user?.email || null,
+      userId,
+      userEmail,
       model: CLARIFY_MODEL,
       operation: "clarify",
       inputTokens: usage.input_tokens,

@@ -34,8 +34,20 @@ export interface CategoryStats {
   favorables: number;
   defavorables: number;
   nuances: number;
+  /**
+   * Décisions dont le dispositif est absent ou non interprétable.
+   * Elles sont EXCLUES du dénominateur des taux : les compter reviendrait à
+   * faire baisser mécaniquement tout taux d'acceptation à proportion des
+   * sources qui n'exposent pas de champ `solution` (fonds JURI notamment).
+   */
+  indetermines: number;
+  /**
+   * Dénominateur réellement utilisé pour `acceptanceRate` :
+   * total − indetermines. Exposé pour que l'UI puisse afficher « n = X ».
+   */
+  classifiables: number;
   acceptanceRate: number | null;
-  // Spécifique cassation : taux de cassation (cassations / total)
+  // Spécifique cassation : taux de cassation (cassations / classifiables)
   cassationRate?: number | null;
   cassations?: number;
   rejets?: number;
@@ -67,15 +79,26 @@ export interface CorpusStats {
   /** Cohérence jurisprudentielle (max(fav,def)/total) sur tout le corpus, %. */
   coherencePct: number;
   /**
-   * Taux de succès retenu — chiffre canonique à afficher comme « % de chances »
-   * pour le client. Calculé selon la composition du corpus :
-   *   - corpus mixte ou majoritairement fond → taux d'acceptation au fond
+   * Taux de RÉFORMATION / d'issue favorable au demandeur observé dans le
+   * corpus. Ce n'est PAS une probabilité de succès pour l'affaire de l'avocat :
+   *   - le corpus n'est pas un échantillon aléatoire (top-N d'un moteur de
+   *     recherche, sur un fonds où la 1re instance est peu publiée) ;
+   *   - Judilibre n'indique pas qui est appelant, donc « infirme » ne veut pas
+   *     dire « le demandeur initial gagne ».
+   * À présenter comme une observation sur le corpus, jamais comme un pronostic.
+   *   - corpus mixte ou majoritairement fond → taux d'issue favorable au fond
    *   - corpus 100% Cassation → taux de cassation (succès du pourvoi)
-   *   - corpus vide ou sans signal → null
+   *   - échantillon < 15 décisions classifiables → null
    */
   tauxSuccesRetenu: number | null;
   /** Source du taux retenu (informatif, pour l'UI). */
   tauxSuccesSource: "fond" | "cassation" | "mixte" | null;
+  /** Effectif sur lequel le taux est calculé (décisions classifiables). */
+  tauxSuccesN: number;
+  /** Marge d'erreur à 95 %, en points de pourcentage. */
+  tauxSuccesMarge: number | null;
+  /** Décisions du corpus dont le dispositif est absent ou illisible. */
+  indeterminesTotal: number;
   /**
    * Tendance temporelle : taux d'acceptation par année (au fond).
    * Chaque entrée a au moins 3 décisions pour être statistiquement
@@ -194,14 +217,22 @@ function classifySolution(solution: string): "cassation" | "rejet" | "autre" {
 
 function classifyOutcome(
   solution: string
-): "favorable" | "defavorable" | "nuance" {
-  // "favorable" pour la partie qui demande, "défavorable" sinon. Dans le doute → "nuance".
+): "favorable" | "defavorable" | "nuance" | "indetermine" {
+  // "favorable" pour la partie qui demande, "défavorable" sinon.
+  // - dispositif ABSENT ou "other"  → "indetermine" : exclu des dénominateurs.
+  // - dispositif lu mais mitigé     → "nuance"      : compté, ni fav ni défav.
+  //
+  // La distinction est essentielle : les fonds Légifrance (JURI) n'exposent
+  // aucun champ `solution`. Les classer en "nuance" les faisait entrer dans
+  // le dénominateur des taux sans pouvoir être favorables — ajouter 30 JURI
+  // à un corpus de 100 abaissait mécaniquement tout taux d'environ 23 %.
+  //
   // Couvre les libellés réels de Judilibre :
   // - Cass : "Cassation", "Rejet", "Cassation partielle"...
   // - CA   : "Infirme partiellement, réforme...", "Confirme la décision déférée...",
   //          "Infirme la décision déférée dans toutes ses dispositions..."
   const s = (solution || "").toLowerCase().trim();
-  if (s === "" || s === "other") return "nuance";
+  if (s === "" || s === "other") return "indetermine";
 
   // Favorable : appelant gagne / cassation prononcée / demande accueillie.
   if (
@@ -243,18 +274,25 @@ function emptyCategoryStats(): CategoryStats {
     favorables: 0,
     defavorables: 0,
     nuances: 0,
+    indetermines: 0,
+    classifiables: 0,
     acceptanceRate: null,
   };
 }
 
 /**
  * Calcule les stats d'une catégorie de la hiérarchie.
+ *
+ * Les taux sont rapportés aux décisions CLASSIFIABLES (dispositif lisible),
+ * pas au total : une décision sans dispositif n'apporte aucune information
+ * sur l'issue et ne doit pas peser dans un taux.
  */
 function statsFromDecisions(decisions: JudilibreDecision[]): CategoryStats {
   if (decisions.length === 0) return emptyCategoryStats();
   let favorables = 0;
   let defavorables = 0;
   let nuances = 0;
+  let indetermines = 0;
   let cassations = 0;
   let rejets = 0;
   for (const d of decisions) {
@@ -262,21 +300,25 @@ function statsFromDecisions(decisions: JudilibreDecision[]): CategoryStats {
     const o = classifyOutcome(sol);
     if (o === "favorable") favorables++;
     else if (o === "defavorable") defavorables++;
-    else nuances++;
+    else if (o === "nuance") nuances++;
+    else indetermines++;
 
     const c = classifySolution(sol);
     if (c === "cassation") cassations++;
     else if (c === "rejet") rejets++;
   }
+  const classifiables = decisions.length - indetermines;
   return {
     total: decisions.length,
     favorables,
     defavorables,
     nuances,
-    acceptanceRate: pct(favorables, decisions.length),
+    indetermines,
+    classifiables,
+    acceptanceRate: classifiables > 0 ? pct(favorables, classifiables) : null,
     cassations,
     rejets,
-    cassationRate: pct(cassations, decisions.length),
+    cassationRate: classifiables > 0 ? pct(cassations, classifiables) : null,
   };
 }
 
@@ -382,16 +424,24 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     ["premierDegre", "courAppel", "cassation", "conseilEtat"] as const
   ).filter((k) => hierarchy[k].total > 0).length;
 
-  // Cohérence jurisprudentielle = max(fav, def) / total sur l'ensemble du corpus.
+  // Cohérence jurisprudentielle = max(fav, def) / décisions classifiables.
+  // Le dénominateur exclut les décisions sans dispositif : les inclure faisait
+  // chuter la « cohérence » à proportion des sources muettes (JURI, CETAT sans
+  // dispositif inférable) — or ce chiffre pèse 35 % de l'indice de fiabilité,
+  // si bien qu'un défaut de parsing se transformait en verdict de fiabilité.
   let totalFav = 0;
   let totalDef = 0;
+  let totalIndetermine = 0;
   for (const d of decisions) {
     const o = classifyOutcome(d.solution_alt || d.solution || "");
     if (o === "favorable") totalFav++;
     else if (o === "defavorable") totalDef++;
+    else if (o === "indetermine") totalIndetermine++;
   }
+  const classifiablesTotal = total - totalIndetermine;
   const dominant = Math.max(totalFav, totalDef);
-  const coherencePct = total > 0 ? pct(dominant, total) : 0;
+  const coherencePct =
+    classifiablesTotal > 0 ? pct(dominant, classifiablesTotal) : 0;
 
   // Taux de succès retenu — chiffre canonique à afficher au client.
   // Logique :
@@ -401,18 +451,39 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
   //   - Sinon (corpus 100% Cass) → on affiche le taux de cassation, qui
   //     est le taux de succès des pourvois (signal pour un client en Cass).
   //   - Si vide → null.
-  const fondTotal = hierarchy.premierDegre.total + hierarchy.courAppel.total;
+  // Dénominateur = décisions au fond dont le dispositif est lisible.
+  const fondTotal =
+    hierarchy.premierDegre.classifiables + hierarchy.courAppel.classifiables;
   const fondFav =
     hierarchy.premierDegre.favorables + hierarchy.courAppel.favorables;
   let tauxSuccesRetenu: number | null = null;
   let tauxSuccesSource: "fond" | "cassation" | "mixte" | null = null;
-  if (fondTotal >= 5) {
+  let tauxSuccesN = 0;
+  // Seuil relevé de 5 à 15 : sous 15 décisions, l'intervalle de confiance à
+  // 95 % dépasse ±25 points — publier un pourcentage y suggère une précision
+  // que l'échantillon ne porte pas. En dessous, on renvoie null et l'UI
+  // affiche les effectifs bruts.
+  const MIN_SAMPLE_FOR_RATE = 15;
+  if (fondTotal >= MIN_SAMPLE_FOR_RATE) {
     tauxSuccesRetenu = pct(fondFav, fondTotal);
+    tauxSuccesN = fondTotal;
     tauxSuccesSource =
-      hierarchy.cassation.total >= 5 ? "mixte" : "fond";
-  } else if (hierarchy.cassation.total >= 5) {
+      hierarchy.cassation.classifiables >= MIN_SAMPLE_FOR_RATE
+        ? "mixte"
+        : "fond";
+  } else if (hierarchy.cassation.classifiables >= MIN_SAMPLE_FOR_RATE) {
     tauxSuccesRetenu = hierarchy.cassation.cassationRate ?? null;
+    tauxSuccesN = hierarchy.cassation.classifiables;
     tauxSuccesSource = "cassation";
+  }
+
+  // Marge d'erreur à 95 % (approximation normale : 1,96 × √(p(1−p)/n)).
+  // Affichée à côté du taux pour que l'avocat lise l'incertitude réelle.
+  let tauxSuccesMarge: number | null = null;
+  if (tauxSuccesRetenu !== null && tauxSuccesN > 0) {
+    const p = tauxSuccesRetenu / 100;
+    tauxSuccesMarge =
+      Math.round(1.96 * Math.sqrt((p * (1 - p)) / tauxSuccesN) * 1000) / 10;
   }
 
   // ─── Niveau 3 : analyses statistiques avancées ──────────────
@@ -431,6 +502,7 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     const y = (d.date || "").slice(0, 4);
     if (!y) continue;
     const o = classifyOutcome(d.solution_alt || d.solution || "");
+    if (o === "indetermine") continue; // hors dénominateur
     if (!yearlyAccum[y]) yearlyAccum[y] = { total: 0, favorables: 0 };
     yearlyAccum[y].total++;
     if (o === "favorable") yearlyAccum[y].favorables++;
@@ -485,38 +557,23 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
       sortedDates[Math.floor(sortedDates.length / 2)]?.slice(0, 4) || null;
   }
 
-  // Variations régionales (par CA)
-  const regionalAccum: Record<
-    string,
-    { total: number; favorables: number }
-  > = {};
-  for (const d of decisions) {
-    if (classifyHierarchy(d) !== "courAppel") continue;
-    let label = "CA inconnue";
-    const j = (d.jurisdiction || "").toLowerCase();
-    if (j === "ca") {
-      // Tente d'extraire le ressort depuis chamber ou autres champs
-      // (Judilibre ne donne pas toujours le ressort explicite ; c'est
-      // une limitation de l'API)
-      const ch = (d.chamber || "").trim();
-      label = ch ? `CA ${ch}` : "CA";
-    } else if (j === "caa") {
-      label = "CAA";
-    }
-    if (!regionalAccum[label]) regionalAccum[label] = { total: 0, favorables: 0 };
-    regionalAccum[label].total++;
-    const o = classifyOutcome(d.solution_alt || d.solution || "");
-    if (o === "favorable") regionalAccum[label].favorables++;
-  }
-  const regionalVariations = Object.entries(regionalAccum)
-    .filter(([, v]) => v.total >= 2)
-    .map(([label, v]) => ({
-      label,
-      total: v.total,
-      favorables: v.favorables,
-      rate: pct(v.favorables, v.total),
-    }))
-    .sort((a, b) => b.rate - a.rate);
+  // ─── Variations régionales : DÉSACTIVÉES ────────────────────────────
+  // Judilibre n'expose pas le ressort d'une cour d'appel. L'implémentation
+  // précédente construisait `label = "CA " + d.chamber` — elle produisait donc
+  // des variations PAR CHAMBRE étiquetées comme des variations PAR COUR, et le
+  // prompt faisait affirmer à l'analyse « la CA la plus favorable est X » sur
+  // cette base. C'est une information fausse pour l'avocat, qui peut orienter
+  // un choix de juridiction de saisine.
+  //
+  // `chamberVariations` (ci-dessous) calcule déjà correctement la même chose
+  // sous son vrai nom. On renvoie donc un tableau vide tant que la donnée de
+  // ressort n'est pas disponible.
+  const regionalVariations: Array<{
+    label: string;
+    total: number;
+    favorables: number;
+    rate: number;
+  }> = [];
 
   // Variations par chambre / formation
   const chamberAccum: Record<
@@ -524,10 +581,13 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     { total: number; favorables: number }
   > = {};
   for (const d of decisions) {
-    const ch = CHAMBER_LABELS[d.chamber] || d.chamber || "Autre";
+    const o = classifyOutcome(d.solution_alt || d.solution || "");
+    if (o === "indetermine") continue; // hors dénominateur
+    // Une chambre non renseignée reste "Non précisé" — on ne la range pas
+    // dans "Autre" avec les chambres connues mais non mappées.
+    const ch = CHAMBER_LABELS[d.chamber] || d.chamber || "Non précisé";
     if (!chamberAccum[ch]) chamberAccum[ch] = { total: 0, favorables: 0 };
     chamberAccum[ch].total++;
-    const o = classifyOutcome(d.solution_alt || d.solution || "");
     if (o === "favorable") chamberAccum[ch].favorables++;
   }
   const chamberVariations = Object.entries(chamberAccum)
@@ -545,7 +605,12 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     string,
     { total: number; favorables: number }
   > = {};
+  // NB : une décision alimente jusqu'à 3 thèmes — la somme des `total` de
+  // themeVariations dépasse donc le corpus. Ces effectifs ne sont PAS
+  // additionnables entre eux ni comparables au total du corpus.
   for (const d of decisions) {
+    const o = classifyOutcome(d.solution_alt || d.solution || "");
+    if (o === "indetermine") continue; // hors dénominateur
     const themes = d.themes || [];
     for (const t of themes.slice(0, 3)) {
       // top 3 thèmes max par décision pour éviter explosion
@@ -553,7 +618,6 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
       if (!label) continue;
       if (!themeAccum[label]) themeAccum[label] = { total: 0, favorables: 0 };
       themeAccum[label].total++;
-      const o = classifyOutcome(d.solution_alt || d.solution || "");
       if (o === "favorable") themeAccum[label].favorables++;
     }
   }
@@ -568,13 +632,20 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     .sort((a, b) => b.total - a.total)
     .slice(0, 10);
 
-  // Taux par moyen juridique (Axe 2) : top 8 thèmes du corpus,
-  // ratio retenu/invoqué. Plus large que themeVariations (qui prend 1 label
-  // par décision) : on prend tous les thèmes de chaque décision.
+  // Issue favorable PAR THÈME DE CLASSEMENT (top 8).
+  //
+  // ⚠️ Ce n'est PAS un « taux de succès par argument juridique ». Le champ
+  // `themes` de Judilibre est un classement documentaire (titrage matière),
+  // pas la liste des moyens invoqués par les parties : il n'existe aucun lien
+  // causal entre le thème sous lequel une décision est indexée et le moyen qui
+  // a emporté la conviction du juge. Les libellés `invoque`/`retenu` sont
+  // conservés pour compatibilité, mais l'UI et le prompt doivent parler de
+  // « décisions classées sous ce thème » et « issue favorable ».
   const argAccum: Record<string, { invoque: number; retenu: number }> = {};
   for (const d of decisions) {
-    const themes = d.themes || [];
     const outcome = classifyOutcome(d.solution_alt || d.solution || "");
+    if (outcome === "indetermine") continue; // hors dénominateur
+    const themes = d.themes || [];
     const seenInDecision = new Set<string>();
     for (const t of themes) {
       const label = (t.split(" - ")[0] || t).trim();
@@ -589,7 +660,9 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     }
   }
   const argumentStats = Object.entries(argAccum)
-    .filter(([, v]) => v.invoque >= 2)
+    // Seuil relevé de 2 à 5 : un « taux » sur 2 décisions ne vaut que 0 %,
+    // 50 % ou 100 % et se lit pourtant comme une statistique.
+    .filter(([, v]) => v.invoque >= 5)
     .map(([name, v]) => ({
       name,
       invoque: v.invoque,
@@ -614,6 +687,9 @@ export function computeCorpusStats(decisions: JudilibreDecision[]): CorpusStats 
     coherencePct,
     tauxSuccesRetenu,
     tauxSuccesSource,
+    tauxSuccesN,
+    tauxSuccesMarge,
+    indeterminesTotal: totalIndetermine,
     temporalTrend: { buckets: yearBuckets, direction, deltaPct, medianYear },
     regionalVariations,
     chamberVariations,
@@ -661,17 +737,34 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
   // section "## Statistiques > Taux de succès global".
   if (stats.tauxSuccesRetenu !== null) {
     const labelSrc =
-      stats.tauxSuccesSource === "fond"
-        ? "calculé sur les décisions du fond (1er degré + CA) — base pertinente pour estimer les chances en pratique"
-        : stats.tauxSuccesSource === "mixte"
-          ? "calculé sur les décisions du fond (1er degré + CA) à l'exclusion des arrêts de Cassation pour ne pas biaiser le taux"
-          : "calculé sur les arrêts de Cour de cassation (taux de cassation) — applicable UNIQUEMENT si la stratégie envisage un pourvoi";
+      stats.tauxSuccesSource === "cassation"
+        ? "part des arrêts de Cassation ayant cassé — applicable UNIQUEMENT si la stratégie envisage un pourvoi"
+        : "part des décisions du fond (1er degré + CA) dont le dispositif est favorable au demandeur";
+    const marge =
+      stats.tauxSuccesMarge !== null ? ` ± ${stats.tauxSuccesMarge} points` : "";
     lines.push(
-      `TAUX DE SUCCÈS RETENU : ${stats.tauxSuccesRetenu}% (${labelSrc})`
+      `TAUX D'ISSUE FAVORABLE OBSERVÉ : ${stats.tauxSuccesRetenu}%${marge} (n = ${stats.tauxSuccesN} décisions au dispositif lisible — ${labelSrc})`
+    );
+    lines.push(
+      `⚠️ CADRAGE OBLIGATOIRE de ce chiffre : c'est une OBSERVATION SUR CE CORPUS, PAS une probabilité de succès.`
+    );
+    lines.push(
+      `   - Le corpus n'est pas un échantillon aléatoire : ce sont les décisions les plus proches textuellement de la requête, sur un fonds où la 1re instance est très partiellement publiée.`
+    );
+    lines.push(
+      `   - Judilibre n'indique pas quelle partie a formé le recours : « infirme » ne signifie donc pas « le demandeur initial l'emporte ».`
+    );
+    lines.push(
+      `   Tu DOIS présenter ce chiffre comme une tendance observée, et n'écris JAMAIS « X% de chances de succès ».`
     );
   } else {
     lines.push(
-      `TAUX DE SUCCÈS RETENU : non calculable sur ce corpus — données insuffisantes par catégorie`
+      `TAUX D'ISSUE FAVORABLE : non calculable — moins de 15 décisions au dispositif lisible dans la catégorie pertinente. Écris « non calculable sur ce corpus » et donne les effectifs bruts.`
+    );
+  }
+  if (stats.indeterminesTotal > 0) {
+    lines.push(
+      `Décisions au dispositif absent ou illisible : ${stats.indeterminesTotal} sur ${stats.total} — EXCLUES du dénominateur de tous les taux ci-dessus.`
     );
   }
   lines.push("");
@@ -765,40 +858,58 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
   lines.push("");
 
   // Montants extraits arithmétiquement des sommaires (regex + filtre indemnitaire).
+  // Seuil minimal pour publier une distribution de montants. En dessous, une
+  // « médiane » sur 1 ou 2 décisions se lit comme une fourchette de marché
+  // alors qu'elle ne décrit qu'un ou deux cas isolés.
+  const MIN_MONTANT_SAMPLES = 5;
   const m = stats.montantsStats;
-  if (m.montants.samples > 0) {
+  const montantsCaveat =
+    "⚠️ Ces montants proviennent des SOMMAIRES, or seuls les arrêts publiés en ont — la Cour de cassation ne fixe d'ailleurs pas les montants. Présente-les comme des ordres de grandeur observés, jamais comme un barème.";
+
+  if (m.montants.samples >= MIN_MONTANT_SAMPLES) {
     lines.push(
-      `MONTANTS DÉTECTÉS DANS LES SOMMAIRES (échantillon : ${m.montants.samples} décision${m.montants.samples > 1 ? "s" : ""}) :`,
+      `MONTANTS DÉTECTÉS DANS LES SOMMAIRES (échantillon : ${m.montants.samples} décisions) :`,
     );
     lines.push(`- Min : ${formatEuros(m.montants.min)}`);
     lines.push(`- Médiane : ${formatEuros(m.montants.median)}`);
     lines.push(`- Max : ${formatEuros(m.montants.max)}`);
+    lines.push(montantsCaveat);
+    lines.push("");
+  } else if (m.montants.samples > 0) {
+    lines.push(
+      `MONTANTS DÉTECTÉS : seulement ${m.montants.samples} décision${m.montants.samples > 1 ? "s" : ""} avec un montant identifiable — échantillon insuffisant pour une fourchette. Écris « non documenté dans le corpus analysé ».`,
+    );
     lines.push("");
   } else {
     lines.push("MONTANTS DÉTECTÉS DANS LES SOMMAIRES : aucun montant indemnitaire détecté arithmétiquement dans le corpus (samples=0).");
     lines.push("");
   }
-  if (m.article700.sampleSize > 0) {
+
+  if (m.article700.sampleSize >= MIN_MONTANT_SAMPLES) {
     lines.push(
-      `ARTICLE 700 CPC (échantillon : ${m.article700.sampleSize} décision${m.article700.sampleSize > 1 ? "s" : ""}) :`,
-    );
-    lines.push(
-      `- Taux de condamnation : ${m.article700.tauxCondamnation ?? 0}% (corpus de ${stats.total} décisions)`,
+      `ARTICLE 700 CPC — montants observés (échantillon : ${m.article700.sampleSize} décisions) :`,
     );
     lines.push(`- Montant moyen : ${formatEuros(m.article700.montantMoyen)}`);
     lines.push(`- Montant médian : ${formatEuros(m.article700.montantMedian)}`);
+    lines.push(
+      `- Taux de condamnation : NON CALCULABLE sur cette source. N'annonce AUCUN pourcentage de condamnation à l'article 700 : les sommaires ne mentionnent les frais irrépétibles que de façon marginale, un ratio serait un artefact de détection textuelle.`,
+    );
     lines.push("");
   } else {
-    lines.push("ARTICLE 700 CPC : aucun montant détecté arithmétiquement (samples=0).");
+    lines.push(
+      "ARTICLE 700 CPC : échantillon insuffisant pour publier des montants. Écris « non documenté dans le corpus analysé ».",
+    );
     lines.push("");
   }
-  if (m.dommagesInterets.samples > 0) {
+
+  if (m.dommagesInterets.samples >= MIN_MONTANT_SAMPLES) {
     lines.push(
       `DOMMAGES-INTÉRÊTS DÉTECTÉS (échantillon : ${m.dommagesInterets.samples}) :`,
     );
     lines.push(`- Min : ${formatEuros(m.dommagesInterets.min)}`);
     lines.push(`- Médiane : ${formatEuros(m.dommagesInterets.median)}`);
     lines.push(`- Max : ${formatEuros(m.dommagesInterets.max)}`);
+    lines.push(montantsCaveat);
     lines.push("");
   }
 
@@ -823,23 +934,13 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
     lines.push("");
   }
 
-  // ─── Variations régionales (CA) ───
-  if (stats.regionalVariations.length >= 2) {
-    lines.push("VARIATIONS RÉGIONALES (taux d'acceptation par cour d'appel) :");
-    for (const v of stats.regionalVariations.slice(0, 8)) {
-      lines.push(
-        `- ${v.label} : ${v.favorables}/${v.total} favorables (${v.rate}%)`
-      );
-    }
-    const max = stats.regionalVariations[0];
-    const min = stats.regionalVariations[stats.regionalVariations.length - 1];
-    if (max && min && max.label !== min.label) {
-      lines.push(
-        `Écart : ${max.label} (${max.rate}%) vs ${min.label} (${min.rate}%) = ${Math.round((max.rate - min.rate) * 10) / 10} pts`
-      );
-    }
-    lines.push("");
-  }
+  // ─── Variations régionales ───
+  // Non calculables : Judilibre n'expose pas le ressort d'une cour d'appel.
+  // On l'indique explicitement pour que le modèle n'improvise pas la section.
+  lines.push(
+    "VARIATIONS RÉGIONALES : non disponibles — l'API Judilibre n'expose pas le ressort géographique des cours d'appel. N'affirme AUCUN écart entre cours d'appel et écris « non documenté dans le corpus analysé » si la question se pose."
+  );
+  lines.push("");
 
   // ─── Variations par chambre / formation ───
   if (stats.chamberVariations.length >= 2) {
@@ -863,12 +964,15 @@ Aucune décision dans le corpus. Toutes les statistiques doivent être marquées
     lines.push("");
   }
 
-  // ─── Taux par moyen juridique (Axe 2) ───
+  // ─── Issue favorable par thème de classement ───
   if (stats.argumentStats.length > 0) {
-    lines.push("TAUX PAR ARGUMENT JURIDIQUE (top 8 — invoqués ≥ 2) :");
+    lines.push("ISSUE FAVORABLE PAR THÈME DE CLASSEMENT (top 8 — au moins 5 décisions) :");
+    lines.push(
+      "⚠️ Ces thèmes sont le CLASSEMENT DOCUMENTAIRE Judilibre, pas les moyens invoqués par les parties. Ne présente JAMAIS ces chiffres comme un « taux de succès par argument » : rien n'établit que le thème de classement soit le moyen qui a emporté la décision.",
+    );
     for (const a of stats.argumentStats) {
       lines.push(
-        `- ${a.name} : ${a.invoque} invoqués, ${a.retenu} retenus (${a.taux}%)`,
+        `- ${a.name} : ${a.retenu} issues favorables sur ${a.invoque} décisions classées sous ce thème (${a.taux}%)`,
       );
     }
     lines.push("");
