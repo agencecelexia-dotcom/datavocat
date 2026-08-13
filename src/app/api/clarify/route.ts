@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAnthropicClient } from "@/lib/claude/client";
 import { requireApprovedUser } from "@/lib/supabase/require-user";
+import { checkRateLimit } from "@/lib/api-usage/rate-limit";
 import { trackClaudeUsage } from "@/lib/api-usage/track";
 
 export const maxDuration = 30;
@@ -64,6 +65,9 @@ export async function POST(request: NextRequest) {
   const auth = await requireApprovedUser();
   if (!auth.ok) return auth.response;
   const { userId, userEmail } = auth;
+
+  const rate = await checkRateLimit(userId, "clarify");
+  if (!rate.ok) return rate.response;
 
   const { query } = await request.json();
 

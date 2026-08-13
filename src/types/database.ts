@@ -69,6 +69,10 @@ export type Database = {
           jugement_final: string | null;
           jugement_date: string | null;
           jugement_resultat: "favorable" | "partiellement_favorable" | "defavorable" | null;
+          /** Snapshot du corpus transmis au modèle (migration 00018). */
+          judilibre_corpus: Json | null;
+          /** Métriques du contrôle anti-hallucination (migration 00018). */
+          verification: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -81,6 +85,8 @@ export type Database = {
           jugement_final?: string | null;
           jugement_date?: string | null;
           jugement_resultat?: "favorable" | "partiellement_favorable" | "defavorable" | null;
+          judilibre_corpus?: Json | null;
+          verification?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -93,8 +99,61 @@ export type Database = {
           jugement_final?: string | null;
           jugement_date?: string | null;
           jugement_resultat?: "favorable" | "partiellement_favorable" | "defavorable" | null;
+          judilibre_corpus?: Json | null;
+          verification?: Json | null;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      api_usage: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          user_email: string | null;
+          provider: string;
+          model: string;
+          operation: string;
+          input_tokens: number;
+          output_tokens: number;
+          cache_write_tokens: number;
+          cache_read_tokens: number;
+          cost_usd: number;
+          analysis_id: string | null;
+          metadata: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          user_email?: string | null;
+          provider?: string;
+          model: string;
+          operation: string;
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_write_tokens?: number;
+          cache_read_tokens?: number;
+          cost_usd?: number;
+          analysis_id?: string | null;
+          metadata?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          user_email?: string | null;
+          provider?: string;
+          model?: string;
+          operation?: string;
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_write_tokens?: number;
+          cache_read_tokens?: number;
+          cost_usd?: number;
+          analysis_id?: string | null;
+          metadata?: Json | null;
+          created_at?: string;
         };
         Relationships: [];
       };
