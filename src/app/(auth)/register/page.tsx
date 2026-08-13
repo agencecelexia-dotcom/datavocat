@@ -176,10 +176,10 @@ export default function RegisterPage() {
             <input
               id="password"
               type="password"
-              placeholder="Minimum 6 caractères"
+              placeholder="Minimum 12 caractères"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
+              minLength={12}
               required
               className="w-full h-11 pl-9 pr-3 text-[13px] rounded-md outline-none"
               style={inputStyle}

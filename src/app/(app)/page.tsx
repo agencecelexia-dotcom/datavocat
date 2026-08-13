@@ -414,6 +414,18 @@ export default function AnalyzePage() {
 
   return (
     <div className="flex h-full flex-col" data-tour-phase={phase} data-tour-active-view={activeView} data-tour="tour-page">
+      {/* Annonce des changements de phase aux lecteurs d'écran : le contenu de
+          la page est intégralement remplacé à chaque étape, sans qu'aucune
+          notification ne soit émise auparavant. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {phase === "input"
+          ? "Saisie de la demande."
+          : phase === "clarify"
+            ? "Questions de clarification."
+            : phase === "analyzing"
+              ? "Analyse en cours, veuillez patienter."
+              : "Analyse terminée, les résultats sont affichés."}
+      </p>
       {phase === "input" ? (
         /* ═══ SAISINE — Hero éditorial Greffe ═══ */
         <div className="flex-1 overflow-y-auto">
@@ -890,7 +902,26 @@ export default function AnalyzePage() {
             {/* Tabs + exports */}
             {parsedData && (
               <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
-                <div data-tour="tour-view-tabs" className="flex items-center gap-1">
+                {/* Onglets sémantiques : role tablist + navigation par flèches.
+                    Ils étaient auparavant de simples <button> sans rôle, donc
+                    invisibles comme onglets pour un lecteur d'écran. */}
+                <div
+                  data-tour="tour-view-tabs"
+                  role="tablist"
+                  aria-label="Vues de l'analyse"
+                  className="flex items-center gap-1"
+                  onKeyDown={(e) => {
+                    const keys = ["text", "dashboard", "sources", "tableau"] as const;
+                    const i = keys.indexOf(activeView);
+                    if (e.key === "ArrowRight") {
+                      e.preventDefault();
+                      setActiveView(keys[(i + 1) % keys.length]);
+                    } else if (e.key === "ArrowLeft") {
+                      e.preventDefault();
+                      setActiveView(keys[(i - 1 + keys.length) % keys.length]);
+                    }
+                  }}
+                >
                   {[
                     { key: "text" as const, label: "Rapport" },
                     { key: "dashboard" as const, label: "Chiffres" },
@@ -901,6 +932,11 @@ export default function AnalyzePage() {
                     return (
                       <button
                         key={t.key}
+                        role="tab"
+                        id={`tab-${t.key}`}
+                        aria-selected={active}
+                        aria-controls={`panel-${t.key}`}
+                        tabIndex={active ? 0 : -1}
                         onClick={() => setActiveView(t.key)}
                         className="px-3 py-1.5 text-[13px] transition-all cursor-pointer"
                         style={{
@@ -930,7 +966,12 @@ export default function AnalyzePage() {
 
             {/* Content area */}
             {activeView === "text" && response && (
-              <div className="animate-fade-in-up">
+              <div
+                className="animate-fade-in-up"
+                role="tabpanel"
+                id="panel-text"
+                aria-labelledby="tab-text"
+              >
                 <div
                   className="prose-legal max-w-none"
                   dangerouslySetInnerHTML={{
@@ -941,18 +982,33 @@ export default function AnalyzePage() {
             )}
 
             {activeView === "dashboard" && parsedData && (
-              <div className="animate-fade-in-up">
+              <div
+                className="animate-fade-in-up"
+                role="tabpanel"
+                id="panel-dashboard"
+                aria-labelledby="tab-dashboard"
+              >
                 <AnalysisDashboard data={parsedData} meta={analysisMeta} />
               </div>
             )}
 
             {activeView === "tableau" && parsedData && parsedData.evidenceTable && (
-              <div className="animate-fade-in-up">
+              <div
+                className="animate-fade-in-up"
+                role="tabpanel"
+                id="panel-tableau"
+                aria-labelledby="tab-tableau"
+              >
                 <EvidenceTable data={parsedData.evidenceTable} />
               </div>
             )}
             {activeView === "tableau" && parsedData && !parsedData.evidenceTable && (
-              <div className="flex items-center justify-center p-12 text-center">
+              <div
+                className="flex items-center justify-center p-12 text-center"
+                role="tabpanel"
+                id="panel-tableau"
+                aria-labelledby="tab-tableau"
+              >
                 <div>
                   <Table className="mx-auto h-10 w-10 mb-3" style={{ color: "var(--muted-foreground)" }} />
                   <p className="text-[14px]" style={{ color: "var(--muted-foreground)" }}>
@@ -963,7 +1019,12 @@ export default function AnalyzePage() {
             )}
 
             {activeView === "sources" && parsedData && (
-              <div className="animate-fade-in-up">
+              <div
+                className="animate-fade-in-up"
+                role="tabpanel"
+                id="panel-sources"
+                aria-labelledby="tab-sources"
+              >
                 <SourcesAnnex data={parsedData} />
               </div>
             )}
@@ -1092,11 +1153,19 @@ function FiabiliteBar({ fiabilite }: { fiabilite: ParsedAnalysis["fiabilite"] })
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (open && !ref.current?.contains(e.target as Node)) setOpen(false);
+    if (!open) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [open]);
 
   return (
